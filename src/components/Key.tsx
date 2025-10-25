@@ -1,9 +1,9 @@
 import "./Key.css";
 
-import { Layers2Icon } from "lucide-react";
+import { showModMask } from "@/utils/keys";
 import React from "react";
 import { UNIT_SIZE } from "../constants/svalboard-layout";
-import { showModMask } from "@/utils/keys";
+import LayersIcon from "./icons/Layers";
 
 interface KeyProps {
     x: number; // X position in key units
@@ -69,7 +69,7 @@ export const Key: React.FC<KeyProps> = ({ x, y, w, h, keycode, label, row, col, 
                 title={keycode}
             >
                 {topStr !== "" && <span className=" text-xs text-white whitespace-nowrap bg-green-800 w-full rounded-t-sm text-center py-0">{topStr}</span>}
-                {keyContents?.type === "layer" && <Layers2Icon className="text-white mt-1 h-12" />}
+                {keyContents?.type === "layer" && <LayersIcon className="text-white mt-1 h-20" />}
                 <div className="text-white text-xs text-center w-full h-full justify-center items-center flex">{l}</div>
                 {bottomStr !== "" && <span className=" text-xs text-white whitespace-nowrap bg-green-800 w-full rounded-b-sm text-center py-0">{bottomStr}</span>}
             </div>

@@ -1,16 +1,16 @@
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { FC, useEffect, useState } from "react";
 import { GripVerticalIcon, PencilIcon } from "lucide-react";
+import { FC, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useVial } from "@/contexts/VialContext";
 
 interface Props {
     icon: React.ReactNode;
     editElement?: React.ReactNode;
     items?: Array<any>;
-    setItemToEdit: (item: any) => void;
+    itemToEdit?: number | null;
+    setItemToEdit: (item: number | null) => void;
 }
 
 interface ItemGroup<T> {
@@ -20,8 +20,7 @@ interface ItemGroup<T> {
     endIndex: number;
 }
 
-const BindingsList: FC<Props> = ({ editElement, icon, setItemToEdit, items = [] }) => {
-    const { keyboard } = useVial();
+const BindingsList: FC<Props> = ({ editElement, icon, itemToEdit = null, setItemToEdit, items = [] }) => {
     const itemsCount = items.length;
     const [groups, setGroups] = useState<ItemGroup<any>[]>([]);
     const [activeGroup, setActiveGroup] = useState<ItemGroup<any>>(groups[0] || null);
@@ -42,6 +41,46 @@ const BindingsList: FC<Props> = ({ editElement, icon, setItemToEdit, items = [] 
         setGroups(g);
         setActiveGroup(g[0]);
     }, [items]);
+
+    const renderedItems = useMemo(() => {
+        if (!activeGroup) {
+            return null;
+        }
+
+        const shouldUseDialog = Boolean(editElement);
+
+        return activeGroup.items.map((_, localIndex) => {
+            const absoluteIndex = localIndex + activeGroup.startIndex;
+            const editButton = (
+                <Button size="sm" variant="ghost" onClick={() => setItemToEdit(absoluteIndex)} className="px-4 py-1  group-hover/item:opacity-100 opacity-0">
+                    <PencilIcon className="h-4 w-4" />
+                </Button>
+            );
+
+            const editControl = shouldUseDialog ? <DialogTrigger asChild>{editButton}</DialogTrigger> : editButton;
+            const isActive = absoluteIndex === itemToEdit;
+
+            return (
+                <div className={cn("flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item")} key={absoluteIndex}>
+                    <div className="flex flex-row items-center">
+                        <Button size="sm" variant="ghost" className="cursor-move group-hover/item:opacity-100 opacity-0">
+                            <GripVerticalIcon className="h-4 w-4" />
+                        </Button>
+                        {absoluteIndex}
+                    </div>
+                    <span className="text-md text-left w-full border-b border-b-dashed py-2"></span>
+                    <div className="flex flex-row flex-shrink-0 items-center gap-1">
+                        <div className="flex flex-col bg-black h-12 w-12 rounded-sm flex-shrink-0 items-center ">
+                            <div className="h-4 w-4 mt-2 mb-1 text-white">{icon}</div>
+                            <span className="text-xs text-white">{absoluteIndex}</span>
+                        </div>
+
+                        {editControl}
+                    </div>
+                </div>
+            );
+        });
+    }, [activeGroup, editElement, icon, itemToEdit, setItemToEdit]);
 
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col">
@@ -65,41 +104,14 @@ const BindingsList: FC<Props> = ({ editElement, icon, setItemToEdit, items = [] 
                 </div>
             </div>
             <div className=" flex flex-col overflow-auto flex-grow">
-                <Dialog>
-                    {activeGroup?.items.map((item, i) => {
-                        return (
-                            <div className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item" key={i}>
-                                <div className="flex flex-row items-center">
-                                    <Button size="sm" variant="ghost" className="cursor-move group-hover/item:opacity-100 opacity-0">
-                                        <GripVerticalIcon className="h-4 w-4" />
-                                    </Button>
-                                    {i + activeGroup.startIndex}
-                                </div>
-                                <span className="text-md text-left w-full border-b border-b-dashed py-2"></span>
-                                <div className="flex flex-row flex-shrink-0 items-center gap-1">
-                                    <div className="flex flex-col bg-black h-12 w-12 rounded-sm flex-shrink-0 items-center ">
-                                        <div className="h-4 w-4 mt-2 mb-1 text-white">{icon}</div>
-                                        <span className="text-xs text-white">{i + activeGroup.startIndex}</span>
-                                    </div>
-
-                                    <DialogTrigger asChild>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => {
-                                                setItemToEdit(i);
-                                            }}
-                                            className="px-4 py-1  group-hover/item:opacity-100 opacity-0"
-                                        >
-                                            <PencilIcon className="h-4 w-4" />
-                                        </Button>
-                                    </DialogTrigger>
-                                </div>
-                            </div>
-                        );
-                    })}
-                    {editElement}
-                </Dialog>
+                {editElement ? (
+                    <Dialog>
+                        {renderedItems}
+                        {editElement}
+                    </Dialog>
+                ) : (
+                    renderedItems
+                )}
             </div>
         </section>
     );

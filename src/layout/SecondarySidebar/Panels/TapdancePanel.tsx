@@ -1,22 +1,16 @@
-import BindingsList from "../components/BindingsList";
-import { FootprintsIcon } from "lucide-react";
-import { useState } from "react";
+import TapdanceIcon from "@/components/icons/Tapdance";
 import { useVial } from "@/contexts/VialContext";
+import BindingsList from "../components/BindingsList";
 
-const TapdancePanel = () => {
+interface TapdancePanelProps {
+    onEditTapdance: (index: number | null) => void;
+    currentTapdance: number | null;
+}
+
+const TapdancePanel: React.FC<TapdancePanelProps> = ({ onEditTapdance, currentTapdance }) => {
     const { keyboard } = useVial();
     const tapdances = (keyboard as any)?.tapdances || [];
-    const [itemToEdit, setItemToEdit] = useState<number | null>(null);
-    return (
-        <BindingsList
-            icon={<FootprintsIcon className="h-4 w-4 text-white" />}
-            items={tapdances}
-            setItemToEdit={(index) => {
-                setItemToEdit(index);
-            }}
-            editElement={itemToEdit !== null ? <div>Edit Tapdance {itemToEdit}</div> : undefined}
-        />
-    );
+    return <BindingsList icon={<TapdanceIcon className="h-4 w-4 text-white" />} items={tapdances} itemToEdit={currentTapdance} setItemToEdit={onEditTapdance} />;
 };
 
 export default TapdancePanel;

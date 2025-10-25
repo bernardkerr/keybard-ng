@@ -1,7 +1,7 @@
-import BindingsList from "../components/BindingsList";
-import { LayoutListIcon } from "lucide-react";
-import { useState } from "react";
+import MacrosIcon from "@/components/icons/MacrosIcon";
 import { useVial } from "@/contexts/VialContext";
+import { useState } from "react";
+import BindingsList from "../components/BindingsList";
 
 const MacrosPanel = () => {
     const { keyboard } = useVial();
@@ -9,7 +9,7 @@ const MacrosPanel = () => {
     const [itemToEdit, setItemToEdit] = useState<number | null>(null);
     return (
         <BindingsList
-            icon={<LayoutListIcon className="h-4 w-4 text-white" />}
+            icon={<MacrosIcon className="h-4 w-4 text-white" />}
             items={macros}
             setItemToEdit={(index) => {
                 setItemToEdit(index);

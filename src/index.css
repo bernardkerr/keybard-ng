@@ -49,6 +49,8 @@
     --color-kb-grey: #85929b;
     --color-kb-red: #d8304a;
     --color-kb-brown: #b39369;
+    --color-kb-gray-medium: #eaeae9;
+    --color-kb-gray-border: #a7a9ac;
 }
 
 :root {

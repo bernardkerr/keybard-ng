@@ -1,7 +1,7 @@
-import BindingsList from "../components/BindingsList";
-import { LayoutListIcon } from "lucide-react";
-import { useState } from "react";
+import ComboIcon from "@/components/ComboIcon";
 import { useVial } from "@/contexts/VialContext";
+import { useState } from "react";
+import BindingsList from "../components/BindingsList";
 
 const CombosPanel = () => {
     const { keyboard } = useVial();
@@ -9,7 +9,7 @@ const CombosPanel = () => {
     const [itemToEdit, setItemToEdit] = useState<number | null>(null);
     return (
         <BindingsList
-            icon={<LayoutListIcon className="h-4 w-4 text-white" />}
+            icon={<ComboIcon className="h-4 w-4 text-white" />}
             items={combos}
             setItemToEdit={(index) => {
                 setItemToEdit(index);
