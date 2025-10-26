@@ -7,14 +7,19 @@ import Keyboard from "react-simple-keyboard";
 
 interface IProps {
     onChange: (input: string) => void;
+    onKeyPress?: (button: string) => void;
     keyboardRef: any;
 }
 
-const NumpadKeyboard: FunctionComponent<IProps> = ({ onChange, keyboardRef }) => {
+const NumpadKeyboard: FunctionComponent<IProps> = ({ onChange, onKeyPress: onKeyPressCallback, keyboardRef }) => {
     const [layoutName, setLayoutName] = useState("default");
     const onKeyPress = (button: string) => {
         if (button === "{shift}" || button === "{lock}") {
             setLayoutName(layoutName === "default" ? "shift" : "default");
+        }
+        // Call the callback if provided
+        if (onKeyPressCallback) {
+            onKeyPressCallback(button);
         }
     };
     const commonKeyboardOptions = {

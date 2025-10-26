@@ -1,11 +1,12 @@
 import "./Keyboard.css";
 
-import { MATRIX_COLS, SVALBOARD_LAYOUT, UNIT_SIZE } from "../constants/svalboard-layout";
-import React, { useEffect, useState } from "react";
 import { getKeyLabel, getKeycodeName } from "@/utils/layers";
+import React, { useEffect, useState } from "react";
+import { MATRIX_COLS, SVALBOARD_LAYOUT, UNIT_SIZE } from "../constants/svalboard-layout";
 
-import { Key } from "./Key";
+import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import type { KeyboardInfo } from "../types/vial.types";
+import { Key } from "./Key";
 
 interface KeyboardProps {
     keyboard: KeyboardInfo;
@@ -15,20 +16,27 @@ interface KeyboardProps {
 }
 
 export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, onKeyClick, selectedLayer, setSelectedLayer }) => {
-    const [selectedKey, setSelectedKey] = useState<{ row: number; col: number } | null>(null);
+    const { selectKeyboardKey, selectedTarget } = useKeyBinding();
+    const [localSelectedKey, setLocalSelectedKey] = useState<{ row: number; col: number } | null>(null);
 
     // Get the keymap for the selected layer
     const layerKeymap = keyboard.keymap?.[selectedLayer] || [];
 
     const handleKeyClick = (row: number, col: number) => {
-        setSelectedKey({ row, col });
+        setLocalSelectedKey({ row, col });
+        selectKeyboardKey(selectedLayer, row, col);
         if (onKeyClick) {
             onKeyClick(selectedLayer, row, col);
         }
     };
 
+    // Check if this key is the globally selected target
+    const isKeySelected = (row: number, col: number) => {
+        return selectedTarget?.type === "keyboard" && selectedTarget.layer === selectedLayer && selectedTarget.row === row && selectedTarget.col === col;
+    };
+
     useEffect(() => {
-        setSelectedKey(null); // Clear selected key when layer changes
+        setLocalSelectedKey(null); // Clear selected key when layer changes
     }, [selectedLayer]);
 
     // Calculate the keyboard dimensions for the container
@@ -73,7 +81,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, onKeyClick, select
                             label={label}
                             row={row}
                             col={col}
-                            selected={selectedKey?.row === row && selectedKey?.col === col}
+                            selected={isKeySelected(row, col)}
                             onClick={handleKeyClick}
                             keyContents={keyContents}
                         />
@@ -81,17 +89,17 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, onKeyClick, select
                 })}
             </div>
 
-            {selectedKey && (
+            {localSelectedKey && (
                 <div className="bg-white text-black p-4 mt-4 rounded shadow-md w-64 absolute bottom-5 right-5 rounded-2xl">
                     <h4>Selected Key</h4>
                     <p>
-                        <b>Position</b>: Row {selectedKey.row}, Col {selectedKey.col}
+                        <b>Position</b>: Row {localSelectedKey.row}, Col {localSelectedKey.col}
                     </p>
                     <p>
-                        <b>Matrix</b>: {selectedKey.row * MATRIX_COLS + selectedKey.col}
+                        <b>Matrix</b>: {localSelectedKey.row * MATRIX_COLS + localSelectedKey.col}
                     </p>
                     <p>
-                        <b>Keycode</b>: {getKeycodeName(layerKeymap[selectedKey.row * MATRIX_COLS + selectedKey.col] || 0)}
+                        <b>Keycode</b>: {getKeycodeName(layerKeymap[localSelectedKey.row * MATRIX_COLS + localSelectedKey.col] || 0)}
                     </p>
                 </div>
             )}
