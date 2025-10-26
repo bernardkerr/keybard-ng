@@ -1,11 +1,12 @@
-import { Layers2Icon, RectangleEllipsisIcon } from "lucide-react";
+import { RectangleEllipsisIcon } from "lucide-react";
 
-import { Dialog } from "@/components/ui/dialog";
-import { DialogTrigger } from "@radix-ui/react-dialog";
 import EditLayer from "@/components/EditLayer";
-import { FC } from "react";
-import { svalService } from "@/services/sval.service";
+import LayersIcon from "@/components/icons/Layers";
+import { Dialog } from "@/components/ui/dialog";
 import { useVial } from "@/contexts/VialContext";
+import { svalService } from "@/services/sval.service";
+import { DialogTrigger } from "@radix-ui/react-dialog";
+import { FC } from "react";
 
 interface Props {
     selectedLayer: number;
@@ -22,7 +23,7 @@ const LayerSelector: FC<Props> = ({ selectedLayer, setSelectedLayer }) => {
     return (
         <div>
             <div className="h-[50px] py-10 w-full flex items-center justify-start text-gray-500 gap-1">
-                <Layers2Icon className="ml-2 h-5 w-5 mr-2 text-black" />
+                <LayersIcon className="ml-2 h-5 w-5 mr-2 text-black" />
                 {Array.from({ length: keyboard!.layers || 16 }, (_, i) => {
                     const layer = svalService.getLayerNameNoLabel(keyboard!, i);
                     const isActive = selectedLayer === i;
