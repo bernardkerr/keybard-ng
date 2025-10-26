@@ -18,7 +18,7 @@ interface KeyboardProps {
 export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer, setSelectedLayer }) => {
     const { selectKeyboardKey, selectedTarget } = useKeyBinding();
     const [localSelectedKey, setLocalSelectedKey] = useState<{ row: number; col: number } | null>(null);
-
+    const layerColor = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "primary";
     // Get the keymap for the selected layer
     const layerKeymap = keyboard.keymap?.[selectedLayer] || [];
 
@@ -81,6 +81,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer, set
                             selected={isKeySelected(row, col)}
                             onClick={handleKeyClick}
                             keyContents={keyContents}
+                            layerColor={layerColor}
                         />
                     );
                 })}

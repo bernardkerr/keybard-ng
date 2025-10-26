@@ -17,7 +17,6 @@ const EditLayer: FC<Props> = ({ layer, layerName }) => {
     const [name, setName] = useState<string>(layerName || "");
     const { keyboard, setKeyboard } = useVial();
     const handleSubmit = () => {
-        console.log("Submitting layer edit:", { layer, name, selectedColor });
         if (keyboard) {
             const updatedKeyboard = { ...keyboard };
             const layerCosmetics = updatedKeyboard.cosmetic?.layer || {};

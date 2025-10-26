@@ -9,6 +9,7 @@ import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
 import { svalService } from "@/services/sval.service";
+import { colorClasses } from "@/services/utils";
 
 const layerModifiers = ["MO", "DF", "TG", "TT", "OSL", "TO"];
 
@@ -43,13 +44,14 @@ const LayersPanel = () => {
             <div className=" flex flex-col overflow-auto flex-grow">
                 {Array.from({ length: keyboard!.layers || 16 }, (_, i) => {
                     const layer = svalService.getLayerNameNoLabel(keyboard!, i);
+                    const layerColor = keyboard?.cosmetic?.layer_colors && keyboard.cosmetic.layer_colors[i] ? keyboard.cosmetic.layer_colors[i] : "primary";
                     return (
                         <div className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item" key={layer}>
                             <div className="flex flex-row items-center">
                                 <Button size="sm" variant="ghost" className="cursor-move group-hover/item:opacity-100 opacity-0">
                                     <GripVerticalIcon className="h-4 w-4" />
                                 </Button>
-                                <div className={`ml-[5px] w-3 h-3 bg-black rounded-full flex-shrink-0`}></div>
+                                <div className={`ml-[5px] w-3 h-3 ${colorClasses[layerColor]} rounded-full flex-shrink-0`}></div>
                             </div>
                             <span className="text-md text-left w-full border-b border-b-dashed py-2">{layer}</span>
                             <div className="flex flex-row flex-shrink-0 items-center gap-1">

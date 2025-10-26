@@ -2,6 +2,7 @@ import "./Key.css";
 
 import { getModMasks, showModMask } from "@/utils/keys";
 
+import { colorClasses } from "@/services/utils";
 import React from "react";
 import { UNIT_SIZE } from "../constants/svalboard-layout";
 import LayersIcon from "./icons/Layers";
@@ -20,9 +21,10 @@ interface KeyProps {
     selected?: boolean;
     onClick?: (row: number, col: number) => void;
     keyContents?: any; // Additional key contents info
+    layerColor?: string;
 }
 
-export const Key: React.FC<KeyProps> = ({ x, y, w, h, keycode, label, row, col, selected = false, onClick, keyContents }) => {
+export const Key: React.FC<KeyProps> = ({ x, y, w, h, keycode, label, row, col, layerColor = "primary", selected = false, onClick, keyContents }) => {
     let bottomStr = "";
     let topStr = "";
 
@@ -65,7 +67,9 @@ export const Key: React.FC<KeyProps> = ({ x, y, w, h, keycode, label, row, col, 
             <div className="absolute top-0 left-0">
                 <div
                     className={`
-                    absolute bg-kb-primary flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ease-in-out rounded-md uppercase flex flex-col items-center justify-between
+                    absolute ${
+                        colorClasses[layerColor]
+                    } flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ease-in-out rounded-md uppercase flex flex-col items-center justify-between
                     ${selected ? "border-2 border-kb-gray bg-red-500" : "border-2 border-kb-gray hover:border-red-500"}
                   `}
                     style={style}
@@ -89,7 +93,9 @@ export const Key: React.FC<KeyProps> = ({ x, y, w, h, keycode, label, row, col, 
         <div className="absolute top-0 left-0">
             <div
                 className={`
-                    absolute bg-kb-primary flex items-center justify-center cursor-pointer transition-all duration-200 ease-in-out rounded-md uppercase flex flex-col items-center justify-between
+                    absolute ${
+                        colorClasses[layerColor]
+                    } flex items-center justify-center cursor-pointer transition-all duration-200 ease-in-out rounded-md uppercase flex flex-col items-center justify-between
                     ${selected ? "border-2 border-kb-gray bg-red-500" : "border-2 border-kb-gray hover:border-red-500"}
                   `}
                 style={style}
