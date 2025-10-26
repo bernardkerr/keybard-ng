@@ -17,3 +17,15 @@ export function getColorByName(name: string) {
 export function getClassNameByColor(name: string) {
     return `bg-kb-${name}`;
 }
+
+export const colorClasses: { [key: string]: string } = {
+    primary: "bg-kb-primary",
+    red: "bg-kb-red",
+    green: "bg-kb-green",
+    blue: "bg-kb-blue",
+    yellow: "bg-kb-yellow",
+    orange: "bg-kb-orange",
+    purple: "bg-kb-purple",
+    grey: "bg-kb-grey",
+    brown: "bg-kb-brown",
+};

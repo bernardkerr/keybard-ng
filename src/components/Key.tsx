@@ -2,7 +2,7 @@ import "./Key.css";
 
 import { getModMasks, showModMask } from "@/utils/keys";
 
-import { colorClasses } from "@/services/utils";
+import { colorClasses } from "@/utils/colors";
 import React from "react";
 import { UNIT_SIZE } from "../constants/svalboard-layout";
 import LayersIcon from "./icons/Layers";

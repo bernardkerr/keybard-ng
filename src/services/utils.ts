@@ -48,14 +48,3 @@ export function range(num: number): number[] {
 export function repeat<T>(what: T, count: number): T[] {
     return Array.from({ length: count }, () => what);
 }
-
-export const colorClasses: { [key: string]: string } = {
-    primary: "bg-kb-primary",
-    red: "bg-kb-red",
-    green: "bg-kb-green",
-    blue: "bg-kb-blue",
-    yellow: "bg-kb-yellow",
-    orange: "bg-kb-orange",
-    purple: "bg-kb-purple",
-    gray: "bg-kb-gray",
-};

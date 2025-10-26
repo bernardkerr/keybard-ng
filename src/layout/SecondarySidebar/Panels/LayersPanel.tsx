@@ -9,7 +9,7 @@ import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
 import { svalService } from "@/services/sval.service";
-import { colorClasses } from "@/services/utils";
+import { colorClasses } from "@/utils/colors";
 
 const layerModifiers = ["MO", "DF", "TG", "TT", "OSL", "TO"];
 
