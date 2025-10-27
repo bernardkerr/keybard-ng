@@ -57,6 +57,9 @@ export const Key: React.FC<KeyProps> = ({ x, y, w, h, keycode, label, row, col, 
     if (keyContents?.type === "macro") {
         l = keyContents.str.replace("M", "");
     }
+    if (keyContents?.type === "user") {
+        l = keyContents.str;
+    }
     if (l === "KC_NO") {
         l = "";
     }
@@ -70,7 +73,7 @@ export const Key: React.FC<KeyProps> = ({ x, y, w, h, keycode, label, row, col, 
                     absolute ${
                         colorClasses[layerColor]
                     } flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ease-in-out rounded-md uppercase flex flex-col items-center justify-between
-                    ${selected ? "border-2 border-kb-gray bg-red-500" : "border-2 border-kb-gray hover:border-red-500"}
+                    ${selected ? "border-2 border-kb-gray bg-red-500 text-white" : "border-2 border-kb-gray hover:border-red-500"}
                   `}
                     style={style}
                     onClick={handleClick}
@@ -79,10 +82,10 @@ export const Key: React.FC<KeyProps> = ({ x, y, w, h, keycode, label, row, col, 
                     data-col={col}
                     title={keycode}
                 >
-                    <span className="text-sm text-white whitespace-nowrap bg-black/30 w-full rounded-t-sm text-center font-semibold py-0">{keyContents?.layertext}</span>
+                    <span className="text-sm whitespace-nowrap bg-black/30 w-full rounded-t-sm text-center text-white font-semibold py-0">{keyContents?.layertext}</span>
                     <div className="flex flex-row h-full w-full items-center justify-center gap-2">
-                        <div className="text-white text-md text-center justify-center items-center flex font-semibold">{keyContents?.top.split("(")[1].replace(")", "")}</div>
-                        <LayersIcon className="text-white" />
+                        <div className="text-md text-center justify-center items-center flex font-semibold">{keyContents?.top.split("(")[1].replace(")", "")}</div>
+                        <LayersIcon className="" />
                     </div>
                 </div>
             </div>
@@ -96,7 +99,7 @@ export const Key: React.FC<KeyProps> = ({ x, y, w, h, keycode, label, row, col, 
                     absolute ${
                         colorClasses[layerColor]
                     } flex items-center justify-center cursor-pointer transition-all duration-200 ease-in-out rounded-md uppercase flex flex-col items-center justify-between
-                    ${selected ? "border-2 border-kb-gray bg-red-500" : "border-2 border-kb-gray hover:border-red-500"}
+                    ${selected ? "border-2 border-kb-gray bg-red-500 text-white" : "border-2 border-kb-gray hover:border-red-500"}
                   `}
                 style={style}
                 onClick={handleClick}
@@ -105,11 +108,16 @@ export const Key: React.FC<KeyProps> = ({ x, y, w, h, keycode, label, row, col, 
                 data-col={col}
                 title={keycode}
             >
-                {topStr !== "" && <span className=" text-xs text-white whitespace-nowrap bg-green-800 w-full rounded-t-sm text-center py-0">{topStr}</span>}
-                {keyContents?.type === "tapdance" && <TapdanceIcon className="text-white mt-2 h-8" />}
-                {keyContents?.type === "macro" && <MacrosIcon className="text-white mt-2 h-8" />}
-                <div className="text-white text-md text-center w-full h-full justify-center items-center flex font-semibold">{l}</div>
-                {bottomStr !== "" && <span className="font-medium text-xs text-white whitespace-nowrap bg-black/30 w-full rounded-b-sm text-center py-0 fitty">{bottomStr}</span>}
+                {topStr !== "" && <span className=" text-xs whitespace-nowrap bg-green-800 w-full rounded-t-sm text-center py-0">{topStr}</span>}
+                {keyContents?.type === "tapdance" && <TapdanceIcon className=" mt-2 h-8" />}
+                {keyContents?.type === "macro" && <MacrosIcon className=" mt-2 h-8" />}
+                <div
+                    className="text-md text-center w-full h-full justify-center items-center flex font-semibold"
+                    style={keyContents?.type === "user" ? { whiteSpace: "pre-line", fontSize: "0.7rem" } : {}}
+                >
+                    {l}
+                </div>
+                {bottomStr !== "" && <span className="font-medium text-xs whitespace-nowrap text-white bg-black/30 w-full rounded-b-sm text-center py-0 fitty">{bottomStr}</span>}
             </div>
         </div>
     );

@@ -161,6 +161,23 @@ export function getKeyContents(KBINFO: KeyboardInfo, keystr: any) {
         };
     }
 
+    // Handle USER keys with custom keycodes
+    m = keystr.match(/^USER(\d+)$/);
+    if (m) {
+        const userIndex = parseInt(m[1], 10);
+        if (KBINFO.custom_keycodes && KBINFO.custom_keycodes[userIndex]) {
+            const custom = KBINFO.custom_keycodes[userIndex];
+            return {
+                type: "user",
+                str: custom.shortName.replace(/\\n/g, "\n"),
+                title: custom.title,
+                top: keystr,
+            };
+        }
+        // Fallback to default if not found
+        return keyService.define(keystr);
+    }
+
     if (keystr.startsWith("KC_") && (keyid & 0xff00) === 0) {
         return keyService.define(keystr);
     }
