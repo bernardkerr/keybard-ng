@@ -3,9 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import InternationalKeyboard from "@/components/Keyboards/InternationalKeyboard";
 import NumpadKeyboard from "@/components/Keyboards/NumpadKeyboard";
 import QwertyKeyboard from "@/components/Keyboards/QwertyKeyboard";
+import SpecialKeyboard from "@/components/Keyboards/SpecialKeyboard";
+import SvalboardKeyboard from "@/components/Keyboards/SvalboardKeyboard";
 import { Button } from "@/components/ui/button";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
+import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
+import { KeyboardInfo } from "@/types/vial.types";
 
 // Mapping from react-simple-keyboard button text to QMK keycodes
 const BUTTON_TO_KEYCODE: Record<string, string> = {
@@ -122,6 +126,18 @@ const BUTTON_TO_KEYCODE: Record<string, string> = {
     "{pause}": "KC_PAUS",
 };
 
+const getKeyCodeForButton = (keyboard: KeyboardInfo, button: string): string | undefined => {
+    const k = BUTTON_TO_KEYCODE[button.toLowerCase()];
+    if (k) {
+        return k;
+    }
+    const customKeycode = keyboard.custom_keycodes?.findIndex((ck) => ck.name === button);
+    if (customKeycode === undefined || customKeycode < 0) {
+        return button;
+    }
+    return `USER${customKeycode?.toString().padStart(2, "0")}`;
+};
+
 const modifierOptions = ["Shift", "Ctrl", "Alt", "Gui"] as const;
 const keyboardCategories = ["Numpad", "International", "Svalboard", "Special"] as const;
 type DetailCategory = (typeof keyboardCategories)[number];
@@ -130,9 +146,14 @@ const BasicKeyboards = () => {
     const keyboardRef = useRef(null);
     const numpadKeyboardRef = useRef(null);
     const internationalKeyboardRef = useRef(null);
+    const svalboardKeyboardRef = useRef(null);
+    const customKeyboardRef = useRef(null);
+    const specialKeyboardRef = useRef(null);
     const [activeCategory, setActiveCategory] = useState<DetailCategory>("Numpad");
     const [activeModifiers, setActiveModifiers] = useState<string[]>([]);
     const { assignKeycode, isBinding } = useKeyBinding();
+    const { keyboard } = useVial();
+    console.log("BasicKeyboards keyboard:", keyboard);
 
     useEffect(() => {
         setActiveCategory("Numpad");
@@ -146,7 +167,8 @@ const BasicKeyboards = () => {
     const handleKeyboardInput = (button: string) => {
         if (!isBinding) return;
 
-        let keycode = BUTTON_TO_KEYCODE[button.toLowerCase()];
+        let keycode = getKeyCodeForButton(keyboard!, button);
+        console.log("Button pressed:", button, "Mapped keycode:", keycode);
         if (!keycode) {
             console.warn(`No keycode mapping for button: ${button}`);
             return;
@@ -247,6 +269,10 @@ const BasicKeyboards = () => {
                 <div className="space-y-4">
                     {activeCategory === "Numpad" && <NumpadKeyboard keyboardRef={numpadKeyboardRef} onChange={() => {}} onKeyPress={handleKeyboardInput} />}
                     {activeCategory === "International" && <InternationalKeyboard keyboardRef={internationalKeyboardRef} onChange={() => {}} onKeyPress={handleKeyboardInput} />}
+                    {activeCategory === "Svalboard" && (
+                        <SvalboardKeyboard keyboardRef={svalboardKeyboardRef} customKeyboardRef={customKeyboardRef} onChange={() => {}} onKeyPress={handleKeyboardInput} />
+                    )}
+                    {activeCategory === "Special" && <SpecialKeyboard keyboardRef={specialKeyboardRef} onChange={() => {}} onKeyPress={handleKeyboardInput} />}
                 </div>
             </section>
         </div>

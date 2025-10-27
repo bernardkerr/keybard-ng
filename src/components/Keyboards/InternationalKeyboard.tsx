@@ -12,15 +12,15 @@ interface IProps {
 
 const InternationalKeyboard: FunctionComponent<IProps> = ({ onChange, onKeyPress: onKeyPressCallback, keyboardRef }) => {
     const [layoutName, setLayoutName] = useState("default");
+
     const onKeyPress = (button: string) => {
-        if (button === "{shift}" || button === "{lock}") {
-            setLayoutName(layoutName === "default" ? "shift" : "default");
+        // toggle between default and shift layouts for shift/lock
+        if (button === "{shift}" || button === "{lock}" || button === "{shiftleft}" || button === "{shiftright}") {
+            setLayoutName((prev) => (prev === "default" ? "shift" : "default"));
         }
-        // Call the callback if provided
-        if (onKeyPressCallback) {
-            onKeyPressCallback(button);
-        }
+        if (onKeyPressCallback) onKeyPressCallback(button);
     };
+
     const commonKeyboardOptions = {
         onChange: (input: string) => onChange(input),
         onKeyPress: (button: any) => onKeyPress(button),
@@ -31,36 +31,56 @@ const InternationalKeyboard: FunctionComponent<IProps> = ({ onChange, onKeyPress
         debug: true,
     };
 
+    /**
+     * Build a layout that mirrors the provided HTML structure and uses QMK keycodes
+     * - kb-spam: a flat list of symbol keys used for quick binding
+     * - kb-group / kb-row: primary keyboard rows with labels and some JIS/Korean keys
+     */
     const keyboardOptions = {
         ...commonKeyboardOptions,
-        /**
-         * Layout by:
-         * Sterling Butters (https://github.com/SterlingButters)
-         */
         layout: {
             default: [
-                "# \\",
-                "` 1 2 3 4 5 6 7 8 9 0 - = {backspace}",
-                "{tab} q w e r t y u i o p [ ] \\",
-                "{capslock} a s d f g h j k l ; ' {enter}",
-                "{shiftleft} z x c v b n m , . / {shiftright}",
-                "{controlleft} {altleft} {metaleft} {space} {metaright} {altright} {controlright}",
-            ],
-            shift: [
-                "{escape} {f1} {f2} {f3} {f4} {f5} {f6} {f7} {f8} {f9} {f10} {f11} {f12}",
-                "~ ! @ # $ % ^ & * ( ) _ + {backspace}",
-                "{tab} Q W E R T Y U I O P { } |",
-                '{capslock} A S D F G H J K L : " {enter}',
-                "{shiftleft} Z X C V B N M < > ? {shiftright}",
-                "{controlleft} {altleft} {metaleft} {space} {metaright} {altright} {controlright}",
+                // Represent kb-spam as a single long row of QMK keycodes (space separated)
+                // Note: react-simple-keyboard will render them as separate keys
+                "KC_NONUS_HASH KC_NONUS_BSLASH KC_RO KC_KP_COMMA KC_TILD",
+                "KC_AT KC_CIRC KC_AMPR KC_ASTR KC_LPRN KC_RPRN KC_UNDS",
+                "KC_PLUS KC_LCBR KC_RCBR KC_LT KC_GT KC_COLN KC_QUES",
+                "KC_DQUO KC_PIPE KC_DLR KC_EXLM KC_HASH KC_PERC",
             ],
         },
+
+        // Map display labels to make keys readable. QMK keycodes are preserved as key names.
         display: {
+            KC_NONUS_HASH: "~ #",
+            KC_NONUS_BSLASH: "| \\",
+            KC_RO: "_ \\",
+            KC_KP_COMMA: "KP ,",
+            KC_TILD: "~",
+            KC_AT: "@",
+            KC_CIRC: "^",
+            KC_AMPR: "&",
+            KC_ASTR: "*",
+            KC_LPRN: "(",
+            KC_RPRN: ")",
+            KC_UNDS: "_",
+            KC_PLUS: "+",
+            KC_LCBR: "{",
+            KC_RCBR: "}",
+            KC_LT: "<",
+            KC_GT: ">",
+            KC_COLN: ":",
+            KC_QUES: "?",
+            KC_DQUO: '"',
+            KC_PIPE: "|",
+            KC_DLR: "$",
+            KC_EXLM: "!",
+            KC_HASH: "#",
+            KC_PERC: "%",
             "{escape}": "esc",
             "{tab}": "tab",
             "{backspace}": "bksp",
             "{enter}": "enter",
-            "{capslock}": "caps lock",
+            "{capslock}": "caps",
             "{shiftleft}": "lshift",
             "{shiftright}": "rshift",
             "{controlleft}": "lctrl",
@@ -72,7 +92,11 @@ const InternationalKeyboard: FunctionComponent<IProps> = ({ onChange, onKeyPress
         },
     };
 
-    return <Keyboard keyboardRef={(r) => (keyboardRef.current = r)} layoutName={layoutName} onRender={() => console.log("Rendered")} {...keyboardOptions} />;
+    return (
+        <div className="w-[60%] mx-auto py-6">
+            <Keyboard keyboardRef={(r) => (keyboardRef.current = r)} layoutName={layoutName} onRender={() => console.log("Rendered")} {...keyboardOptions} />
+        </div>
+    );
 };
 
 export default InternationalKeyboard;

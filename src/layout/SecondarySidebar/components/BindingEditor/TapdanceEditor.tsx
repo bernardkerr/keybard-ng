@@ -31,6 +31,7 @@ const TapdanceEditor: FC<Props> = () => {
         hold: getKeyContents(keyboard!, currTapDance.hold),
         taphold: getKeyContents(keyboard!, currTapDance.taphold),
     };
+    console.log("Rendering TapdanceEditor for tapdance:", itemToEdit, "with keys:", keys, "and currTapDance:", currTapDance);
     useEffect(() => {
         setPanelToGoBack("tapdances");
         setAlternativeHeader(true);
