@@ -28,7 +28,6 @@ const ComboEditor: FC<Props> = () => {
     };
 
     useEffect(() => {
-        setActivePanel("layers");
         setPanelToGoBack("combos");
         setAlternativeHeader(true);
         console.log("currCombo", currCombo);

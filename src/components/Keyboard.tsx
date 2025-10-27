@@ -16,13 +16,19 @@ interface KeyboardProps {
 }
 
 export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer, setSelectedLayer }) => {
-    const { selectKeyboardKey, selectedTarget } = useKeyBinding();
+    const { selectKeyboardKey, selectedTarget, clearSelection } = useKeyBinding();
     const [localSelectedKey, setLocalSelectedKey] = useState<{ row: number; col: number } | null>(null);
     const layerColor = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "primary";
     // Get the keymap for the selected layer
     const layerKeymap = keyboard.keymap?.[selectedLayer] || [];
 
     const handleKeyClick = (row: number, col: number) => {
+        // if key is already selected, deselect it
+        if (localSelectedKey && localSelectedKey.row === row && localSelectedKey.col === col) {
+            setLocalSelectedKey(null);
+            clearSelection();
+            return;
+        }
         setLocalSelectedKey({ row, col });
         selectKeyboardKey(selectedLayer, row, col);
     };
@@ -87,17 +93,17 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer, set
                 })}
             </div>
 
-            {localSelectedKey && (
+            {selectedTarget && selectedTarget.row && selectedTarget.col && (
                 <div className="bg-white text-black p-4 mt-4 rounded shadow-md w-64 absolute bottom-5 right-5 rounded-2xl">
                     <h4>Selected Key</h4>
                     <p>
-                        <b>Position</b>: Row {localSelectedKey.row}, Col {localSelectedKey.col}
+                        <b>Position</b>: Row {selectedTarget.row}, Col {selectedTarget.col}
                     </p>
                     <p>
-                        <b>Matrix</b>: {localSelectedKey.row * MATRIX_COLS + localSelectedKey.col}
+                        <b>Matrix</b>: {selectedTarget.row * MATRIX_COLS + selectedTarget.col}
                     </p>
                     <p>
-                        <b>Keycode</b>: {getKeycodeName(layerKeymap[localSelectedKey.row * MATRIX_COLS + localSelectedKey.col] || 0)}
+                        <b>Keycode</b>: {getKeycodeName(layerKeymap[selectedTarget.row * MATRIX_COLS + localSelectedKey.col] || 0)}
                     </p>
                 </div>
             )}

@@ -78,7 +78,7 @@ const BindingsList: FC<Props> = ({ editElement, icon, bindingType, notBindable, 
                         setBindingTypeToEdit(bindingType);
                         setAlternativeHeader(true);
                         setPanelToGoBack(bindingType);
-                        setActivePanel("layers");
+                        setActivePanel("keyboard");
                     }}
                     className="px-4 py-1  group-hover/item:opacity-100 opacity-0"
                 >
