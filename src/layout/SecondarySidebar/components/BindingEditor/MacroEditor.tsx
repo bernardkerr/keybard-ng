@@ -1,6 +1,7 @@
 import { FC, useEffect, useState } from "react";
 
 import PlusIcon from "@/components/icons/Plus";
+import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { ArrowDown } from "lucide-react";
@@ -9,15 +10,27 @@ import MacroEditorText from "./MacroEditorText";
 
 const MacroEditor: FC = () => {
     const [actions, setActions] = useState<string[][]>([]);
-    const { keyboard } = useVial();
+    const { keyboard, setKeyboard } = useVial();
     const { itemToEdit } = usePanels();
+    const { selectComboKey } = useKeyBinding();
     const currMacro = (keyboard as any).macros?.[itemToEdit!];
     const handleAddItem = (type: string) => {
         setActions((items) => [...items, [type, ""]]);
     };
     useEffect(() => {
         setActions(currMacro.actions || []);
-    }, [currMacro]);
+    }, []);
+    useEffect(() => {
+        const updatedKeyboard = { ...keyboard };
+        if (!updatedKeyboard.macros) {
+            updatedKeyboard.macros = [];
+        }
+        updatedKeyboard.macros[itemToEdit!] = {
+            ...updatedKeyboard.macros[itemToEdit!],
+            actions: actions,
+        };
+        setKeyboard(updatedKeyboard);
+    }, [actions]);
     const AddButton = ({ type, label }: { type: string; label: string }) => {
         return (
             <button
