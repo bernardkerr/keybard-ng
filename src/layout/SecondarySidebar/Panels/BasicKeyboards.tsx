@@ -245,6 +245,27 @@ const BasicKeyboards = () => {
                     })}
                 </div>
             </section>
+            <section className="pt-2 flex flex-row items-center gap-4">
+                <p className="text-sm font-normal uppercase tracking-wide text-muted-foreground ml-6">Special</p>
+                <div className="flex flex-wrap gap-2 flex-grow flex-row items-center justify-center ">
+                    <div
+                        className="bg-black w-25 h-10 rounded-[4px] hover:shadow-md cursor-pointer hover:opacity-80 transition-all"
+                        data-bind="key"
+                        data-key="KC_NO"
+                        onClick={() => assignKeycode("KC_NO")}
+                    >
+                        &nbsp;
+                    </div>
+                    <div
+                        className="bg-black w-25 h-10 rounded-[4px] hover:shadow-md text-white flex items-center justify-center cursor-pointer hover:opacity-80 transition-all"
+                        data-bind="key"
+                        data-key="KC_TRNS"
+                        onClick={() => assignKeycode("KC_TRNS")}
+                    >
+                        ▽
+                    </div>
+                </div>
+            </section>
 
             <section className="space-y-3">
                 <div className="flex flex-wrap items-center justify-center gap-3">
