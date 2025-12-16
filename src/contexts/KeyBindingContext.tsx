@@ -55,12 +55,9 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 row,
                 col,
             });
-            console.log("selectKeyboardKey", layer, row, col);
             // print current keyboard value for the key
             if (keyboard && keyboard.keymap) {
-                console.log("keyboard", keyboard?.keymap?.[layer]);
                 const layerKeymap = keyboard.keymap?.[layer];
-                console.log("layerKeymap", layerKeymap);
                 if (layerKeymap) {
                     console.log("aaa");
                     const keyIndex = row * MATRIX_COLS + col;

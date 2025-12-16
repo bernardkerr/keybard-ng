@@ -1,7 +1,7 @@
 import "./Keyboard.css";
 
 import { getKeyLabel, getKeycodeName } from "@/utils/layers";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { MATRIX_COLS, SVALBOARD_LAYOUT, UNIT_SIZE } from "../constants/svalboard-layout";
 
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -17,30 +17,23 @@ interface KeyboardProps {
 
 export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer, setSelectedLayer }) => {
     const { selectKeyboardKey, selectedTarget, clearSelection } = useKeyBinding();
-    const [localSelectedKey, setLocalSelectedKey] = useState<{ row: number; col: number } | null>(null);
     const layerColor = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "primary";
     // Get the keymap for the selected layer
     const layerKeymap = keyboard.keymap?.[selectedLayer] || [];
-
-    const handleKeyClick = (row: number, col: number) => {
-        // if key is already selected, deselect it
-        if (localSelectedKey && localSelectedKey.row === row && localSelectedKey.col === col) {
-            setLocalSelectedKey(null);
-            clearSelection();
-            return;
-        }
-        setLocalSelectedKey({ row, col });
-        selectKeyboardKey(selectedLayer, row, col);
-    };
 
     // Check if this key is the globally selected target
     const isKeySelected = (row: number, col: number) => {
         return selectedTarget?.type === "keyboard" && selectedTarget.layer === selectedLayer && selectedTarget.row === row && selectedTarget.col === col;
     };
 
-    useEffect(() => {
-        setLocalSelectedKey(null); // Clear selected key when layer changes
-    }, [selectedLayer]);
+    const handleKeyClick = (row: number, col: number) => {
+        // if key is already selected, deselect it
+        if (isKeySelected(row, col)) {
+            clearSelection();
+            return;
+        }
+        selectKeyboardKey(selectedLayer, row, col);
+    };
 
     // Calculate the keyboard dimensions for the container
     const calculateKeyboardSize = () => {
