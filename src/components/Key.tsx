@@ -1,6 +1,6 @@
 import "./Key.css";
 
-import { getModMasks, showModMask } from "@/utils/keys";
+import { showModMask } from "@/utils/keys";
 
 import { colorClasses } from "@/utils/colors";
 import React from "react";
@@ -46,7 +46,6 @@ export const Key: React.FC<KeyProps> = ({ x, y, w, h, keycode, label, row, col, 
     let l = label;
 
     if (hasModifiers) {
-        console.log("modids", getModMasks(keyContents.modids));
         const show = showModMask(keyContents.modids);
         const keys = keyContents.str.split("\n");
         l = keys[0];
@@ -66,7 +65,6 @@ export const Key: React.FC<KeyProps> = ({ x, y, w, h, keycode, label, row, col, 
     }
 
     if (keyContents?.type === "layer") {
-        console.log("rendering layer key", keyContents);
         return (
             <div className="absolute top-0 left-0">
                 <div

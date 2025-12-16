@@ -56,16 +56,15 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 col,
             });
             // print current keyboard value for the key
-            if (keyboard && keyboard.keymap) {
-                const layerKeymap = keyboard.keymap?.[layer];
-                if (layerKeymap) {
-                    console.log("aaa");
-                    const keyIndex = row * MATRIX_COLS + col;
-                    console.log("keyIndex", keyIndex);
-                    const keycode = layerKeymap[keyIndex];
-                    console.log(`Current keycode at layer ${layer}, row ${row}, col ${col}:`, keycode);
-                }
-            }
+            // if (keyboard && keyboard.keymap) {
+            //     const layerKeymap = keyboard.keymap?.[layer];
+            //     if (layerKeymap) {
+            //         const keyIndex = row * MATRIX_COLS + col;
+            //         console.log("keyIndex", keyIndex);
+            //         const keycode = layerKeymap[keyIndex];
+            //         console.log(`Current keycode at layer ${layer}, row ${row}, col ${col}:`, keycode);
+            //     }
+            // }
             setIsBinding(true);
         },
         [keyboard]
@@ -124,8 +123,6 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     queue(
                         changeDesc,
                         async () => {
-                            // This callback will be executed when committing changes
-                            // For now, it's a placeholder for future hardware sync
                             console.log(`Committing key change: Layer ${layer}, Key [${row},${col}] → ${keycodeValue}`);
                             updateKey(layer, row, col, keycodeValue);
                         },
