@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { useChanges } from "@/contexts/ChangesContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
@@ -21,7 +22,7 @@ import { useRef, useState } from "react";
 const SettingsPanel = () => {
     const { getSetting, updateSetting, settingsDefinitions, settingsCategories } = useSettings();
     const [activeCategory, setActiveCategory] = useState<string>("general");
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard, setKeyboard, isConnected } = useVial();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -30,12 +31,27 @@ const SettingsPanel = () => {
     const [exportFormat, setExportFormat] = useState<"vil" | "kbi">("vil");
     const [includeMacros, setIncludeMacros] = useState(true);
 
+    const { queue } = useChanges();
+
     const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
             try {
                 const newKbInfo = await fileService.uploadFile(file);
-                if (newKbInfo) {
+                    if (newKbInfo) {
+                        // Start sync if connected
+                        if (keyboard && isConnected) { 
+                             const { importService } = await import('@/services/import.service');
+                             const { vialService } = await import('@/services/vial.service');
+                             
+                             await importService.syncWithKeyboard(
+                                 newKbInfo, 
+                                 keyboard, 
+                                 queue, 
+                                 { vialService }
+                             );
+                        }
+
                      setKeyboard(newKbInfo);
                      // Optional: Show success toast
                      console.log("Import successful", newKbInfo);
