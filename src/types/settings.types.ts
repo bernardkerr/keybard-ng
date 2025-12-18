@@ -16,6 +16,7 @@ export interface SettingDefinition {
     step?: number;
     items?: SettingSelectItem[];
     action?: string;
+    scope?: "app" | "hardware";
 }
 
 export interface SettingsCategory {
@@ -38,4 +39,5 @@ export interface SettingsContextType {
     getSettingDefinition: (name: string) => SettingDefinition | undefined;
     resetSettings: () => void;
     resetSetting: (name: string) => void;
+    refreshHardwareSettings: () => Promise<void>;
 }

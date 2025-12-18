@@ -58,6 +58,20 @@ export class VialUSB {
   static readonly DYNAMIC_VIAL_KEY_OVERRIDE_GET = 0x05;
   static readonly DYNAMIC_VIAL_KEY_OVERRIDE_SET = 0x06;
 
+  static readonly SVAL_GET_LEFT_DPI = 0x00;
+  static readonly SVAL_GET_RIGHT_DPI = 0x00;
+  static readonly SVAL_GET_LEFT_SCROLL = 0x00;
+  static readonly SVAL_GET_RIGHT_SCROLL = 0x00;
+  static readonly SVAL_GET_AUTOMOUSE = 0x00;
+  static readonly SVAL_GET_AUTOMOUSE_MS = 0x00;
+  
+  static readonly SVAL_SET_LEFT_DPI = 0x00;
+  static readonly SVAL_SET_RIGHT_DPI = 0x00;
+  static readonly SVAL_SET_LEFT_SCROLL = 0x00;
+  static readonly SVAL_SET_RIGHT_SCROLL = 0x00;
+  static readonly SVAL_SET_AUTOMOUSE = 0x00;
+  static readonly SVAL_SET_AUTOMOUSE_MS = 0x00;
+
   private device?: HIDDevice;
   private listener: (data: ArrayBuffer, ev: HIDInputReportEvent) => void =
     () => {};

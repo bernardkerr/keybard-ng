@@ -96,6 +96,7 @@ export const SETTINGS: SettingDefinition[] = [
         min: 100,
         max: 3200,
         step: 100,
+        scope: "hardware",
     },
     {
         name: "right-dpi",
@@ -106,24 +107,28 @@ export const SETTINGS: SettingDefinition[] = [
         min: 100,
         max: 3200,
         step: 100,
+        scope: "hardware",
     },
     {
         name: "scroll-right",
         label: "Use right device for scrolling",
         type: "boolean",
         defaultValue: false,
+        scope: "hardware",
     },
     {
         name: "scroll-left",
         label: "Use left device for scrolling",
         type: "boolean",
         defaultValue: false,
+        scope: "hardware",
     },
     {
         name: "auto-mouse",
         label: "Automatically switch to mouse layer when using pointing device",
         type: "boolean",
         defaultValue: false,
+        scope: "hardware",
     },
     {
         name: "auto-mouse-timeout",
@@ -134,6 +139,7 @@ export const SETTINGS: SettingDefinition[] = [
         min: 200,
         max: 2000,
         step: 100,
+        scope: "hardware",
     },
     {
         name: "fix-drift",
@@ -182,6 +188,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const loadedSettings = settingsService.load();
         setSettings(loadedSettings);
         setLoaded(true);
+        refreshHardwareSettings();
     }, []);
 
     // Save settings to localStorage whenever they change
@@ -195,6 +202,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             ...prev,
             [name]: value,
         }));
+
+        // Check if it's a hardware setting
+        const definition = SETTINGS.find(s => s.name === name);
+        if (definition?.scope === 'hardware') {
+            settingsService.setHardwareSetting(name, value);
+        }
     }, []);
 
     const getSetting = useCallback(
@@ -231,6 +244,25 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
     }, []);
 
+    const refreshHardwareSettings = useCallback(async () => {
+        const hardwareSettings = SETTINGS.filter(s => s.scope === 'hardware');
+        const newSettings: SettingsState = {};
+        
+        for (const setting of hardwareSettings) {
+            const val = await settingsService.getHardwareSetting(setting.name);
+            if (val !== undefined) {
+                newSettings[setting.name] = val;
+            }
+        }
+
+        if (Object.keys(newSettings).length > 0) {
+            setSettings(prev => ({
+                ...prev,
+                ...newSettings
+            }));
+        }
+    }, []);
+
     const value: SettingsContextType = {
         settings,
         settingsDefinitions: SETTINGS,
@@ -240,6 +272,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         getSettingDefinition,
         resetSettings,
         resetSetting,
+        refreshHardwareSettings
     };
 
     return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
