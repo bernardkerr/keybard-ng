@@ -1,5 +1,5 @@
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
-import { ChevronsLeftRightEllipsis, Cpu, HelpCircle, LucideIcon, Settings } from "lucide-react";
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
+import { ChevronsLeftRightEllipsis, Cpu, HelpCircle, LucideIcon, Settings, ChevronsRight } from "lucide-react";
 
 import ComboIcon from "@/components/ComboIcon";
 import KeyboardIcon from "@/components/icons/Keyboard";
@@ -36,6 +36,52 @@ const footerItems: SidebarItem[] = [
     { title: "Settings", url: "settings", icon: Settings },
 ];
 
+const SidebarNavItem = ({
+    item,
+    isActive,
+    isPreviousPanel,
+    isCollapsed,
+    alternativeHeader,
+    onClick,
+}: {
+    item: SidebarItem;
+    isActive: boolean;
+    isPreviousPanel?: boolean;
+    isCollapsed: boolean;
+    alternativeHeader?: boolean;
+    onClick: (item: SidebarItem) => void;
+}) => (
+    <SidebarMenuItem className="cursor-pointer">
+        <SidebarMenuButton
+            asChild
+            isActive={isActive}
+            tooltip={item.title}
+            sidebarName="primary-nav"
+            size="nav"
+            className={cn(
+                "transition-colors",
+                (alternativeHeader ? isPreviousPanel : isActive) ? "text-sidebar-foreground" : "text-gray-400"
+            )}
+        >
+            <button type="button" onClick={() => onClick(item)} className="flex w-full items-center justify-start">
+                <div className="w-[43px] h-full flex items-center justify-start pl-[13px] shrink-0">
+                    <item.icon className="h-4 w-4 shrink-0" />
+                </div>
+                <span className="truncate group-data-[state=collapsed]:hidden">
+                    {item.title}
+                </span>
+            </button>
+        </SidebarMenuButton>
+    </SidebarMenuItem>
+);
+
+const SlidingIndicator = ({ index }: { index: number }) => (
+    <div
+        className="absolute left-[4px] top-0 w-[3px] h-[26px] bg-black z-20 transition-transform duration-300 ease-in-out pointer-events-none"
+        style={{ transform: `translateY(${index * 42}px)` }}
+    />
+);
+
 const AppSidebar = () => {
     const { state, toggleSidebar } = useSidebar("primary-nav", { defaultOpen: false });
     const isCollapsed = state === "collapsed";
@@ -44,6 +90,7 @@ const AppSidebar = () => {
         "rounded-3xl"
     );
     const { setItemToEdit, setActivePanel, openDetails, activePanel, panelToGoBack, alternativeHeader, setPanelToGoBack, setAlternativeHeader } = usePanels();
+
     const handleItemSelect = useCallback(
         (item: SidebarItem) => {
             setActivePanel(item.url);
@@ -52,107 +99,68 @@ const AppSidebar = () => {
             setAlternativeHeader(false);
             setItemToEdit(null);
         },
-        [openDetails]
+        [openDetails, setActivePanel, setPanelToGoBack, setAlternativeHeader, setItemToEdit]
     );
+
+    const activePrimaryIndex = primarySidebarItems.findIndex((item) => item.url === activePanel);
+    const activeFooterIndex = footerItems.findIndex((item) => item.url === activePanel);
 
     return (
         <Sidebar rounded name="primary-nav" defaultOpen={false} collapsible="icon" hideGap className={sidebarClasses}>
             <SidebarHeader className="p-0 py-2">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton
-                            asChild
-                            className="!h-10 mx-2 hover:bg-transparent cursor-default"
-                        >
-                            <div className="flex items-center gap-2.5">
-                                <div className="h-6 w-6 -ml-[6px] flex items-center justify-center shrink-0">
+                        <SidebarMenuButton asChild size="nav" className="hover:bg-transparent cursor-default">
+                            <div className="flex w-full items-center justify-start translate-y-[3px]">
+                                <div className="w-[43px] h-4 flex items-center justify-start pl-[10px] shrink-0">
                                     <Logo />
                                 </div>
-                                <span className="text-xl font-bold truncate">Keybard</span>
+                                <span className="text-xl font-bold truncate group-data-[state=collapsed]:hidden">Keybard</span>
                             </div>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                        <SidebarMenuButton
-                            asChild
-                            className="!h-8 mx-2 text-slate-600 hover:bg-sidebar-accent transition-colors"
-                        >
-                            <button type="button" onClick={() => toggleSidebar()}>
-                                <div className="flex items-center gap-3">
-                                    <SidebarTrigger name="primary-nav" className="h-6 w-6 -ml-2 shrink-0 pointer-events-none" />
-                                    <span className="text-sm font-semibold truncate">Hide Menu</span>
+                        <SidebarMenuButton asChild size="nav" className="text-slate-600 transition-colors">
+                            <button type="button" onClick={() => toggleSidebar()} className="flex w-full items-center justify-start">
+                                <div className="w-[43px] h-4 flex items-center justify-start pl-[13px] shrink-0">
+                                    <ChevronsRight className={cn("h-4 w-4 shrink-0 transition-transform", !isCollapsed ? "rotate-180" : "")} />
                                 </div>
+                                <span className="text-sm font-semibold truncate group-data-[state=collapsed]:hidden">Hide Menu</span>
                             </button>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent className="py-2">
-                <SidebarMenu className="justify-center h-full">
-                    {primarySidebarItems.map((item) => {
-                        const isActive = activePanel === item.url;
-                        const isPreviousPanel = panelToGoBack === item.url;
-                        return (
-                            <SidebarMenuItem key={item.title} className={`cursor-pointer relative`}>
-                                {isActive && <div className="absolute left-[4px] top-[7px] h-[26px] w-[3px] bg-black z-20" />}
-                                <SidebarMenuButton
-                                    asChild
-                                    tooltip={item.title}
-                                    sidebarName="primary-nav"
-                                    sidebarDefaultOpen={false}
-                                    className={cn(
-                                        "!h-10 transition-colors hover:bg-sidebar-accent font-semibold",
-                                        (alternativeHeader ? isPreviousPanel : isActive) ? "text-sidebar-foreground" : "text-gray-400",
-                                        "mx-2"
-                                    )}
-                                >
-                                    <button
-                                        type="button"
-                                        onClick={() => handleItemSelect(item)}
-                                        className="flex w-full items-center gap-3 justify-start pl-2"
-                                        aria-current={isActive ? "page" : undefined}
-                                    >
-                                        <item.icon className="h-6 w-6" />
-                                        {!isCollapsed && <span>{item.title}</span>}
-                                    </button>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        );
-                    })}
+            <SidebarContent className="py-2 !overflow-visible flex flex-col justify-center">
+                <SidebarMenu className="relative">
+                    {activePrimaryIndex !== -1 && <SlidingIndicator index={activePrimaryIndex} />}
+                    {primarySidebarItems.map((item) => (
+                        <SidebarNavItem
+                            key={item.url}
+                            item={item}
+                            isActive={activePanel === item.url}
+                            isPreviousPanel={panelToGoBack === item.url}
+                            isCollapsed={isCollapsed}
+                            alternativeHeader={alternativeHeader}
+                            onClick={handleItemSelect}
+                        />
+                    ))}
                 </SidebarMenu>
             </SidebarContent>
 
-            <SidebarFooter className="p-0 py-2">
-                <SidebarMenu>
-                    {footerItems.map((item) => {
-                        const isActive = activePanel === item.url;
-                        return (
-                            <SidebarMenuItem key={item.title} className="relative">
-                                {isActive && <div className="absolute left-[4px] top-[7px] h-[26px] w-[3px] bg-black z-20" />}
-                                <SidebarMenuButton
-                                    asChild
-                                    tooltip={item.title}
-                                    sidebarName="primary-nav"
-                                    sidebarDefaultOpen={false}
-                                    className={cn(
-                                        "!h-10 transition-colors hover:bg-sidebar-accent font-semibold",
-                                        isActive ? "text-sidebar-foreground" : "text-gray-400",
-                                        "mx-2"
-                                    )}
-                                >
-                                    <button
-                                        type="button"
-                                        onClick={() => handleItemSelect(item)}
-                                        className="flex w-full items-center gap-3 justify-start pl-2"
-                                    >
-                                        <item.icon className="h-6 w-6" />
-                                        {!isCollapsed && <span>{item.title}</span>}
-                                    </button>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        );
-                    })}
+            <SidebarFooter className="p-0 py-2 !overflow-visible mb-3">
+                <SidebarMenu className="relative">
+                    {activeFooterIndex !== -1 && <SlidingIndicator index={activeFooterIndex} />}
+                    {footerItems.map((item) => (
+                        <SidebarNavItem
+                            key={item.url}
+                            item={item}
+                            isActive={activePanel === item.url}
+                            isCollapsed={isCollapsed}
+                            onClick={handleItemSelect}
+                        />
+                    ))}
                 </SidebarMenu>
             </SidebarFooter>
         </Sidebar>
