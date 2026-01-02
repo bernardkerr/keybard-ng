@@ -26,6 +26,7 @@ interface KeyProps {
     isRelative?: boolean;
     className?: string;
     headerClassName?: string;
+    variant?: "default" | "small";
 }
 
 export const Key: React.FC<KeyProps> = ({
@@ -44,6 +45,7 @@ export const Key: React.FC<KeyProps> = ({
     isRelative = false,
     className = "",
     headerClassName = "bg-black/30",
+    variant = "default",
 }) => {
     let bottomStr = "";
     let topStr = "";
@@ -89,9 +91,10 @@ export const Key: React.FC<KeyProps> = ({
             <div
                 className={cn(
                     colorClasses[layerColor],
-                    "flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ease-in-out rounded-md uppercase flex flex-col items-center justify-between",
+                    "flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ease-in-out uppercase flex flex-col items-center justify-between",
+                    variant === "small" ? "rounded-[5px] border" : "rounded-md border-2",
                     !isRelative && "absolute",
-                    selected ? "border-2 border-kb-gray bg-red-500 text-white" : "border-2 border-kb-gray hover:border-red-500",
+                    selected ? "border-kb-gray bg-red-500 text-white" : "border-kb-gray hover:border-red-500",
                     className
                 )}
                 style={!isRelative ? style : {}}
@@ -101,10 +104,10 @@ export const Key: React.FC<KeyProps> = ({
                 data-col={col}
                 title={keycode}
             >
-                <span className={cn("text-sm whitespace-nowrap w-full rounded-t-sm text-center text-white font-semibold py-0", headerClassName)}>{keyContents?.layertext}</span>
-                <div className="flex flex-row h-full w-full items-center justify-center gap-2">
-                    <div className="text-md text-center justify-center items-center flex font-semibold">{keyContents?.top.split("(")[1].replace(")", "")}</div>
-                    <LayersIcon className="" />
+                <span className={cn(variant === "small" ? "text-[10px] rounded-t-[4px]" : "text-sm rounded-t-sm", "whitespace-nowrap w-full text-center text-white font-semibold py-0", headerClassName)}>{keyContents?.layertext}</span>
+                <div className={cn("flex flex-row h-full w-full items-center justify-center", variant === "small" ? "gap-1" : "gap-2")}>
+                    <div className={cn(variant === "small" ? "text-[13px]" : "text-md", "text-center justify-center items-center flex font-semibold")}>{keyContents?.top.split("(")[1].replace(")", "")}</div>
+                    <LayersIcon className={variant === "small" ? "w-3 h-3" : ""} />
                 </div>
             </div>
         );
