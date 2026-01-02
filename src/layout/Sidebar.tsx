@@ -1,15 +1,24 @@
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
-import { ChevronsLeftRightEllipsis, Cpu, HelpCircle, LucideIcon, Settings, ChevronsRight } from "lucide-react";
+import { ChevronsLeftRightEllipsis, ChevronsRight, Cpu, HelpCircle, LucideIcon, Settings } from "lucide-react";
 import { useCallback } from "react";
 
 import ComboIcon from "@/components/ComboIcon";
 import KeyboardIcon from "@/components/icons/Keyboard";
+import LayersDefaultIcon from "@/components/icons/LayersDefault";
 import MacrosIcon from "@/components/icons/MacrosIcon";
 import MatrixTesterIcon from "@/components/icons/MatrixTester";
 import OverridesIcon from "@/components/icons/Overrides";
 import TapdanceIcon from "@/components/icons/Tapdance";
-import LayersDefaultIcon from "@/components/icons/LayersDefault";
 import Logo from "@/components/Logo";
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarHeader,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    useSidebar
+} from "@/components/ui/sidebar";
 import { usePanels } from "@/contexts/PanelsContext";
 import { cn } from "@/lib/utils";
 
