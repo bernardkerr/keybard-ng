@@ -1,70 +1,63 @@
-import Keyboard, { KeyboardOptions } from "react-simple-keyboard";
-
+import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
-import { commonKeyboardOptions } from "@/shared/CommonKeyboardOptions";
-import { useRef } from "react";
+import { keyService } from "@/services/key.service";
 
 const BacklightsKeys = () => {
-    const backlightsRef = useRef(null);
     const { assignKeycode } = useKeyBinding();
-    const keyboardOptions: KeyboardOptions = {
-        ...commonKeyboardOptions,
-        onKeyPress: (button: string) => {
-            assignKeycode(button.replace(/{|}/g, ""));
-        },
-        /**
-         * Backlight / RGB layout following provided HTML. 3 rows of 9 keys.
-         */
-        layout: {
-            default: [
-                // Row 1 (9)
-                "{BL_TOGG} {BL_STEP} {BL_BRTG} {BL_ON} {BL_OFF} {BL_INC} {BL_DEC}",
-                // Row 2 (9)
-                "{RGB_TOG} {RGB_MOD} {RGB_RMOD} {RGB_HUI} {RGB_HUD} {RGB_SAI}",
-                "{RGB_SAD} {RGB_VAI} {RGB_VAD} {RGB_SPI} {RGB_SPD} {RGB_M_P} {RGB_M_B}",
-                // Row 3 (9)
-                "{RGB_M_R} {RGB_M_SW} {RGB_M_SN} {RGB_M_K} {RGB_M_X} {RGB_M_G} {RGB_M_T}",
-            ],
-            shift: [
-                "{BL_TOGG} {BL_STEP} {BL_BRTG} {BL_ON} {BL_OFF} {BL_INC} {BL_DEC} {RGB_TOG} {RGB_MOD}",
-                "{RGB_RMOD} {RGB_HUI} {RGB_HUD} {RGB_SAI} {RGB_SAD} {RGB_VAI} {RGB_VAD} {RGB_SPI} {RGB_SPD}",
-                "{RGB_M_P} {RGB_M_B} {RGB_M_R} {RGB_M_SW} {RGB_M_SN} {RGB_M_K} {RGB_M_X} {RGB_M_G} {RGB_M_T}",
-            ],
-        },
-        display: {
-            "{BL_TOGG}": "BL Toggle",
-            "{BL_STEP}": "BL Cycle",
-            "{BL_BRTG}": "BL Breath",
-            "{BL_ON}": "BL On",
-            "{BL_OFF}": "BL Off",
-            "{BL_INC}": "BL +",
-            "{BL_DEC}": "BL -",
-            "{RGB_TOG}": "RGB Toggle",
-            "{RGB_MOD}": "RGB Mode +",
-            "{RGB_RMOD}": "RGB Mode -",
-            "{RGB_HUI}": "Hue +",
-            "{RGB_HUD}": "Hue -",
-            "{RGB_SAI}": "Sat +",
-            "{RGB_SAD}": "Sat -",
-            "{RGB_VAI}": "Bright +",
-            "{RGB_VAD}": "Bright -",
-            "{RGB_SPI}": "Effect +",
-            "{RGB_SPD}": "Effect -",
-            "{RGB_M_P}": "RGB Mode P",
-            "{RGB_M_B}": "RGB Mode B",
-            "{RGB_M_R}": "RGB Mode R",
-            "{RGB_M_SW}": "RGB Mode SW",
-            "{RGB_M_SN}": "RGB Mode SN",
-            "{RGB_M_K}": "RGB Mode K",
-            "{RGB_M_X}": "RGB Mode X",
-            "{RGB_M_G}": "RGB Mode G",
-            "{RGB_M_T}": "RGB Mode T",
-        },
-    };
+
+    const keys = [
+        { keycode: "BL_TOGG", label: "BL Toggle" },
+        { keycode: "BL_STEP", label: "BL Cycle" },
+        { keycode: "BL_BRTG", label: "BL Breath" },
+        { keycode: "BL_ON", label: "BL On" },
+        { keycode: "BL_OFF", label: "BL Off" },
+        { keycode: "BL_INC", label: "BL +" },
+        { keycode: "BL_DEC", label: "BL -" },
+        { keycode: "RGB_TOG", label: "RGB Toggle" },
+        { keycode: "RGB_MOD", label: "RGB Mode +" },
+        { keycode: "RGB_RMOD", label: "RGB Mode -" },
+        { keycode: "RGB_HUI", label: "Hue +" },
+        { keycode: "RGB_HUD", label: "Hue -" },
+        { keycode: "RGB_SAI", label: "Sat +" },
+        { keycode: "RGB_SAD", label: "Sat -" },
+        { keycode: "RGB_VAI", label: "Bright +" },
+        { keycode: "RGB_VAD", label: "Bright -" },
+        { keycode: "RGB_SPI", label: "Effect +" },
+        { keycode: "RGB_SPD", label: "Effect -" },
+        { keycode: "RGB_M_P", label: "RGB Mode P" },
+        { keycode: "RGB_M_B", label: "RGB Mode B" },
+        { keycode: "RGB_M_R", label: "RGB Mode R" },
+        { keycode: "RGB_M_SW", label: "RGB Mode SW" },
+        { keycode: "RGB_M_SN", label: "RGB Mode SN" },
+        { keycode: "RGB_M_K", label: "RGB Mode K" },
+        { keycode: "RGB_M_X", label: "RGB Mode X" },
+        { keycode: "RGB_M_G", label: "RGB Mode G" },
+        { keycode: "RGB_M_T", label: "RGB Mode T" },
+    ];
+
     return (
-        <div>
-            <span className="font-semibold text-lg text-slate-700">Backlight & RGB keys</span>
-            <Keyboard ref={(r: any) => (backlightsRef.current = r)} layoutName="default" {...keyboardOptions} />
+        <div className="flex flex-col gap-2">
+            <span className="font-semibold text-lg text-slate-700">Backlight & RGB Keys</span>
+            <div className="flex flex-wrap gap-2">
+                {keys.map((k) => (
+                    <Key
+                        key={k.keycode}
+                        x={0}
+                        y={0}
+                        w={1}
+                        h={1}
+                        row={0}
+                        col={0}
+                        keycode={k.keycode}
+                        label={keyService.define(k.keycode)?.str || k.label}
+                        layerColor="sidebar"
+                        headerClassName="bg-kb-sidebar-dark"
+                        isRelative
+                        className="h-[60px] w-[60px]"
+                        onClick={() => assignKeycode(k.keycode)}
+                    />
+                ))}
+            </div>
         </div>
     );
 };

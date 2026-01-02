@@ -1,88 +1,75 @@
-import Keyboard, { KeyboardOptions } from "react-simple-keyboard";
-
+import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
-import { commonKeyboardOptions } from "@/shared/CommonKeyboardOptions";
-import { useRef } from "react";
+import { keyService } from "@/services/key.service";
 
 const MediaKeys = () => {
     const { assignKeycode } = useKeyBinding();
-    const mediaKeysRef = useRef(null);
-    const keyboardOptions: KeyboardOptions = {
-        ...commonKeyboardOptions,
-        onKeyPress: (button: string) => {
-            assignKeycode(button.replace(/{|}/g, ""));
-        },
-        /**
-         * Layout by:
-         * Sterling Butters (https://github.com/SterlingButters)
-         */
-        layout: {
-            default: [
-                // Row 1
-                "{KC_PWR} {KC_SLEP} {KC_WAKE} {KC_EXEC} {KC_HELP} {KC_SLCT} {KC_STOP} {KC_AGIN}",
-                // Row 2
-                "{KC_UNDO} {KC_CUT} {KC_COPY} {KC_PSTE} {KC_FIND} {KC_CALC} {KC_MAIL} {KC_MSEL}",
-                // Row 3
-                "{KC_MYCM} {KC_WSCH} {KC_WHOM} {KC_WBAK} {KC_WFWD} {KC_WSTP} {KC_WREF}",
-                // Row 4
-                "{KC_WFAV} {KC_BRIU} {KC_BRID} {KC_MPRV} {KC_MNXT} {KC_MUTE} {KC_VOLD}",
-                "{KC_VOLU} {KC_MSTP} {KC_MPLY} {KC_MRWD} {KC_MFFD}",
-                "{KC_EJCT} {KC_LCAP} {KC_LNUM} {KC_LSCR}",
-            ],
-            shift: [
-                // same layout for shift
-                "{KC_PWR} {KC_SLEP} {KC_WAKE} {KC_EXEC} {KC_HELP} {KC_SLCT} {KC_STOP} {KC_AGIN} {KC_UNDO} {KC_CUT} {KC_COPY}",
-                "{KC_PSTE} {KC_FIND} {KC_CALC} {KC_MAIL} {KC_MSEL} {KC_MYCM} {KC_WSCH} {KC_WHOM} {KC_WBAK} {KC_WFWD} {KC_WSTP}",
-                "{KC_WREF} {KC_WFAV} {KC_BRIU} {KC_BRID} {KC_MPRV} {KC_MNXT} {KC_MUTE} {KC_VOLD} {KC_VOLU} {KC_MSTP} {KC_MPLY}",
-                "{KC_MRWD} {KC_MFFD} {KC_EJCT} {KC_LCAP} {KC_LNUM} {KC_LSCR}",
-            ],
-        },
-        display: {
-            "{KC_PWR}": "Power",
-            "{KC_SLEP}": "Sleep",
-            "{KC_WAKE}": "Wake",
-            "{KC_EXEC}": "Exec",
-            "{KC_HELP}": "Help",
-            "{KC_SLCT}": "Select",
-            "{KC_STOP}": "Stop",
-            "{KC_AGIN}": "Again",
-            "{KC_UNDO}": "Undo",
-            "{KC_CUT}": "Cut",
-            "{KC_COPY}": "Copy",
-            "{KC_PSTE}": "Paste",
-            "{KC_FIND}": "Find",
-            "{KC_CALC}": "Calc",
-            "{KC_MAIL}": "Mail",
-            "{KC_MSEL}": "Media Player",
-            "{KC_MYCM}": "My PC",
-            "{KC_WSCH}": "Browser Search",
-            "{KC_WHOM}": "Browser Home",
-            "{KC_WBAK}": "Browser Back",
-            "{KC_WFWD}": "Browser Forward",
-            "{KC_WSTP}": "Browser Stop",
-            "{KC_WREF}": "Browser Refresh",
-            "{KC_WFAV}": "Browser Fav.",
-            "{KC_BRIU}": "Bright. Up",
-            "{KC_BRID}": "Bright. Down",
-            "{KC_MPRV}": "Media Prev",
-            "{KC_MNXT}": "Media Next",
-            "{KC_MUTE}": "Mute",
-            "{KC_VOLD}": "Vol -",
-            "{KC_VOLU}": "Vol +",
-            "{KC_MSTP}": "Media Stop",
-            "{KC_MPLY}": "Media Play",
-            "{KC_MRWD}": "Prev Track (macOS)",
-            "{KC_MFFD}": "Next Track (macOS)",
-            "{KC_EJCT}": "Eject",
-            "{KC_LCAP}": "Locking Caps",
-            "{KC_LNUM}": "Locking Num",
-            "{KC_LSCR}": "Locking Scroll",
-        },
-    };
+
+    const keys = [
+        { keycode: "KC_PWR", label: "Power" },
+        { keycode: "KC_SLEP", label: "Sleep" },
+        { keycode: "KC_WAKE", label: "Wake" },
+        { keycode: "KC_EXEC", label: "Exec" },
+        { keycode: "KC_HELP", label: "Help" },
+        { keycode: "KC_SLCT", label: "Select" },
+        { keycode: "KC_STOP", label: "Stop" },
+        { keycode: "KC_AGIN", label: "Again" },
+        { keycode: "KC_UNDO", label: "Undo" },
+        { keycode: "KC_CUT", label: "Cut" },
+        { keycode: "KC_COPY", label: "Copy" },
+        { keycode: "KC_PSTE", label: "Paste" },
+        { keycode: "KC_FIND", label: "Find" },
+        { keycode: "KC_CALC", label: "Calc" },
+        { keycode: "KC_MAIL", label: "Mail" },
+        { keycode: "KC_MSEL", label: "Media Player" },
+        { keycode: "KC_MYCM", label: "My PC" },
+        { keycode: "KC_WSCH", label: "Browser Search" },
+        { keycode: "KC_WHOM", label: "Browser Home" },
+        { keycode: "KC_WBAK", label: "Browser Back" },
+        { keycode: "KC_WFWD", label: "Browser Forward" },
+        { keycode: "KC_WSTP", label: "Browser Stop" },
+        { keycode: "KC_WREF", label: "Browser Refresh" },
+        { keycode: "KC_WFAV", label: "Browser Fav." },
+        { keycode: "KC_BRIU", label: "Bright. Up" },
+        { keycode: "KC_BRID", label: "Bright. Down" },
+        { keycode: "KC_MPRV", label: "Media Prev" },
+        { keycode: "KC_MNXT", label: "Media Next" },
+        { keycode: "KC_MUTE", label: "Mute" },
+        { keycode: "KC_VOLD", label: "Vol -" },
+        { keycode: "KC_VOLU", label: "Vol +" },
+        { keycode: "KC_MSTP", label: "Media Stop" },
+        { keycode: "KC_MPLY", label: "Media Play" },
+        { keycode: "KC_MRWD", label: "Prev Track (macOS)" },
+        { keycode: "KC_MFFD", label: "Next Track (macOS)" },
+        { keycode: "KC_EJCT", label: "Eject" },
+        { keycode: "KC_LCAP", label: "Locking Caps" },
+        { keycode: "KC_LNUM", label: "Locking Num" },
+        { keycode: "KC_LSCR", label: "Locking Scroll" },
+    ];
+
     return (
-        <div>
-            <span className="font-semibold text-lg text-slate-700">Media keys</span>
-            <Keyboard ref={(r: any) => (mediaKeysRef.current = r)} layoutName="default" {...keyboardOptions} />
+        <div className="flex flex-col gap-2">
+            <span className="font-semibold text-lg text-slate-700">Media Keys</span>
+            <div className="flex flex-wrap gap-2">
+                {keys.map((k) => (
+                    <Key
+                        key={k.keycode}
+                        x={0}
+                        y={0}
+                        w={1}
+                        h={1}
+                        row={0}
+                        col={0}
+                        keycode={k.keycode}
+                        label={keyService.define(k.keycode)?.str || k.label}
+                        layerColor="sidebar"
+                        headerClassName="bg-kb-sidebar-dark"
+                        isRelative
+                        className="h-[60px] w-[60px]"
+                        onClick={() => assignKeycode(k.keycode)}
+                    />
+                ))}
+            </div>
         </div>
     );
 };

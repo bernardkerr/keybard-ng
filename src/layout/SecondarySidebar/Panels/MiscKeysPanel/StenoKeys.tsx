@@ -1,121 +1,105 @@
-import Keyboard, { KeyboardOptions } from "react-simple-keyboard";
-
+import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
-import { commonKeyboardOptions } from "@/shared/CommonKeyboardOptions";
-import { useRef } from "react";
+import { keyService } from "@/services/key.service";
 
 const StenoKeys = () => {
-    const group1Ref = useRef(null);
-    const group2Ref = useRef(null);
     const { assignKeycode } = useKeyBinding();
 
-    // shared display labels (only keys used in each group's options will be referenced)
-    const display = {
-        "{STN_N1}": "#₁",
-        "{STN_N2}": "#₂",
-        "{STN_N3}": "#₃",
-        "{STN_N4}": "#₄",
-        "{STN_N5}": "#₅",
-        "{STN_S1}": "S-₁",
-        "{STN_TL}": "T-",
-        "{STN_PL}": "P-",
-        "{STN_HL}": "H-",
-        "{STN_ST1}": "*₁",
-        "{STN_S3}": "SS-",
-        "{STN_TKL}": "TK-",
-        "{STN_PWL}": "PW-",
-        "{STN_HRL}": "H-",
-        "{STN_S2}": "S-₂",
-        "{STN_KL}": "K-",
-        "{STN_WL}": "W-",
-        "{STN_RL}": "R-",
-        "{STN_ST2}": "*₂",
-        "{STN_A}": "A",
-        "{STN_O}": "O",
-        "{STN_N7}": "#₇",
-        "{STN_N8}": "#₈",
-        "{STN_N9}": "#₉",
-        "{STN_NA}": "#₁₀",
-        "{STN_NB}": "#₁₁",
-        "{STN_NC}": "#₁₂",
-        "{STN_ST3}": "*₃",
-        "{STN_FR}": "-F",
-        "{STN_PR}": "-P",
-        "{STN_LR}": "-L",
-        "{STN_TR}": "-T",
-        "{STN_DR}": "-D",
-        "{STN_FRR}": "-FR",
-        "{STN_PBR}": "-PB",
-        "{STN_LGR}": "-LG",
-        "{STN_TSR}": "-TS",
-        "{STN_DZR}": "-DZ",
-        "{STN_ST4}": "*₄",
-        "{STN_RR}": "-R",
-        "{STN_BR}": "-B",
-        "{STN_GR}": "-G",
-        "{STN_SR}": "-S",
-        "{STN_ZR}": "-Z",
-        "{STN_E}": "E",
-        "{STN_U}": "U",
-    } as Record<string, string>;
+    const group1Keys = [
+        { keycode: "STN_N1", label: "#₁" },
+        { keycode: "STN_N2", label: "#₂" },
+        { keycode: "STN_N3", label: "#₃" },
+        { keycode: "STN_N4", label: "#₄" },
+        { keycode: "STN_N5", label: "#₅" },
+        { keycode: "STN_S1", label: "S-₁" },
+        { keycode: "STN_TL", label: "T-" },
+        { keycode: "STN_PL", label: "P-" },
+        { keycode: "STN_HL", label: "H-" },
+        { keycode: "STN_ST1", label: "*₁" },
+        { keycode: "STN_S3", label: "SS-" },
+        { keycode: "STN_TKL", label: "TK-" },
+        { keycode: "STN_PWL", label: "PW-" },
+        { keycode: "STN_HRL", label: "H-" },
+        { keycode: "STN_S2", label: "S-₂" },
+        { keycode: "STN_KL", label: "K-" },
+        { keycode: "STN_WL", label: "W-" },
+        { keycode: "STN_RL", label: "R-" },
+        { keycode: "STN_ST2", label: "*₂" },
+        { keycode: "STN_A", label: "A" },
+        { keycode: "STN_O", label: "O" },
+    ];
 
-    const group1Options: KeyboardOptions = {
-        ...commonKeyboardOptions,
-        onKeyPress: (button: string) => {
-            assignKeycode(button.replace(/{|}/g, ""));
-        },
-        layout: {
-            default: [
-                "{STN_N1} {STN_N2} {STN_N3} {STN_N4} {STN_N5}",
-                "{STN_S1} {STN_TL} {STN_PL} {STN_HL} {STN_ST1}",
-                "{STN_S3} {STN_TKL} {STN_PWL} {STN_HRL} {STN_ST1}",
-                "{STN_S2} {STN_KL} {STN_WL} {STN_RL} {STN_ST2}",
-                "{STN_A} {STN_O}",
-            ],
-            shift: [
-                "{STN_N1} {STN_N2} {STN_N3} {STN_N4} {STN_N5}",
-                "{STN_S1} {STN_TL} {STN_PL} {STN_HL} {STN_ST1}",
-                "{STN_S3} {STN_TKL} {STN_PWL} {STN_HRL} {STN_ST1}",
-                "{STN_S2} {STN_KL} {STN_WL} {STN_RL} {STN_ST2}",
-                "{STN_A} {STN_O}",
-            ],
-        },
-        display,
-    };
-
-    const group2Options: KeyboardOptions = {
-        ...commonKeyboardOptions,
-        onKeyPress: (button: string) => {
-            assignKeycode(button.replace(/{|}/g, ""));
-        },
-        layout: {
-            default: [
-                "{STN_N7} {STN_N8} {STN_N9} {STN_NA} {STN_NB} {STN_NC}",
-                "{STN_ST3} {STN_FR} {STN_PR} {STN_LR} {STN_TR} {STN_DR}",
-                "{STN_ST3} {STN_FRR} {STN_PBR} {STN_LGR} {STN_TSR} {STN_DZR}",
-                "{STN_ST4} {STN_RR} {STN_BR} {STN_GR} {STN_SR} {STN_ZR}",
-                "{STN_E} {STN_U}",
-            ],
-            shift: [
-                "{STN_N7} {STN_N8} {STN_N9} {STN_NA} {STN_NB} {STN_NC}",
-                "{STN_ST3} {STN_FR} {STN_PR} {STN_LR} {STN_TR} {STN_DR}",
-                "{STN_ST3} {STN_FRR} {STN_PBR} {STN_LGR} {STN_TSR} {STN_DZR}",
-                "{STN_ST4} {STN_RR} {STN_BR} {STN_GR} {STN_SR} {STN_ZR}",
-                "{STN_E} {STN_U}",
-            ],
-        },
-        display,
-    };
+    const group2Keys = [
+        { keycode: "STN_N7", label: "#₇" },
+        { keycode: "STN_N8", label: "#₈" },
+        { keycode: "STN_N9", label: "#₉" },
+        { keycode: "STN_NA", label: "#₁₀" },
+        { keycode: "STN_NB", label: "#₁₁" },
+        { keycode: "STN_NC", label: "#₁₂" },
+        { keycode: "STN_ST3", label: "*₃" },
+        { keycode: "STN_FR", label: "-F" },
+        { keycode: "STN_PR", label: "-P" },
+        { keycode: "STN_LR", label: "-L" },
+        { keycode: "STN_TR", label: "-T" },
+        { keycode: "STN_DR", label: "-D" },
+        { keycode: "STN_FRR", label: "-FR" },
+        { keycode: "STN_PBR", label: "-PB" },
+        { keycode: "STN_LGR", label: "-LG" },
+        { keycode: "STN_TSR", label: "-TS" },
+        { keycode: "STN_DZR", label: "-DZ" },
+        { keycode: "STN_ST4", label: "*₄" },
+        { keycode: "STN_RR", label: "-R" },
+        { keycode: "STN_BR", label: "-B" },
+        { keycode: "STN_GR", label: "-G" },
+        { keycode: "STN_SR", label: "-S" },
+        { keycode: "STN_ZR", label: "-Z" },
+        { keycode: "STN_E", label: "E" },
+        { keycode: "STN_U", label: "U" },
+    ];
 
     return (
-        <div>
-            <span className="font-semibold text-lg text-slate-700">All steno keys</span>
-            <div className="flex flex-row gap-1">
-                <div className="flex-1">
-                    <Keyboard ref={(r: any) => (group1Ref.current = r)} layoutName="default" {...group1Options} />
+        <div className="flex flex-col gap-2">
+            <span className="font-semibold text-lg text-slate-700">All Steno Keys</span>
+            <div className="flex flex-row gap-4">
+                <div className="flex-1 flex flex-wrap gap-2 content-start">
+                    {group1Keys.map((k) => (
+                        <Key
+                            key={k.keycode}
+                            x={0}
+                            y={0}
+                            w={1}
+                            h={1}
+                            row={0}
+                            col={0}
+                            keycode={k.keycode}
+                            label={keyService.define(k.keycode)?.str || k.label}
+                            layerColor="sidebar"
+                            headerClassName="bg-kb-sidebar-dark"
+                            isRelative
+                            className="h-[60px] w-[60px]"
+                            onClick={() => assignKeycode(k.keycode)}
+                        />
+                    ))}
                 </div>
-                <div className="flex-1">
-                    <Keyboard ref={(r: any) => (group2Ref.current = r)} layoutName="default" {...group2Options} />
+                <div className="flex-1 flex flex-wrap gap-2 content-start">
+                    {group2Keys.map((k) => (
+                        <Key
+                            key={k.keycode}
+                            x={0}
+                            y={0}
+                            w={1}
+                            h={1}
+                            row={0}
+                            col={0}
+                            keycode={k.keycode}
+                            label={keyService.define(k.keycode)?.str || k.label}
+                            layerColor="sidebar"
+                            headerClassName="bg-kb-sidebar-dark"
+                            isRelative
+                            className="h-[60px] w-[60px]"
+                            onClick={() => assignKeycode(k.keycode)}
+                        />
+                    ))}
                 </div>
             </div>
         </div>

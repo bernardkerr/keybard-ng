@@ -1,84 +1,69 @@
-import Keyboard, { KeyboardOptions } from "react-simple-keyboard";
-
+import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
-import { commonKeyboardOptions } from "@/shared/CommonKeyboardOptions";
-import { useRef } from "react";
+import { keyService } from "@/services/key.service";
 
 const AudioKeys = () => {
-    const functionKeysRef = useRef(null);
     const { assignKeycode } = useKeyBinding();
-    const keyboardOptions: KeyboardOptions = {
-        ...commonKeyboardOptions,
-        onKeyPress: (button: string) => {
-            assignKeycode(button.replace(/{|}/g, ""));
-        },
-        /**
-         * Layout by:
-         * Sterling Butters (https://github.com/SterlingButters)
-         *
-         * Layout rows follow the provided HTML data-key order, max 9 keys per row.
-         */
-        layout: {
-            default: [
-                // Row 1 (9)
-                "{AU_ON} {AU_OFF} {AU_TOG} {CLICKY_TOGGLE} {CLICKY_UP}",
-                "{CLICKY_DOWN} {CLICKY_RESET} {MU_ON} {MU_OFF} {MU_TOG}",
-                // Row 2 (9)
-                "{MU_MOD} {HPT_ON} {HPT_OFF} {HPT_TOG} {HPT_RST}",
-                "{HPT_FBK} {HPT_BUZ} {HPT_MODI} {HPT_MODD} {HPT_CONT} {HPT_CONI}",
-                // Row 3 (9)
-                "{HPT_COND} {HPT_DWLI} {HPT_DWLD} {KC_ASDN} {KC_ASUP} {KC_ASRP}",
-                // Row 4 (remaining 6)
-                "{KC_ASON} {KC_ASOFF} {KC_ASTG} {CMB_ON} {CMB_OFF} {CMB_TOG}",
-            ],
-            shift: [
-                // same as default
-                "{AU_ON} {AU_OFF} {AU_TOG} {CLICKY_TOGGLE} {CLICKY_UP} {CLICKY_DOWN} {CLICKY_RESET} {MU_ON} {MU_OFF}",
-                "{MU_TOG} {MU_MOD} {HPT_ON} {HPT_OFF} {HPT_TOG} {HPT_RST} {HPT_FBK} {HPT_BUZ} {HPT_MODI}",
-                "{HPT_MODD} {HPT_CONT} {HPT_CONI} {HPT_COND} {HPT_DWLI} {HPT_DWLD} {KC_ASDN} {KC_ASUP} {KC_ASRP}",
-                "{KC_ASON} {KC_ASOFF} {KC_ASTG} {CMB_ON} {CMB_OFF} {CMB_TOG}",
-            ],
-        },
-        display: {
-            "{AU_ON}": "Audio ON",
-            "{AU_OFF}": "Audio OFF",
-            "{AU_TOG}": "Audio Toggle",
-            "{CLICKY_TOGGLE}": "Clicky Toggle",
-            "{CLICKY_UP}": "Clicky Up",
-            "{CLICKY_DOWN}": "Clicky Down",
-            "{CLICKY_RESET}": "Clicky Reset",
-            "{MU_ON}": "Music On",
-            "{MU_OFF}": "Music Off",
-            "{MU_TOG}": "Music Toggle",
-            "{MU_MOD}": "Music Cycle",
-            "{HPT_ON}": "Haptic On",
-            "{HPT_OFF}": "Haptic Off",
-            "{HPT_TOG}": "Haptic Toggle",
-            "{HPT_RST}": "Haptic Reset",
-            "{HPT_FBK}": "Haptic Feed back",
-            "{HPT_BUZ}": "Haptic Buzz",
-            "{HPT_MODI}": "Haptic Next",
-            "{HPT_MODD}": "Haptic Prev",
-            "{HPT_CONT}": "Haptic Cont.",
-            "{HPT_CONI}": "Haptic +",
-            "{HPT_COND}": "Haptic -",
-            "{HPT_DWLI}": "Haptic Dwell+",
-            "{HPT_DWLD}": "Haptic Dwell-",
-            "{KC_ASDN}": "Auto- shift Down",
-            "{KC_ASUP}": "Auto- shift Up",
-            "{KC_ASRP}": "Auto- shift Report",
-            "{KC_ASON}": "Auto- shift On",
-            "{KC_ASOFF}": "Auto- shift Off",
-            "{KC_ASTG}": "Auto- shift Toggle",
-            "{CMB_ON}": "Combo On",
-            "{CMB_OFF}": "Combo Off",
-            "{CMB_TOG}": "Combo Toggle",
-        },
-    };
+
+    const keys = [
+        { keycode: "AU_ON", label: "Audio ON" },
+        { keycode: "AU_OFF", label: "Audio OFF" },
+        { keycode: "AU_TOG", label: "Audio Toggle" },
+        { keycode: "CLICKY_TOGGLE", label: "Clicky Toggle" },
+        { keycode: "CLICKY_UP", label: "Clicky Up" },
+        { keycode: "CLICKY_DOWN", label: "Clicky Down" },
+        { keycode: "CLICKY_RESET", label: "Clicky Reset" },
+        { keycode: "MU_ON", label: "Music On" },
+        { keycode: "MU_OFF", label: "Music Off" },
+        { keycode: "MU_TOG", label: "Music Toggle" },
+        { keycode: "MU_MOD", label: "Music Cycle" },
+        { keycode: "HPT_ON", label: "Haptic On" },
+        { keycode: "HPT_OFF", label: "Haptic Off" },
+        { keycode: "HPT_TOG", label: "Haptic Toggle" },
+        { keycode: "HPT_RST", label: "Haptic Reset" },
+        { keycode: "HPT_FBK", label: "Haptic Feed back" },
+        { keycode: "HPT_BUZ", label: "Haptic Buzz" },
+        { keycode: "HPT_MODI", label: "Haptic Next" },
+        { keycode: "HPT_MODD", label: "Haptic Prev" },
+        { keycode: "HPT_CONT", label: "Haptic Cont." },
+        { keycode: "HPT_CONI", label: "Haptic +" },
+        { keycode: "HPT_COND", label: "Haptic -" },
+        { keycode: "HPT_DWLI", label: "Haptic Dwell+" },
+        { keycode: "HPT_DWLD", label: "Haptic Dwell-" },
+        { keycode: "KC_ASDN", label: "Auto- shift Down" },
+        { keycode: "KC_ASUP", label: "Auto- shift Up" },
+        { keycode: "KC_ASRP", label: "Auto- shift Report" },
+        { keycode: "KC_ASON", label: "Auto- shift On" },
+        { keycode: "KC_ASOFF", label: "Auto- shift Off" },
+        { keycode: "KC_ASTG", label: "Auto- shift Toggle" },
+        { keycode: "CMB_ON", label: "Combo On" },
+        { keycode: "CMB_OFF", label: "Combo Off" },
+        { keycode: "CMB_TOG", label: "Combo Toggle" },
+    ];
+
     return (
-        <div>
-            <span className="font-semibold text-lg text-slate-700">Audio & haptic keys</span>
-            <Keyboard ref={(r: any) => (functionKeysRef.current = r)} layoutName="default" {...keyboardOptions} />
+        <div className="flex flex-col gap-2">
+            <span className="font-semibold text-lg text-slate-700">Audio & Haptic Keys</span>
+            <div className="flex flex-wrap gap-2">
+                {keys.map((k) => (
+                    <Key
+                        key={k.keycode}
+                        x={0}
+                        y={0}
+                        w={1}
+                        h={1}
+                        row={0}
+                        col={0}
+                        keycode={k.keycode}
+                        label={keyService.define(k.keycode)?.str || k.label}
+                        layerColor="sidebar"
+                        headerClassName="bg-kb-sidebar-dark"
+                        isRelative
+                        className="h-[60px] w-[60px]"
+                        onClick={() => assignKeycode(k.keycode)}
+                    />
+                ))}
+            </div>
         </div>
     );
 };

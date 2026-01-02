@@ -148,7 +148,7 @@ export const Key: React.FC<KeyProps> = ({
             <div
                 className="text-center w-full h-full justify-center items-center flex font-semibold"
                 // @ts-ignore
-                style={["user", "OSM"].includes(keyContents?.type) || l.length > 5 ? { whiteSpace: "pre-line", fontSize: "0.6rem", textWrap: "break" } : {}}
+                style={["user", "OSM"].includes(keyContents?.type) || l.length > 5 || (l.length === 5 && l.toUpperCase().includes("W")) ? { whiteSpace: "pre-line", fontSize: "0.6rem", textWrap: "break" } : {}}
             >
                 {l}
             </div>
