@@ -38,7 +38,7 @@ export type SidebarItem = {
 
 export const primarySidebarItems: SidebarItem[] = [
     { title: "Keys", url: "keyboard", icon: KeyboardIcon },
-    { title: "Special Keys", url: "special", icon: GamepadDirectional },
+    { title: "Special Keys", url: "special", icon: MatrixTesterIcon },
     { title: "QMK Keys", url: "qmk", icon: Cpu },
     { title: "Mouse", url: "mouse", icon: MouseIcon },
     { title: "Layers", url: "layers", icon: LayersDefaultIcon },
@@ -50,7 +50,7 @@ export const primarySidebarItems: SidebarItem[] = [
 
 const footerItems: SidebarItem[] = [
     { title: "About", url: "about", icon: HelpCircle },
-    { title: "Matrix Tester", url: "matrixtester", icon: MatrixTesterIcon },
+    { title: "Matrix Tester", url: "matrixtester", icon: GamepadDirectional },
     { title: "Settings", url: "settings", icon: Settings },
 ];
 
