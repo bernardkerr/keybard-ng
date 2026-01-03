@@ -154,8 +154,8 @@ const BasicKeyboards = () => {
     );
 
     return (
-        <div className="space-y-6">
-            <section className="flex flex-col gap-2">
+        <div className="space-y-6 relative">
+            <section className="flex flex-col gap-2 sticky top-0 z-20 bg-white pt-4 pb-4 -mt-4">
                 <span className="font-semibold text-lg text-slate-700">Modifiers</span>
                 <div className="flex flex-wrap gap-2">
                     <Button
@@ -205,6 +205,13 @@ const BasicKeyboards = () => {
                 <div className="flex flex-col gap-2">
                     <span className="font-semibold text-lg text-slate-700">Others</span>
                     {renderKeyGrid(otherKeys)}
+                </div>
+                <div className="flex flex-col gap-2">
+                    <span className="font-semibold text-lg text-slate-700">Function Keys</span>
+                    {renderKeyGrid(Array.from({ length: 24 }, (_, i) => ({
+                        keycode: `KC_F${i + 1}`,
+                        label: `F${i + 1}`
+                    })))}
                 </div>
             </div>
         </div>

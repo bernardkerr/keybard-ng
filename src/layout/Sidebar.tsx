@@ -39,18 +39,18 @@ export type SidebarItem = {
 export const primarySidebarItems: SidebarItem[] = [
     { title: "Keys", url: "keyboard", icon: KeyboardIcon },
     { title: "Special Keys", url: "special", icon: GamepadDirectional },
+    { title: "QMK Keys", url: "qmk", icon: Cpu },
     { title: "Mouse", url: "mouse", icon: MouseIcon },
     { title: "Layers", url: "layers", icon: LayersDefaultIcon },
     { title: "Tap Dances", url: "tapdances", icon: TapdanceIcon },
     { title: "Combos", url: "combos", icon: ComboIcon },
     { title: "Macros", url: "macros", icon: MacrosIcon },
     { title: "Overrides", url: "overrides", icon: OverridesIcon },
-    { title: "QMK Keys", url: "qmk", icon: Cpu },
-    { title: "Matrix Tester", url: "matrixtester", icon: MatrixTesterIcon },
 ];
 
 const footerItems: SidebarItem[] = [
     { title: "About", url: "about", icon: HelpCircle },
+    { title: "Matrix Tester", url: "matrixtester", icon: MatrixTesterIcon },
     { title: "Settings", url: "settings", icon: Settings },
 ];
 
