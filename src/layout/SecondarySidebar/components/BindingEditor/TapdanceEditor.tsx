@@ -8,11 +8,11 @@ import { getKeyContents } from "@/utils/keys";
 import { useDebounce } from "@uidotdev/usehooks";
 import EditorKey from "../EditorKey";
 
-interface Props {}
+interface Props { }
 
 const TapdanceEditor: FC<Props> = () => {
     const { keyboard, setKeyboard } = useVial();
-    const { setActivePanel, setPanelToGoBack, setAlternativeHeader, itemToEdit } = usePanels();
+    const { setPanelToGoBack, setAlternativeHeader, itemToEdit } = usePanels();
     const currTapDance = (keyboard as any).tapdances?.[itemToEdit!];
     const { selectTapdanceKey, selectedTarget } = useKeyBinding();
     const isSlotSelected = (slot: string) => {
@@ -38,19 +38,17 @@ const TapdanceEditor: FC<Props> = () => {
     }, []);
 
     const updateTapMs = (ms: number) => {
-        if ((keyboard as any).tapdances && itemToEdit) {
-            setKeyboard({
-                ...keyboard,
-                // @ts-ignore
-                tapdances: [
-                    ...(keyboard as any).tapdances.slice(0, itemToEdit),
-                    {
-                        ...currTapDance,
-                        tapms: ms,
-                    },
-                    ...(keyboard as any).tapdances.slice(itemToEdit + 1),
-                ],
-            });
+        if (keyboard && (keyboard as any).tapdances && itemToEdit !== null) {
+            const updatedKeyboard = { ...keyboard };
+            const tapdances = [...(updatedKeyboard as any).tapdances];
+            if (tapdances[itemToEdit]) {
+                tapdances[itemToEdit] = {
+                    ...tapdances[itemToEdit],
+                    tapms: ms,
+                };
+            }
+            (updatedKeyboard as any).tapdances = tapdances;
+            setKeyboard(updatedKeyboard);
         }
     };
     useEffect(() => {

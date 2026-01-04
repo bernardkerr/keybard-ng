@@ -7,11 +7,11 @@ import { getKeyContents } from "@/utils/keys";
 import { ArrowRight } from "lucide-react";
 import EditorKey from "../EditorKey";
 
-interface Props {}
+interface Props { }
 
 const ComboEditor: FC<Props> = () => {
     const { keyboard } = useVial();
-    const { setActivePanel, setPanelToGoBack, setAlternativeHeader, itemToEdit } = usePanels();
+    const { setPanelToGoBack, setAlternativeHeader, itemToEdit } = usePanels();
     const { selectComboKey, selectedTarget } = useKeyBinding();
     const currCombo = (keyboard as any).combos?.[itemToEdit!];
     const keys = {

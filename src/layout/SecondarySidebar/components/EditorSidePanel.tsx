@@ -24,7 +24,7 @@ interface Props {
     parentPanel?: string;
 }
 
-const EditorSidePanel: FC<Props> = ({ parentPanel }) => {
+const EditorSidePanel: FC<Props> = ({ parentPanel: _parentPanel }) => {
     const { setActivePanel, activePanel, setAlternativeHeader, setPanelToGoBack, bindingTypeToEdit } = usePanels();
     return (
         <div className="absolute top-0 left-0 h-full items-center justify-start flex">

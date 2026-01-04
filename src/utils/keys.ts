@@ -142,7 +142,6 @@ export function getModMasks(modids: any) {
 }
 
 export function getKeyContents(KBINFO: KeyboardInfo, keystr: any) {
-    const orig = keystr;
     let m;
 
     keystr = keyService.canonical(keystr);
@@ -199,7 +198,6 @@ export function getKeyContents(KBINFO: KeyboardInfo, keystr: any) {
             const mkey = keyService.define(keyid);
             const lname = getEditableName(KBINFO, "layer", m[2], m[2], true);
             if (m[1] in LAYERKEYS) {
-                let str = `(${lname})`;
                 const ldesc = LAYERKEYS[m[1]];
                 return {
                     type: "layer",

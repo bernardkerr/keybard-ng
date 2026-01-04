@@ -9,25 +9,30 @@ import MacroEditorKey from "./MacroEditorKey";
 import MacroEditorText from "./MacroEditorText";
 
 const MacroEditor: FC = () => {
-    const [actions, setActions] = useState<string[][]>([]);
+    const [actions, setActions] = useState<any[]>([]);
     const { keyboard, setKeyboard } = useVial();
     const { itemToEdit } = usePanels();
-    const { selectComboKey } = useKeyBinding();
+    const { selectComboKey: _selectComboKey } = useKeyBinding();
     const currMacro = (keyboard as any).macros?.[itemToEdit!];
     const handleAddItem = (type: string) => {
         setActions((items) => [...items, [type, ""]]);
     };
     useEffect(() => {
-        setActions(currMacro.actions || []);
-    }, []);
+        if (currMacro) {
+            setActions(currMacro.actions || []);
+        }
+    }, [currMacro]);
+
     useEffect(() => {
+        if (!keyboard) return;
         const updatedKeyboard = { ...keyboard };
         if (!updatedKeyboard.macros) {
             updatedKeyboard.macros = [];
         }
         updatedKeyboard.macros[itemToEdit!] = {
             ...updatedKeyboard.macros[itemToEdit!],
-            actions: actions,
+            mid: itemToEdit!,
+            actions: actions as any,
         };
         setKeyboard(updatedKeyboard);
     }, [actions]);

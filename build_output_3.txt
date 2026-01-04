@@ -1,0 +1,20 @@
+
+> keybard@1.0.0 build
+> tsc && vite build
+
+src/components/Key.tsx(82,25): error TS18048: 'keyContents.str' is possibly 'undefined'.
+src/components/Key.tsx(94,9): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/Key.tsx(97,9): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/Key.tsx(189,41): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/Keyboards/NumpadKeyboard.tsx(14,96): error TS6133: 'keyboardRef' is declared but its value is never read.
+src/components/Keyboards/SpecialKeyboard.tsx(14,24): error TS6133: 'setLayoutName' is declared but its value is never read.
+src/components/MainScreen.tsx(6,13): error TS6133: 'isConnected' is declared but its value is never read.
+src/contexts/PanelsContext.tsx(40,49): error TS6133: 'detailsState' is declared but its value is never read.
+src/layout/SecondarySidebar/components/BindingEditor/ComboEditor.tsx(14,13): error TS6133: 'setActivePanel' is declared but its value is never read.
+src/layout/SecondarySidebar/components/BindingsList.tsx(25,7): error TS6133: 'suffixByType' is declared but its value is never read.
+src/layout/SecondarySidebar/components/BindingsList.tsx(90,19): error TS6133: 'isActive' is declared but its value is never read.
+src/layout/SecondarySidebar/components/EditorSidePanel.tsx(27,37): error TS6133: 'parentPanel' is declared but its value is never read.
+src/layout/SecondarySidebar/Panels/LayersPanel.tsx(2,8): error TS6133: 'React' is declared but its value is never read.

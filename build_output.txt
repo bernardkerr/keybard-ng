@@ -1,0 +1,45 @@
+
+> keybard@1.0.0 build
+> tsc && vite build
+
+src/components/ConnectKeyboard.tsx(7,13): error TS6133: 'keyboard' is declared but its value is never read.
+src/components/ConnectKeyboard.tsx(7,36): error TS6133: 'isWebHIDSupported' is declared but its value is never read.
+src/components/ConnectKeyboard.tsx(7,55): error TS6133: 'loadedFrom' is declared but its value is never read.
+src/components/Keyboard.tsx(90,29): error TS2322: Type 'KeyMapEntry | { type: string; str: string; title: string; top: any; layertext?: undefined; tdid?: undefined; mods?: undefined; modids?: undefined; } | { type: string; top: string; str: any; ... 4 more ...; modids?: undefined; } | ... 5 more ... | undefined' is not assignable to type 'KeyContent | undefined'.
+  Type 'KeyMapEntry' is not assignable to type 'KeyContent'.
+    Types of property 'type' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/components/KeyboardConnector.tsx(171,26): error TS2739: Type '{ keyboard: KeyboardInfo; onKeyClick: (layer: number, row: number, col: number) => void; }' is missing the following properties from type 'KeyboardProps': selectedLayer, setSelectedLayer
+src/components/Keyboards/NumpadKeyboard.tsx(14,96): error TS6133: 'keyboardRef' is declared but its value is never read.
+src/components/Keyboards/SpecialKeyboard.tsx(14,24): error TS6133: 'setLayoutName' is declared but its value is never read.
+src/components/MainScreen.tsx(6,13): error TS6133: 'isConnected' is declared but its value is never read.
+src/contexts/PanelsContext.tsx(40,49): error TS6133: 'detailsState' is declared but its value is never read.
+src/layout/SecondarySidebar/components/BindingEditor/ComboEditor.tsx(14,13): error TS6133: 'setActivePanel' is declared but its value is never read.
+src/layout/SecondarySidebar/components/BindingEditor/MacroEditor.tsx(15,11): error TS6133: 'selectComboKey' is declared but its value is never read.
+src/layout/SecondarySidebar/components/BindingEditor/MacroEditor.tsx(30,13): error TS2322: Type 'string[][]' is not assignable to type 'MacroAction[]'.
+  Type 'string[]' is not assignable to type 'MacroAction'.
+    Target requires 2 element(s) but source may have fewer.
+src/layout/SecondarySidebar/components/BindingEditor/MacroEditor.tsx(32,21): error TS2345: Argument of type '{ via_proto?: number; vial_proto?: number; kbid?: string; payload?: KeyboardPayload; rows?: number | undefined; cols?: number | undefined; layers?: number; ... 16 more ...; keylayout?: Record<string, any>; }' is not assignable to parameter of type 'KeyboardInfo'.
+  Types of property 'rows' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+src/layout/SecondarySidebar/components/BindingEditor/TapdanceEditor.tsx(15,13): error TS6133: 'setActivePanel' is declared but its value is never read.
+src/layout/SecondarySidebar/components/BindingEditor/TapdanceEditor.tsx(42,25): error TS2345: Argument of type '{ tapdances: any[]; via_proto?: number; vial_proto?: number; kbid?: string; payload?: KeyboardPayload; rows?: number | undefined; cols?: number | undefined; ... 16 more ...; keylayout?: Record<string, any>; }' is not assignable to parameter of type 'KeyboardInfo'.
+  Types of property 'rows' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+src/layout/SecondarySidebar/components/BindingsList.tsx(25,7): error TS6133: 'suffixByType' is declared but its value is never read.
+src/layout/SecondarySidebar/components/BindingsList.tsx(90,19): error TS6133: 'isActive' is declared but its value is never read.
+src/layout/SecondarySidebar/components/EditorSidePanel.tsx(27,37): error TS6133: 'parentPanel' is declared but its value is never read.
+src/layout/SecondarySidebar/Panels/LayersPanel.tsx(2,8): error TS6133: 'React' is declared but its value is never read.
+src/layout/SecondarySidebar/Panels/QmkKeysPanel.tsx(28,17): error TS2322: Type 'KeyMapEntry | { type: string; str: string; title: string; top: any; layertext?: undefined; tdid?: undefined; mods?: undefined; modids?: undefined; } | { type: string; top: string; str: any; ... 4 more ...; modids?: undefined; } | ... 5 more ... | undefined' is not assignable to type 'KeyContent | undefined'.
+  Type 'KeyMapEntry' is not assignable to type 'KeyContent'.
+    Types of property 'type' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/services/file.service.ts(147,54): error TS6133: 'm' is declared but its value is never read.
+src/services/file.service.ts(168,27): error TS6133: 'kbinfo' is declared but its value is never read.
+src/services/file.service.ts(278,32): error TS2551: Property 'tapdance' does not exist on type 'KeyboardInfo'. Did you mean 'tapdances'?
+src/services/file.service.ts(349,16): error TS2551: Property 'tapdance' does not exist on type 'KeyboardInfo'. Did you mean 'tapdances'?
+src/services/kle.service.ts(38,13): error TS6133: 'Matrix' is declared but its value is never read.

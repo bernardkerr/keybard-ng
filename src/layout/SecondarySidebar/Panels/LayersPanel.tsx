@@ -1,5 +1,5 @@
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import React, { useState } from "react";
+import { useState } from "react";
 
 import EditLayer from "@/components/EditLayer";
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";

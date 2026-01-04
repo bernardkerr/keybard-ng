@@ -1,0 +1,28 @@
+
+> keybard@1.0.0 build
+> tsc && vite build
+
+src/components/Key.tsx(189,41): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/components/Keyboard.tsx(90,29): error TS2322: Type 'KeyMapEntry | { type: string; str: string; title: string; top: any; layertext?: undefined; tdid?: undefined; mods?: undefined; modids?: undefined; } | { type: string; top: string; str: any; ... 4 more ...; modids?: undefined; } | ... 5 more ... | undefined' is not assignable to type 'KeyContent | undefined'.
+  Type '{ type: string; layertext: string; str: string | undefined; title: string; top?: undefined; tdid?: undefined; mods?: undefined; modids?: undefined; }' is not assignable to type 'KeyContent'.
+    Types of property 'str' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/components/KeyboardConnector.tsx(171,26): error TS2739: Type '{ keyboard: KeyboardInfo; onKeyClick: (layer: number, row: number, col: number) => void; }' is missing the following properties from type 'KeyboardProps': selectedLayer, setSelectedLayer
+src/components/Keyboards/NumpadKeyboard.tsx(14,96): error TS6133: 'keyboardRef' is declared but its value is never read.
+src/components/Keyboards/SpecialKeyboard.tsx(14,24): error TS6133: 'setLayoutName' is declared but its value is never read.
+src/components/MainScreen.tsx(6,13): error TS6133: 'isConnected' is declared but its value is never read.
+src/contexts/PanelsContext.tsx(40,49): error TS6133: 'detailsState' is declared but its value is never read.
+src/layout/SecondarySidebar/components/BindingEditor/ComboEditor.tsx(14,13): error TS6133: 'setActivePanel' is declared but its value is never read.
+src/layout/SecondarySidebar/components/BindingEditor/TapdanceEditor.tsx(44,23): error TS2538: Type 'null' cannot be used as an index type.
+src/layout/SecondarySidebar/components/BindingEditor/TapdanceEditor.tsx(45,30): error TS2538: Type 'null' cannot be used as an index type.
+src/layout/SecondarySidebar/components/BindingsList.tsx(25,7): error TS6133: 'suffixByType' is declared but its value is never read.
+src/layout/SecondarySidebar/components/BindingsList.tsx(90,19): error TS6133: 'isActive' is declared but its value is never read.
+src/layout/SecondarySidebar/components/EditorSidePanel.tsx(27,37): error TS6133: 'parentPanel' is declared but its value is never read.
+src/layout/SecondarySidebar/Panels/LayersPanel.tsx(2,8): error TS6133: 'React' is declared but its value is never read.
+src/layout/SecondarySidebar/Panels/QmkKeysPanel.tsx(28,17): error TS2322: Type 'KeyMapEntry | { type: string; str: string; title: string; top: any; layertext?: undefined; tdid?: undefined; mods?: undefined; modids?: undefined; } | { type: string; top: string; str: any; ... 4 more ...; modids?: undefined; } | ... 5 more ... | undefined' is not assignable to type 'KeyContent | undefined'.
+  Type '{ type: string; layertext: string; str: string | undefined; title: string; top?: undefined; tdid?: undefined; mods?: undefined; modids?: undefined; }' is not assignable to type 'KeyContent'.
+    Types of property 'str' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.

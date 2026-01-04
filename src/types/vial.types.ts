@@ -139,8 +139,8 @@ export interface VialAPI {
 }
 
 export interface KeyContent {
-    type: string;
-    str: string;
+    type?: string;
+    str?: string;
     title?: string;
     top?: string;
     layertext?: string;

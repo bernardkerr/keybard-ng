@@ -79,9 +79,9 @@ export const Key: React.FC<KeyProps> = ({
 
     if (hasModifiers && keyContents) {
         const show = showModMask(keyContents.modids);
-        const keysArr = keyContents.str.split("\n");
+        const keysArr = keyContents.str?.split("\n") || [];
         if (!label || label === keycode) {
-            displayLabel = keysArr[0];
+            displayLabel = keysArr[0] || "";
         }
         bottomStr = show;
     }
@@ -91,10 +91,10 @@ export const Key: React.FC<KeyProps> = ({
     } else if (keyContents?.type === "macro") {
         displayLabel = keyContents.top?.replace("M", "") || "";
     } else if (keyContents?.type === "user") {
-        displayLabel = keyContents.str;
+        displayLabel = keyContents.str || "";
     } else if (keyContents?.type === "OSM") {
         topLabel = "OSM";
-        displayLabel = keyContents.str;
+        displayLabel = keyContents.str || "";
     }
 
     if (displayLabel === "KC_NO") {
@@ -186,7 +186,7 @@ export const Key: React.FC<KeyProps> = ({
                 </span>
             )}
 
-            {keyContents && getTypeIcon(keyContents.type, variant)}
+            {keyContents && getTypeIcon(keyContents.type || "", variant)}
 
             <div
                 className={cn(
