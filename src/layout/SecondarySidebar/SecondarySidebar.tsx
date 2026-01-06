@@ -4,7 +4,7 @@ import * as React from "react";
 import { ArrowLeft, X } from "lucide-react";
 
 import BindingEditorContainer from "./components/BindingEditor/BindingEditorContainer";
-import EditorSidePanel from "./components/EditorSidePanel";
+import EditorSidePanel, { PickerMode } from "./components/EditorSidePanel";
 import BasicKeyboards from "./Panels/BasicKeyboards";
 import CombosPanel from "./Panels/CombosPanel";
 import LayersPanel from "./Panels/LayersPanel";
@@ -99,7 +99,7 @@ const SecondarySidebar = () => {
     // We show it if we are editing an item and we are in a panel that supports key picking
     const showPicker = itemToEdit !== null && ["tapdances", "combos", "macros", "overrides"].includes(activePanel || "");
 
-    const [pickerMode, setPickerMode] = React.useState<"keyboard" | "layers" | "macros">("keyboard");
+    const [pickerMode, setPickerMode] = React.useState<PickerMode>("keyboard");
     const [isClosingEditor, setIsClosingEditor] = React.useState(false);
 
     // Reset picker mode when picker closes
@@ -202,7 +202,7 @@ const SecondarySidebar = () => {
                 </div>
 
                 <div className="absolute top-1/2 -translate-y-1/2 -right-[56px] h-48 z-50">
-                    <EditorSidePanel activeTab={pickerMode} onTabChange={(t) => setPickerMode(t as any)} />
+                    <EditorSidePanel activeTab={pickerMode} onTabChange={setPickerMode} />
                 </div>
 
                 <div className="flex-1 overflow-auto px-4 pb-4">

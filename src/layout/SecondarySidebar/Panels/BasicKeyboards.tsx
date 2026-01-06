@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import QwertyKeyboard from "@/components/Keyboards/QwertyKeyboard";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,25 @@ export const modifierOptions = ["Shift", "Ctrl", "Alt", "Gui"] as const;
 export type Modifier = typeof modifierOptions[number];
 
 // Helper to apply modifiers to a keycode
+const MODIFIER_MAP: Record<number, string> = {
+    1: "LCTL",
+    2: "LSFT",
+    3: "C_S",
+    4: "LALT",
+    5: "LCA",
+    6: "LSA",
+    7: "MEH",
+    8: "LGUI",
+    9: "LCG",
+    10: "SGUI",
+    11: "LSCG",
+    12: "LAG",
+    13: "LCAG",
+    14: "LSAG",
+    15: "HYPR",
+};
+
+// Helper to apply modifiers to a keycode
 const applyModifiers = (keycode: string, activeModifiers: Modifier[]) => {
     if (activeModifiers.length === 0) return keycode;
 
@@ -37,25 +56,7 @@ const applyModifiers = (keycode: string, activeModifiers: Modifier[]) => {
     // bitmask: Ctrl=1, Shift=2, Alt=4, Gui=8
     const mask = (hasCtrl ? 1 : 0) | (hasShift ? 2 : 0) | (hasAlt ? 4 : 0) | (hasGui ? 8 : 0);
 
-    const MAP: Record<number, string> = {
-        1: "LCTL",
-        2: "LSFT",
-        3: "C_S",
-        4: "LALT",
-        5: "LCA",
-        6: "LSA",
-        7: "MEH",
-        8: "LGUI",
-        9: "LCG",
-        10: "SGUI",
-        11: "LSCG",
-        12: "LAG",
-        13: "LCAG",
-        14: "LSAG",
-        15: "HYPR",
-    };
-
-    const modifierFunc = MAP[mask];
+    const modifierFunc = MODIFIER_MAP[mask];
     return modifierFunc ? `${modifierFunc}(${keycode})` : keycode;
 };
 
@@ -64,7 +65,6 @@ interface Props {
 }
 
 const BasicKeyboards = ({ isPicker }: Props) => {
-    const keyboardRef = useRef(null);
     const [activeModifiers, setActiveModifiers] = useState<Modifier[]>([]);
     const { assignKeycode, isBinding } = useKeyBinding();
     const { keyboard } = useVial();
@@ -207,7 +207,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                 </div>
             </section>
 
-            <QwertyKeyboard keyboardRef={keyboardRef} onChange={() => { }} onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} />
+            <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} />
 
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">

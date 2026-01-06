@@ -5,7 +5,9 @@ import MacrosIcon from "@/components/icons/MacrosIcon";
 import { cn } from "@/lib/utils";
 import { FC } from "react";
 
-const iconsToShow = [
+export type PickerMode = "keyboard" | "layers" | "macros";
+
+const iconsToShow: { icon: React.ReactNode; panel: PickerMode }[] = [
     {
         icon: <KeyboardIcon className="w-4 h-4" />,
         panel: "keyboard",
@@ -21,13 +23,12 @@ const iconsToShow = [
 ];
 
 interface Props {
-    parentPanel?: string;
     className?: string;
-    activeTab?: string;
-    onTabChange?: (tab: string) => void;
+    activeTab?: PickerMode;
+    onTabChange?: (tab: PickerMode) => void;
 }
 
-const EditorSidePanel: FC<Props> = ({ parentPanel: _parentPanel, className, activeTab, onTabChange }) => {
+const EditorSidePanel: FC<Props> = ({ className, activeTab, onTabChange }) => {
     return (
         <div className={cn("h-full items-center justify-start flex", className)}>
             <div
@@ -43,7 +44,7 @@ const EditorSidePanel: FC<Props> = ({ parentPanel: _parentPanel, className, acti
                         )}
                         onClick={() => {
                             if (onTabChange) {
-                                onTabChange(i.panel!);
+                                onTabChange(i.panel);
                             }
                         }}
                     >

@@ -10,9 +10,7 @@ import { LAYOUTS, BUTTON_TO_KEYCODE_MAP, KEY_DISPLAY_OVERRIDES, LAYOUT_KEY_MAPS 
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 
 interface IProps {
-    onChange: (input: string) => void;
     onKeyPress?: (button: string) => void;
-    keyboardRef: any;
     activeModifiers?: string[];
 }
 
