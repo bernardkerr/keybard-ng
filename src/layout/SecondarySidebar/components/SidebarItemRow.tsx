@@ -26,6 +26,7 @@ interface SidebarItemRowProps {
     hoverHeaderClass?: string;
     showDottedLine?: boolean;
     showIndex?: boolean;
+    children?: React.ReactNode;
 }
 
 
@@ -52,6 +53,7 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
         hoverHeaderClass,
         showDottedLine = true,
         showIndex = true,
+        children,
     }) => {
         const [isColorPickerOpen, setIsColorPickerOpen] = React.useState(false);
         const [isEditing, setIsEditing] = React.useState(false);
@@ -158,39 +160,47 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                     )}
                 </div>
 
-                {/* Label Area and Dotted Leader */}
+                {/* Label Area / Children / Dotted Leader */}
                 <div
                     className="flex-grow flex flex-row items-end mb-2 min-w-0 relative h-6 mr-3 ml-1 cursor-pointer"
                     onClick={onNameChange ? handleStartEditing : onEdit ? handleEdit : undefined}
                 >
-                    {/* Visual dotted border baseline */}
-                    {showDottedLine && !isEditing && (
-                        <div className="absolute left-[-4px] right-0 bottom-[2px] h-[2px] sidebar-dotted-line pointer-events-none" />
-                    )}
-
-                    {isEditing && onNameChange ? (
-                        <div
-                            className="absolute left-[-4px] right-0 bottom-[-7px] flex items-center bg-white rounded-md px-2 py-1.5 border border-black shadow-sm"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <Input
-                                ref={inputRef}
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onBlur={handleSaveEdit}
-                                onKeyDown={handleKeyDown}
-                                className="h-auto py-0 px-0 text-base md:text-base font-medium border-none shadow-none focus-visible:ring-0 w-full bg-transparent"
-                                autoFocus
-                            />
+                    {children ? (
+                        <div className="relative z-10 w-full h-full flex items-center">
+                            {children}
                         </div>
                     ) : (
-                        <div className="relative z-10 flex flex-row items-end gap-2 bg-transparent min-w-0 flex-shrink">
-                            {(hasCustomName || (label && label !== index.toString())) && (
-                                <span className="text-base font-medium truncate pr-0">
-                                    {hasCustomName ? customName : label}
-                                </span>
+                        <>
+                            {/* Visual dotted border baseline */}
+                            {showDottedLine && !isEditing && (
+                                <div className="absolute left-[-4px] right-0 bottom-[2px] h-[2px] sidebar-dotted-line pointer-events-none" />
                             )}
-                        </div>
+
+                            {isEditing && onNameChange ? (
+                                <div
+                                    className="absolute left-[-4px] right-0 bottom-[-7px] flex items-center bg-white rounded-md px-2 py-1.5 border border-black shadow-sm"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <Input
+                                        ref={inputRef}
+                                        value={editValue}
+                                        onChange={(e) => setEditValue(e.target.value)}
+                                        onBlur={handleSaveEdit}
+                                        onKeyDown={handleKeyDown}
+                                        className="h-auto py-0 px-0 text-base md:text-base font-medium border-none shadow-none focus-visible:ring-0 w-full bg-transparent"
+                                        autoFocus
+                                    />
+                                </div>
+                            ) : (
+                                <div className="relative z-10 flex flex-row items-end gap-2 bg-transparent min-w-0 flex-shrink">
+                                    {(hasCustomName || (label && label !== index.toString())) && (
+                                        <span className="text-base font-medium truncate pr-0">
+                                            {hasCustomName ? customName : label}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                        </>
                     )}
 
                     {/* Flexible spacer ensures dotted line spans empty space to the key */}

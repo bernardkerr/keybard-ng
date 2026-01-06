@@ -1,4 +1,5 @@
 import React from "react";
+import { Key } from "@/components/Key";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -39,11 +40,65 @@ const TapdancePanel: React.FC = () => {
     };
 
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+        <div className="space-y-3 pt-3 pb-8 relative">
+            {/* Header Row - Sticky */}
+            <div className="sticky top-0 z-20 bg-white pt-4 pb-4 -mt-4 flex flex-row items-end pl-12 pr-12 mb-2">
+                <div className="flex-grow flex flex-row justify-between w-full max-w-[240px] ml-6">
+                    <span className="text-xs font-bold text-center w-[30px]">Tap</span>
+                    <span className="text-xs font-bold text-center w-[30px]">Hold</span>
+                    <span className="text-xs font-bold text-center w-[30px] whitespace-nowrap -ml-2">Tap-Hold</span>
+                    <span className="text-xs font-bold text-center w-[30px] whitespace-nowrap -ml-3">Double-Tap</span>
+                </div>
+            </div>
+
+            <div className="flex flex-col">
                 {tapdances.map((_, i) => {
                     const keycode = `TD(${i})`;
                     const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
+
+                    const td = (keyboard as any).tapdances?.[i] || {};
+                    const states = [
+                        { label: "Tap", key: td.tap },
+                        { label: "Hold", key: td.hold },
+                        { label: "TapHold", key: td.taphold },
+                        { label: "Double", key: td.doubletap },
+                    ];
+
+                    const stateContents = states.map(s => getKeyContents(keyboard, s.key));
+
+                    // Check if any key is actually assigned (not just KC_NO/empty)
+                    const hasAssignment = stateContents.some((k: any) => (k?.top && k.top !== "KC_NO") || (k?.str && k.str !== "KC_NO" && k.str !== ""));
+
+                    const renderSmallKey = (content: any, idx: number) => {
+                        const hasContent = (content?.top && content?.top !== "KC_NO") || (content?.str && content?.str !== "" && content?.str !== "KC_NO");
+
+                        return (
+                            <div className="w-[30px] h-[30px] relative" key={idx}>
+                                <Key
+                                    isRelative
+                                    x={0}
+                                    y={0}
+                                    w={1}
+                                    h={1}
+                                    row={-1}
+                                    col={-1}
+                                    keycode={content?.top || "KC_NO"}
+                                    label={content?.str || ""}
+                                    keyContents={content}
+                                    variant="small"
+                                    layerColor={hasContent ? "sidebar" : undefined}
+                                    className={!hasContent ? "bg-transparent border border-kb-gray-border" : "border-kb-gray"}
+                                    headerClassName={!hasContent ? "hidden" : "bg-kb-sidebar-dark"}
+                                />
+                            </div>
+                        );
+                    };
+
+                    const rowChildren = hasAssignment ? (
+                        <div className="flex flex-row gap-4 w-full max-w-[240px] ml-6 justify-between">
+                            {stateContents.map((content, idx) => renderSmallKey(content, idx))}
+                        </div>
+                    ) : undefined;
 
                     return (
                         <SidebarItemRow
@@ -59,7 +114,9 @@ const TapdancePanel: React.FC = () => {
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}
                             hoverHeaderClass={hoverHeaderClass}
-                        />
+                        >
+                            {rowChildren}
+                        </SidebarItemRow>
                     );
                 })}
                 {tapdances.length === 0 && (
@@ -68,7 +125,7 @@ const TapdancePanel: React.FC = () => {
                     </div>
                 )}
             </div>
-        </section>
+        </div>
     );
 };
 

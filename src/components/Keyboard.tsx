@@ -21,7 +21,7 @@ interface KeyboardProps {
 
 // Fix unused var warning
 export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) => {
-    const { selectKeyboardKey, selectedTarget, clearSelection, hoveredKey } = useKeyBinding();
+    const { selectKeyboardKey, selectedTarget, clearSelection, hoveredKey, assignKeycode } = useKeyBinding();
     const [showInfoPanel, setShowInfoPanel] = React.useState(false);
 
     // React.useEffect(() => {
@@ -49,6 +49,20 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
         }
         selectKeyboardKey(selectedLayer, row, col);
     };
+
+    // Handle Delete/Backspace for selected key
+    React.useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Delete" || e.key === "Backspace") {
+                if (selectedTarget?.type === "keyboard" && selectedTarget.layer === selectedLayer && typeof selectedTarget.row === 'number') {
+                    assignKeycode("KC_NO");
+                }
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [selectedTarget, selectedLayer, assignKeycode]);
 
     // Calculate the keyboard dimensions for the container
     const calculateKeyboardSize = () => {
