@@ -177,8 +177,8 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                                     key={color.name}
                                     className={cn(
                                         "w-6 h-6 rounded-full transition-all hover:scale-110 border-2",
-                                        selectedLayer.toString() in (keyboard.cosmetic?.layer_colors || {}) &&
-                                            keyboard.cosmetic?.layer_colors?.[selectedLayer] === color.name
+                                        (keyboard.cosmetic?.layer_colors?.[selectedLayer] === color.name) ||
+                                            (!keyboard.cosmetic?.layer_colors?.[selectedLayer] && color.name === "green")
                                             ? "border-black border-3"
                                             : "border-transparent"
                                     )}

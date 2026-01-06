@@ -18,8 +18,6 @@ const TapdancePanel: React.FC = () => {
         setItemToEdit,
         setBindingTypeToEdit,
         setAlternativeHeader,
-        setPanelToGoBack,
-        setActivePanel,
     } = usePanels();
 
     if (!keyboard) return null;
@@ -35,8 +33,6 @@ const TapdancePanel: React.FC = () => {
         setItemToEdit(index);
         setBindingTypeToEdit("tapdances");
         setAlternativeHeader(true);
-        setPanelToGoBack("tapdances");
-        setActivePanel("keyboard");
     };
 
     return (
@@ -46,8 +42,8 @@ const TapdancePanel: React.FC = () => {
                 <div className="flex-grow flex flex-row justify-between w-full max-w-[240px] ml-6">
                     <span className="text-xs font-bold text-center w-[30px]">Tap</span>
                     <span className="text-xs font-bold text-center w-[30px]">Hold</span>
-                    <span className="text-xs font-bold text-center w-[30px] whitespace-nowrap -ml-2">Tap-Hold</span>
-                    <span className="text-xs font-bold text-center w-[30px] whitespace-nowrap -ml-3">Double-Tap</span>
+                    <span className="text-xs font-bold text-center w-[30px] whitespace-nowrap">Tap-Hold</span>
+                    <span className="text-xs font-bold text-center w-[30px] whitespace-nowrap">Double-Tap</span>
                 </div>
             </div>
 
@@ -89,6 +85,8 @@ const TapdancePanel: React.FC = () => {
                                     layerColor={hasContent ? "sidebar" : undefined}
                                     className={!hasContent ? "bg-transparent border border-kb-gray-border" : "border-kb-gray"}
                                     headerClassName={!hasContent ? "hidden" : "bg-kb-sidebar-dark"}
+                                    disableHover
+                                    onClick={() => handleEdit(i)}
                                 />
                             </div>
                         );

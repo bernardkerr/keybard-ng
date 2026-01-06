@@ -29,7 +29,11 @@ const MODIFIER_NAMES: Record<LayerModifier, string> = {
 /**
  * Main panel for managing and selecting layers.
  */
-const LayersPanel = () => {
+interface Props {
+    isPicker?: boolean;
+}
+
+const LayersPanel = ({ isPicker }: Props) => {
     const [activeModifier, setActiveModifier] = useState<LayerModifier>("MO");
     const { keyboard, setKeyboard } = useVial();
     const { assignKeycode } = useKeyBinding();
@@ -69,6 +73,11 @@ const LayersPanel = () => {
 
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col">
+            {isPicker && (
+                <div className="pb-2">
+                    <span className="font-semibold text-xl text-slate-700">Layer Keys</span>
+                </div>
+            )}
             {/* Layer Modifier Selection Tabs */}
             <div className="flex flex-wrap items-center justify-start gap-4">
                 <div className="flex items-center justify-between rounded-full p-1 gap-1 bg-muted/30">
@@ -121,8 +130,8 @@ const LayersPanel = () => {
                             hasCustomName={hasCustomName}
                             customName={layerName}
                             onAssignKeycode={assignKeycode}
-                            onColorChange={handleColorChange}
-                            onNameChange={handleNameChange}
+                            onColorChange={isPicker ? undefined : handleColorChange}
+                            onNameChange={isPicker ? undefined : handleNameChange}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}

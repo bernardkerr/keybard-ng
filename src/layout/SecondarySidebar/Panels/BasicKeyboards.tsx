@@ -59,7 +59,11 @@ const applyModifiers = (keycode: string, activeModifiers: Modifier[]) => {
     return modifierFunc ? `${modifierFunc}(${keycode})` : keycode;
 };
 
-const BasicKeyboards = () => {
+interface Props {
+    isPicker?: boolean;
+}
+
+const BasicKeyboards = ({ isPicker }: Props) => {
     const keyboardRef = useRef(null);
     const [activeModifiers, setActiveModifiers] = useState<Modifier[]>([]);
     const { assignKeycode, isBinding } = useKeyBinding();
@@ -100,13 +104,13 @@ const BasicKeyboards = () => {
 
     const numpadKeys = [
         { keycode: "KC_PSCR", label: "PrtSc" }, { keycode: "KC_SLCK", label: "ScrLk" }, { keycode: "KC_PAUS", label: "Pause" },
-        { keycode: "KC_NLCK", label: "Lock" }, { keycode: "KC_PEQL", label: "=" }, { keycode: "KC_KP_SLASH", label: "/" }, { keycode: "KC_KP_PLUS", label: "+" },
+        { keycode: "KC_NLCK", label: "Lock" }, { keycode: "KC_PEQL", label: "=" }, { keycode: "KC_KP_SLASH", label: "/" }, { keycode: "KC_KP_ASTERISK", label: "*" },
 
         { keycode: "KC_INS", label: "Ins" }, { keycode: "KC_HOME", label: "Home" }, { keycode: "KC_PGUP", label: "PgUp" },
         { keycode: "KC_KP_7", label: "7" }, { keycode: "KC_KP_8", label: "8" }, { keycode: "KC_KP_9", label: "9" }, { keycode: "KC_KP_MINUS", label: "-" },
 
         { keycode: "KC_DEL", label: "Del" }, { keycode: "KC_END", label: "End" }, { keycode: "KC_PGDN", label: "PgDn" },
-        { keycode: "KC_KP_4", label: "4" }, { keycode: "KC_KP_5", label: "5" }, { keycode: "KC_KP_6", label: "6" }, { keycode: "KC_KP_ASTERISK", label: "*" },
+        { keycode: "KC_KP_4", label: "4" }, { keycode: "KC_KP_5", label: "5" }, { keycode: "KC_KP_6", label: "6" }, { keycode: "KC_KP_PLUS", label: "+" },
 
         { keycode: "BLANK", label: "" }, { keycode: "KC_UP", label: "↑" }, { keycode: "BLANK", label: "" },
         { keycode: "KC_KP_1", label: "1" }, { keycode: "KC_KP_2", label: "2" }, { keycode: "KC_KP_3", label: "3" }, { keycode: "KC_KP_ENTER", label: "Enter" },
@@ -134,6 +138,8 @@ const BasicKeyboards = () => {
                 }
                 const keyContents = keyboard ? getKeyContents(keyboard, k.keycode) : undefined;
                 const displayLabel = keyService.define(k.keycode)?.str || k.label || k.keycode;
+                const isDoubleHeight = k.keycode === "KC_KP_ENTER";
+
                 return (
                     <Key
                         key={`${k.keycode}-${i}`}
@@ -144,7 +150,10 @@ const BasicKeyboards = () => {
                         layerColor="sidebar"
                         headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
                         isRelative
-                        className="h-[60px] w-[60px]"
+                        className={cn(
+                            "w-[60px]",
+                            isDoubleHeight ? "h-[128px] row-span-2" : "h-[60px]"
+                        )}
                         hoverBorderColor={hoverBorderColor}
                         hoverBackgroundColor={hoverBackgroundColor}
                         hoverLayerColor={layerColorName}
@@ -157,6 +166,11 @@ const BasicKeyboards = () => {
 
     return (
         <div className="space-y-6 relative">
+            {isPicker && (
+                <div className="pb-2">
+                    <span className="font-semibold text-xl text-slate-700">Keys</span>
+                </div>
+            )}
             <section className="flex flex-col gap-2 sticky top-0 z-20 bg-white pt-4 pb-4 -mt-4">
                 <span className="font-semibold text-lg text-slate-700">Modifiers</span>
                 <div className="flex flex-wrap gap-2">
@@ -202,7 +216,7 @@ const BasicKeyboards = () => {
                 </div>
                 <div className="flex flex-col gap-2">
                     <span className="font-semibold text-lg text-slate-700">Numpad</span>
-                    {renderKeyGrid(numpadKeys, "grid-cols-7")}
+                    {renderKeyGrid(numpadKeys, "grid-cols-[repeat(7,60px)]")}
                 </div>
                 <div className="flex flex-col gap-2">
                     <span className="font-semibold text-lg text-slate-700">Others</span>

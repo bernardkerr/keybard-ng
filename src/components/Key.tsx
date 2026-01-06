@@ -27,6 +27,7 @@ interface KeyProps {
     hoverBorderColor?: string;
     hoverBackgroundColor?: string;
     hoverLayerColor?: string;
+    disableHover?: boolean;
 }
 
 /**
@@ -53,6 +54,7 @@ export const Key: React.FC<KeyProps> = ({
     hoverBorderColor,
     hoverBackgroundColor,
     hoverLayerColor,
+    disableHover = false,
 }) => {
     const isSmall = variant === "small";
     const currentUnitSize = isSmall ? 30 : UNIT_SIZE;
@@ -67,6 +69,7 @@ export const Key: React.FC<KeyProps> = ({
     };
 
     const handleMouseEnter = () => {
+        if (disableHover) return;
         setHoveredKey({
             type: "keyboard",
             row,
@@ -77,6 +80,7 @@ export const Key: React.FC<KeyProps> = ({
     };
 
     const handleMouseLeave = () => {
+        if (disableHover) return;
         setHoveredKey(null);
     };
 
@@ -157,9 +161,9 @@ export const Key: React.FC<KeyProps> = ({
             : cn(
                 colorClass,
                 "border-kb-gray",
-                hoverBorderColor || "hover:border-red-500",
-                hoverBackgroundColor,
-                hoverContainerTextClass
+                !disableHover && (hoverBorderColor || "hover:border-red-500"),
+                !disableHover && hoverBackgroundColor,
+                !disableHover && hoverContainerTextClass
             ),
         className
     );

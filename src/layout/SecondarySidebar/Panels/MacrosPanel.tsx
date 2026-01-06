@@ -9,7 +9,11 @@ import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "
 import { getKeyContents } from "@/utils/keys";
 import { KeyContent } from "@/types/vial.types";
 
-const MacrosPanel: React.FC = () => {
+interface Props {
+    isPicker?: boolean;
+}
+
+const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
     const { keyboard } = useVial();
     const { assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
@@ -40,6 +44,11 @@ const MacrosPanel: React.FC = () => {
 
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
+            {isPicker && (
+                <div className="pb-2">
+                    <span className="font-semibold text-xl text-slate-700">Macros</span>
+                </div>
+            )}
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
                 {macros.map((_, i) => {
                     const keycode = `M${i}`;
@@ -53,7 +62,7 @@ const MacrosPanel: React.FC = () => {
                             keycode={keycode}
                             label={i.toString()}
                             keyContents={keyContents}
-                            onEdit={handleEdit}
+                            onEdit={isPicker ? undefined : handleEdit}
                             onAssignKeycode={assignKeycode}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}

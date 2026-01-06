@@ -1,6 +1,6 @@
 import "./BindingEditorContainer.css";
 
-import { FC, useCallback, useState } from "react";
+import { FC, useCallback, useState, useEffect } from "react";
 
 import ComboIcon from "@/components/ComboIcon";
 import MacrosIcon from "@/components/icons/MacrosIcon";
@@ -8,7 +8,6 @@ import OverridesIcon from "@/components/icons/Overrides";
 import { usePanels } from "@/contexts/PanelsContext";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
-import EditorSidePanel from "../EditorSidePanel";
 import ComboEditor from "./ComboEditor";
 import MacroEditor from "./MacroEditor";
 import OverrideEditor from "./OverrideEditor";
@@ -18,7 +17,9 @@ import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
 import { KeyContent } from "@/types/vial.types";
 
-interface Props { }
+interface Props {
+    shouldClose?: boolean;
+}
 
 const icons = {
     macros: <MacrosIcon />,
@@ -27,15 +28,21 @@ const icons = {
 };
 
 const labels = {
-    tapdances: "Tapdance Key",
+    tapdances: "Tap Dance Keys",
     macros: "Macro Key",
-    combos: "Combo Key",
+    combos: "Combo Keys",
     overrides: "Override",
 };
 
-const BindingEditorContainer: FC<Props> = ({ }) => {
+const BindingEditorContainer: FC<Props> = ({ shouldClose }) => {
     const { itemToEdit, handleCloseEditor, bindingTypeToEdit } = usePanels();
     const [isClosing, setIsClosing] = useState(false);
+
+    useEffect(() => {
+        if (shouldClose && !isClosing) {
+            setIsClosing(true);
+        }
+    }, [shouldClose, isClosing]);
 
     const handleAnimatedClose = useCallback(() => {
         if (isClosing) {
@@ -54,7 +61,7 @@ const BindingEditorContainer: FC<Props> = ({ }) => {
     const { keyboard } = useVial();
 
     const containerClasses = cn("absolute top-1/2 -translate-y-1/2", bindingTypeToEdit === "overrides" ? "w-[500px] right-[-500px]" : "w-[400px] right-[-400px]");
-    const panelClasses = cn("binding-editor bg-kb-gray-medium rounded-r-2xl p-5 flex flex-col w-full min-h-[500px]", isClosing ? "binding-editor--exit" : "binding-editor--enter");
+    const panelClasses = cn("binding-editor bg-kb-gray-medium rounded-r-2xl p-5 flex flex-col w-full min-h-[500px] shadow-[4px_0_16px_rgba(0,0,0,0.1)]", isClosing ? "binding-editor--exit" : "binding-editor--enter");
 
     const renderHeaderIcon = () => {
         if (bindingTypeToEdit === "tapdances" && itemToEdit !== null && keyboard) {
@@ -95,7 +102,6 @@ const BindingEditorContainer: FC<Props> = ({ }) => {
         <div className={containerClasses}>
             <div className={panelClasses} onAnimationEnd={handleAnimationEnd}>
                 <div className="flex flex-row w-full items-center pr-5 pl-[76px] justify-between pt-2">
-                    <EditorSidePanel parentPanel="tapdances" />
                     <div className="flex flex-row items-center">
                         {renderHeaderIcon()}
                         <div className="pl-5 text-xl font-normal">{(labels as any)[bindingTypeToEdit!]}</div>

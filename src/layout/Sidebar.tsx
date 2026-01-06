@@ -36,7 +36,7 @@ export type SidebarItem = {
 };
 
 export const primarySidebarItems: SidebarItem[] = [
-    { title: "Keys", url: "keyboard", icon: KeyboardIcon },
+    { title: "Keyboard Keys", url: "keyboard", icon: KeyboardIcon },
     { title: "Special Keys", url: "special", icon: Gamepad },
     { title: "QMK Keys", url: "qmk", icon: Cpu },
     { title: "Layer Keys", url: "layers", icon: LayersDefaultIcon },
@@ -153,7 +153,7 @@ const AppSidebar = () => {
                                 <div className={cn(ICON_GUTTER_WIDTH, "h-4 flex items-center justify-start shrink-0", LOGO_ICON_PADDING)}>
                                     <Logo />
                                 </div>
-                                <span className="text-[22px] font-semibold truncate group-data-[state=collapsed]:hidden">Keybard</span>
+                                <span className="text-[22px] font-semibold truncate group-data-[state=collapsed]:hidden">keybard</span>
                             </div>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
