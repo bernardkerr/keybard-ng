@@ -13,13 +13,13 @@ const ComboEditor: FC<Props> = () => {
     const { keyboard } = useVial();
     const { setPanelToGoBack, setAlternativeHeader, itemToEdit } = usePanels();
     const { selectComboKey, selectedTarget } = useKeyBinding();
-    const currCombo = (keyboard as any).combos?.[itemToEdit!];
+    const currCombo = (keyboard as any).combos?.[itemToEdit!] as import("@/types/vial.types").ComboEntry;
     const keys = {
-        0: getKeyContents(keyboard!, currCombo["0"]),
-        1: getKeyContents(keyboard!, currCombo["1"]),
-        2: getKeyContents(keyboard!, currCombo["2"]),
-        3: getKeyContents(keyboard!, currCombo["3"]),
-        4: getKeyContents(keyboard!, currCombo["4"]),
+        0: getKeyContents(keyboard!, currCombo.keys[0]),
+        1: getKeyContents(keyboard!, currCombo.keys[1]),
+        2: getKeyContents(keyboard!, currCombo.keys[2]),
+        3: getKeyContents(keyboard!, currCombo.keys[3]),
+        4: getKeyContents(keyboard!, currCombo.output),
     };
 
     // Check if a specific combo slot is selected

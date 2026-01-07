@@ -9,6 +9,7 @@ import { useVial } from "@/contexts/VialContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
+import { KeyContent } from "@/types/vial.types";
 
 const CombosPanel: React.FC = () => {
     const { keyboard } = useVial();
@@ -38,8 +39,11 @@ const CombosPanel: React.FC = () => {
     return (
         <div className="space-y-3 pt-3 pb-8 relative">
             <div className="flex flex-col">
-                {combos.map((combo, i) => {
-                    const isKeyAssigned = (content: any) => {
+                {combos.map((comboEntry, i) => {
+                    // Cast to unknown first if there are type mismatches, but ideally use ComboEntry
+                    const combo = comboEntry as any as import("@/types/vial.types").ComboEntry;
+
+                    const isKeyAssigned = (content: KeyContent | undefined) => {
                         if (!content) return false;
                         const top = content.top;
                         const str = content.str;
@@ -47,16 +51,16 @@ const CombosPanel: React.FC = () => {
                     };
 
                     const inputs = [0, 1, 2, 3].map(idx => ({
-                        content: getKeyContents(keyboard, (combo as any)[idx.toString()] || "KC_NO"),
+                        content: getKeyContents(keyboard, combo.keys[idx] || "KC_NO") as KeyContent,
                         id: idx
                     })).filter(k => isKeyAssigned(k.content));
 
-                    const resultKeycode = (combo as any)["4"];
-                    // Use resultKeycode directly if available, otherwise KC_NO, to prevent crash
-                    const result = getKeyContents(keyboard, resultKeycode || "KC_NO");
+                    // Use resultKeycode directly if available, otherwise KC_NO
+                    const resultKeycode = combo.output;
+                    const result = getKeyContents(keyboard, resultKeycode || "KC_NO") as KeyContent;
                     const hasAssignment = inputs.length > 0 || isKeyAssigned(result);
 
-                    const renderSmallKey = (content: any, idx: number) => {
+                    const renderSmallKey = (content: KeyContent, idx: number) => {
                         const hasContent = (content?.top && content.top !== "KC_NO") || (content?.str && content.str !== "KC_NO" && content.str !== "");
                         return (
                             <div key={idx} className="relative w-[30px] h-[30px]">
@@ -91,7 +95,7 @@ const CombosPanel: React.FC = () => {
                     ) : undefined;
 
                     // Restore visual style: use "combo" type for icon and index for label
-                    const keyContents = { type: "combo" } as any;
+                    const keyContents = { type: "combo" } as KeyContent;
 
                     return (
                         <SidebarItemRow
