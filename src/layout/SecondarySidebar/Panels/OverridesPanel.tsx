@@ -138,7 +138,7 @@ const OverridesPanel: React.FC = () => {
                             hoverLayerColor={layerColorName}
                             hoverHeaderClass={hoverHeaderClass}
                             showPreviewKey={false}
-                            className="py-1"
+                            className="py-4"
                         >
                             {rowChildren}
                         </SidebarItemRow>
