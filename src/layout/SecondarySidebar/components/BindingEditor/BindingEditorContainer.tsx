@@ -98,7 +98,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose }) => {
         }
     };
 
-    const containerClasses = cn("absolute top-1/2 -translate-y-1/2", bindingTypeToEdit === "overrides" ? "w-[500px] right-[-500px]" : "w-[450px] right-[-450px]");
+    const containerClasses = cn("absolute top-1/2 -translate-y-1/2", bindingTypeToEdit === "overrides" ? "w-[600px] right-[-600px]" : "w-[450px] right-[-450px]");
     const panelClasses = cn("binding-editor bg-kb-gray-medium rounded-r-2xl p-5 flex flex-col w-full min-h-[500px] shadow-[4px_0_16px_rgba(0,0,0,0.1)]", isClosing ? "binding-editor--exit" : "binding-editor--enter");
 
     const renderHeaderIcon = () => {
@@ -139,7 +139,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose }) => {
     return (
         <div className={containerClasses}>
             <div className={panelClasses} onAnimationEnd={handleAnimationEnd}>
-                <div className="flex flex-row w-full items-center pr-5 pl-[84px] justify-between pt-2 pb-5">
+                <div className={cn("flex flex-row w-full items-center pr-5 justify-between pt-2 pb-5", bindingTypeToEdit === "overrides" ? "pl-[44px]" : "pl-[84px]")}>
                     <div className="flex flex-row items-center">
                         {renderHeaderIcon()}
                         <div className="pl-5 text-xl font-normal">

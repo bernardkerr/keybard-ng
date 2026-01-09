@@ -28,6 +28,9 @@ const ICON_GUTTER_WIDTH = "w-[43px]";
 const BASE_ICON_PADDING = "pl-[13px]";
 const LOGO_ICON_PADDING = "pl-[10px]";
 const MENU_ITEM_GAP_PX = 42; // Matches Gap-4 (16px) + Button Height (26px)
+const DIVIDER_HEIGHT_PX = 17; // 1px + 2*8px (my-2)
+const FLEX_GAP_PX = 16; // Gap-4
+const FEATURE_SECTION_OFFSET = DIVIDER_HEIGHT_PX + FLEX_GAP_PX;
 
 export type SidebarItem = {
     title: string;
@@ -45,20 +48,23 @@ export const primarySidebarItems: SidebarItem[] = [
     { title: "Macros", url: "macros", icon: MacrosIcon },
 ];
 
-const footerItems: SidebarItem[] = [
-    { title: "About", url: "about", icon: HelpCircle },
+const featureSidebarItems: SidebarItem[] = [
     { title: "Combos", url: "combos", icon: ComboIcon },
     { title: "Overrides", url: "overrides", icon: OverridesIcon },
+];
+
+const footerItems: SidebarItem[] = [
+    { title: "About", url: "about", icon: HelpCircle },
     { title: "Matrix Tester", url: "matrixtester", icon: GamepadDirectional },
     { title: "Settings", url: "settings", icon: Settings },
 ];
 
 // --- Sub-components ---
 
-const SlidingIndicator = ({ index }: { index: number }) => (
+const SlidingIndicator = ({ y }: { y: number }) => (
     <div
         className="absolute left-[4px] top-0 w-[3px] h-[26px] bg-black z-20 transition-transform duration-300 ease-in-out pointer-events-none"
-        style={{ transform: `translateY(${index * MENU_ITEM_GAP_PX}px)` }}
+        style={{ transform: `translateY(${y}px)` }}
     />
 );
 
@@ -136,7 +142,15 @@ const AppSidebar = () => {
     );
 
     const activePrimaryIndex = primarySidebarItems.findIndex((item) => item.url === activePanel);
+    const activeFeatureIndex = featureSidebarItems.findIndex((item) => item.url === activePanel);
     const activeFooterIndex = footerItems.findIndex((item) => item.url === activePanel);
+
+    let indicatorY = -1;
+    if (activePrimaryIndex !== -1) {
+        indicatorY = activePrimaryIndex * MENU_ITEM_GAP_PX;
+    } else if (activeFeatureIndex !== -1) {
+        indicatorY = (primarySidebarItems.length * MENU_ITEM_GAP_PX) + FEATURE_SECTION_OFFSET + (activeFeatureIndex * MENU_ITEM_GAP_PX);
+    }
 
     const sidebarClasses = cn(
         "z-11 fixed transition-[box-shadow,border-color] duration-300 ease-out border border-sidebar-border shadow-lg ml-2 h-[98vh] mt-[1vh] transition-all",
@@ -172,8 +186,21 @@ const AppSidebar = () => {
 
             <SidebarContent className="py-2 !overflow-visible flex flex-col justify-center">
                 <SidebarMenu className="relative">
-                    {activePrimaryIndex !== -1 && <SlidingIndicator index={activePrimaryIndex} />}
+                    {indicatorY !== -1 && <SlidingIndicator y={indicatorY} />}
                     {primarySidebarItems.map((item) => (
+                        <SidebarNavItem
+                            key={item.url}
+                            item={item}
+                            isActive={activePanel === item.url}
+                            isPreviousPanel={panelToGoBack === item.url}
+                            alternativeHeader={alternativeHeader}
+                            onClick={handleItemSelect}
+                        />
+                    ))}
+
+                    <div className="mx-4 my-2 h-[1px] bg-slate-200" />
+
+                    {featureSidebarItems.map((item) => (
                         <SidebarNavItem
                             key={item.url}
                             item={item}
@@ -188,7 +215,7 @@ const AppSidebar = () => {
 
             <SidebarFooter className="p-0 py-2 !overflow-visible mb-3">
                 <SidebarMenu className="relative">
-                    {activeFooterIndex !== -1 && <SlidingIndicator index={activeFooterIndex} />}
+                    {activeFooterIndex !== -1 && <SlidingIndicator y={activeFooterIndex * MENU_ITEM_GAP_PX} />}
                     {footerItems.map((item) => (
                         <SidebarNavItem
                             key={item.url}
