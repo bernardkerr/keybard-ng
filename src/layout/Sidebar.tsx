@@ -1,9 +1,9 @@
-import { ChevronsRight, Cpu, Gamepad, HelpCircle, LucideIcon, Settings, Zap } from "lucide-react";
+import { ChevronsRight, HelpCircle, Keyboard, LucideIcon, Piano, Settings, SquareDot, Zap } from "lucide-react";
 import { useCallback } from "react";
 
 import ComboIcon from "@/components/ComboIcon";
 import GamepadDirectional from "@/components/icons/GamepadDirectional";
-import KeyboardIcon from "@/components/icons/Keyboard";
+
 import LayersDefaultIcon from "@/components/icons/LayersDefault";
 import MacrosIcon from "@/components/icons/MacrosIcon";
 import MouseIcon from "@/components/icons/Mouse";
@@ -40,9 +40,9 @@ export type SidebarItem = {
 };
 
 export const primarySidebarItems: SidebarItem[] = [
-    { title: "Keyboard", url: "keyboard", icon: KeyboardIcon },
-    { title: "Special", url: "special", icon: Gamepad },
-    { title: "QMK", url: "qmk", icon: Cpu },
+    { title: "Keyboard", url: "keyboard", icon: Keyboard },
+    { title: "Special", url: "special", icon: Piano },
+    { title: "One-Shot", url: "qmk", icon: SquareDot },
     { title: "Layer Keys", url: "layers", icon: LayersDefaultIcon },
     { title: "Mouse", url: "mouse", icon: MouseIcon },
     { title: "Tap Dances", url: "tapdances", icon: TapdanceIcon },

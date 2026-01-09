@@ -355,10 +355,10 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={handleWipeDisable}>
-                            All Blank
+                            Make All Blank
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={handleWipeTransparent}>
-                            All Transparent
+                            Make All Transparent
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={handleChangeDisabledToTransparent}>
                             Switch Blank to Transparent

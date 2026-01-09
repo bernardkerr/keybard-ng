@@ -172,7 +172,7 @@ const OverrideEditor: FC<Props> = () => {
     const isEnabled = (override.options & ENABLED_BIT) !== 0;
 
     return (
-        <div className="flex flex-col gap-4 py-8 pl-[44px] pr-5 pb-4">
+        <div className="flex flex-col gap-4 py-8 pl-[84px] pr-5 pb-4">
             {/* Active Switch */}
             {/* Active Toggle */}
             <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50 w-fit">

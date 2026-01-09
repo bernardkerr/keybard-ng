@@ -20,8 +20,6 @@ const OverridesPanel: React.FC = () => {
         setItemToEdit,
         setBindingTypeToEdit,
         setAlternativeHeader,
-        setPanelToGoBack,
-        setActivePanel,
     } = usePanels();
 
     if (!keyboard) return null;
@@ -37,8 +35,6 @@ const OverridesPanel: React.FC = () => {
         setItemToEdit(index);
         setBindingTypeToEdit("overrides");
         setAlternativeHeader(true);
-        setPanelToGoBack("overrides");
-        setActivePanel("keyboard");
     };
 
     const updateOverrideOption = (index: number, bit: number, checked: boolean) => {
