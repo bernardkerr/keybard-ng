@@ -73,7 +73,6 @@ const OverridesPanel: React.FC = () => {
                                     className={hasContent ? "border-kb-gray" : "bg-transparent border border-kb-gray-border"}
                                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                                     variant="small"
-                                    disableHover
                                     onClick={() => handleEdit(i)}
                                 />
                             </div>
