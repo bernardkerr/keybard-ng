@@ -41,9 +41,14 @@ const EditorLayoutInner = () => {
     const { keyVariant, setKeyVariant } = useLayoutSettings();
 
     const { getSetting } = useSettings();
-    const { getPendingCount, commit } = useChanges();
+    const { getPendingCount, commit, setInstant } = useChanges();
 
     const liveUpdating = getSetting("live-updating");
+
+    React.useEffect(() => {
+        setInstant(!!liveUpdating);
+    }, [liveUpdating, setInstant]);
+
     const hasChanges = getPendingCount() > 0;
 
     const primarySidebar = useSidebar("primary-nav", { defaultOpen: false });
@@ -92,14 +97,16 @@ const EditorLayoutInner = () => {
                         <button
                             className={cn(
                                 "h-9 rounded-full px-4 text-sm font-medium transition-all shadow-sm flex items-center gap-2",
-                                hasChanges
+                                isConnected
                                     ? "bg-black text-white hover:bg-black/90 cursor-pointer animate-in fade-in zoom-in duration-300"
                                     : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                             )}
-                            disabled={!hasChanges}
+                            disabled={!isConnected}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                commit();
+                                if (hasChanges) {
+                                    commit();
+                                }
                             }}
                         >
                             Update Changes
@@ -115,10 +122,10 @@ const EditorLayoutInner = () => {
                                     setKeyVariant(variant);
                                 }}
                                 className={cn(
-                                    "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[4px] transition-all font-semibold",
+                                    "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[4px] transition-all font-semibold border",
                                     keyVariant === variant
-                                        ? "bg-white text-black shadow-sm border border-gray-200"
-                                        : "text-gray-500 hover:text-gray-900 hover:bg-gray-300/50"
+                                        ? "bg-black text-white shadow-sm border-black"
+                                        : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
                                 )}
                                 title={`Set key size to ${variant}`}
                             >
