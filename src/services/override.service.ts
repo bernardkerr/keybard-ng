@@ -1,41 +1,46 @@
 import type { KeyboardInfo } from "../types/vial.types";
 import { keyService } from "./key.service";
-import { VialUSB } from "./usb.service";
+import { ViableUSB } from "./usb.service";
 
 export class OverrideService {
-    constructor(private usb: VialUSB) { }
+    constructor(private usb: ViableUSB) { }
 
     async get(kbinfo: KeyboardInfo): Promise<void> {
-        // Key overrides are stored in dynamic memory chunks. We do
-        // KBINFO.key_override_count queries. So this can take a bit of time.
-        const all_entries = await this.usb.getDynamicEntries(
-            VialUSB.DYNAMIC_VIAL_KEY_OVERRIDE_GET,
-            kbinfo.key_override_count!,
-            { unpack: '<BHHHBBBB' }
-        );
+        const override_count = kbinfo.key_override_count || 0;
+        if (override_count === 0) return;
 
         kbinfo.key_overrides = [];
 
-        all_entries.forEach((raw: any[], idx: number) => {
-            kbinfo.key_overrides!.push({
-                koid: idx,
-                trigger: keyService.stringify(raw[1]),
-                replacement: keyService.stringify(raw[2]),
-                layers: raw[3],
-                trigger_mods: raw[4],
-                negative_mod_mask: raw[5],
-                suppressed_mods: raw[6],
-                options: raw[7],
+        // Use Viable protocol: direct key override get command
+        for (let i = 0; i < override_count; i++) {
+            const data = await this.usb.sendViable(
+                ViableUSB.CMD_VIABLE_KEY_OVERRIDE_GET,
+                [i],
+                { uint8: true }
+            ) as Uint8Array;
+
+            // Response: [index][trigger:2][replacement:2][layers:2][trigger_mods][negative_mod_mask][suppressed_mods][options]
+            const dv = new DataView(data.buffer);
+            kbinfo.key_overrides.push({
+                koid: i,
+                trigger: keyService.stringify(dv.getUint16(1, true)),
+                replacement: keyService.stringify(dv.getUint16(3, true)),
+                layers: dv.getUint16(5, true),
+                trigger_mods: data[7],
+                negative_mod_mask: data[8],
+                suppressed_mods: data[9],
+                options: data[10],
             });
-        });
+        }
     }
 
     async push(kbinfo: KeyboardInfo, koid: number): Promise<void> {
         if (!kbinfo.key_overrides) return;
         const ko = kbinfo.key_overrides[koid];
+        if (!ko) return;
 
-        await this.usb.sendVial(VialUSB.CMD_VIAL_DYNAMIC_ENTRY_OP, [
-            VialUSB.DYNAMIC_VIAL_KEY_OVERRIDE_SET,
+        // Use Viable protocol: direct key override set command
+        await this.usb.sendViable(ViableUSB.CMD_VIABLE_KEY_OVERRIDE_SET, [
             koid,
             ...this.LE16(keyService.parse(ko.trigger)),
             ...this.LE16(keyService.parse(ko.replacement)),
@@ -44,7 +49,7 @@ export class OverrideService {
             ko.negative_mod_mask,
             ko.suppressed_mods,
             ko.options,
-        ]);
+        ], {});
     }
 
     private LE16(val: number): [number, number] {

@@ -1,10 +1,10 @@
 import { KleService } from "./kle.service";
 import { keyService } from "./key.service";
-import { VialUSB, usbInstance } from "./usb.service";
-import { LE32 } from "./utils";
+import { ViableUSB, usbInstance } from "./usb.service";
+import { LE16 } from "./utils";
 
 import { XzReadableStream } from "xz-decompress";
-import type { KeyboardInfo } from "../types/vial.types";
+import type { KeyboardInfo, AltRepeatKeyEntry, LeaderEntry } from "../types/vial.types";
 import { ComboService } from "./combo.service";
 import { MacroService } from "./macro.service";
 import { OverrideService } from "./override.service";
@@ -50,8 +50,16 @@ async function decompress(buffer: ArrayBuffer): Promise<string> {
     }
 }
 
-export class VialService {
-    private usb: VialUSB;
+/**
+ * ViableService - Keyboard configuration service using the Viable protocol
+ *
+ * The Viable protocol extends VIA3 with additional features:
+ * - Alt Repeat Key, Leader sequences, One-shot settings
+ * - Client ID wrapper for multi-client concurrent access
+ * - Dynamic keyboard definitions with custom UI menus
+ */
+export class ViableService {
+    private usb: ViableUSB;
     private macro: MacroService;
     private tapdance: TapdanceService;
     private combo: ComboService;
@@ -59,7 +67,7 @@ export class VialService {
     private qmk: QMKService;
     private kle: KleService;
 
-    constructor(usb: VialUSB) {
+    constructor(usb: ViableUSB) {
         this.usb = usb;
         this.macro = new MacroService(usb);
         this.tapdance = new TapdanceService(usb);
@@ -95,7 +103,6 @@ export class VialService {
 
         // Check for Svalboard-specific features
         const isSval = await svalService.check(kbinfo);
-        // ...
         if (isSval) {
             console.log("Svalboard detected, proto:", kbinfo.sval_proto, "firmware:", kbinfo.sval_firmware);
             await svalService.pull(kbinfo);
@@ -114,121 +121,73 @@ export class VialService {
         await this.combo.get(kbinfo);
         await this.override.get(kbinfo);
 
+        // Load Viable-specific features
+        await this.getAltRepeatKeys(kbinfo);
+        await this.getLeaders(kbinfo);
+        await this.getOneShot(kbinfo);
+
         return kbinfo;
     }
 
     async getKeyboardInfo(kbinfo: KeyboardInfo): Promise<KeyboardInfo> {
-        // VIA Protocol version
-        kbinfo.via_proto = (await this.usb.send(VialUSB.CMD_VIA_GET_PROTOCOL_VERSION, [], {
+        // VIA Protocol version (via wrapped VIA command)
+        kbinfo.via_proto = (await this.usb.send(ViableUSB.CMD_VIA_GET_PROTOCOL_VERSION, [], {
             unpack: "B>H",
             index: 1,
         })) as number;
 
-        // Vial protocol and Keyboard ID
-        // Response validation: Reject stale echoes from other commands.
-        // Accept if: (Not echo) OR (Echo of correct command)
-        const vial_kbid = await this.usb.sendVial(VialUSB.CMD_VIAL_GET_KEYBOARD_ID, [], {
-            unpack: "I<Q",
-            validateInput: (u8) => u8[0] !== VialUSB.CMD_VIA_VIAL_PREFIX || u8[1] === VialUSB.CMD_VIAL_GET_KEYBOARD_ID
-        });
-        kbinfo.vial_proto = vial_kbid[0] as number;
-        kbinfo.kbid = (vial_kbid[1] as bigint).toString();
-
-        // Get compressed JSON payload size
-        const sizeData = await this.usb.sendVial(VialUSB.CMD_VIAL_GET_SIZE, [], {
+        // Get Viable protocol info
+        const viableInfo = await this.usb.sendViable(ViableUSB.CMD_VIABLE_GET_INFO, [], {
             uint8: true,
-            validateInput: (u8) => u8[0] !== VialUSB.CMD_VIA_VIAL_PREFIX || u8[1] === VialUSB.CMD_VIAL_GET_SIZE
         });
 
-        // Offset logic remains the same (check for echo to determine offset)
-        let sizeOffset = 0;
-        if ((sizeData[0] as number) === VialUSB.CMD_VIA_VIAL_PREFIX && (sizeData[1] as number) === VialUSB.CMD_VIAL_GET_SIZE) {
-            sizeOffset = 2;
-        }
+        // Parse Viable info response:
+        // [protocol_version:4][uid:8][feature_flags:1]
+        const dv = new DataView((viableInfo as Uint8Array).buffer);
+        kbinfo.viable_proto = dv.getUint32(0, true);
+        kbinfo.feature_flags = viableInfo[12];
 
-        const dvSize = new DataView(sizeData.buffer);
-        // Size is always Little Endian
-        const payload_size = dvSize.getUint32(sizeOffset, true);
+        // Extract UID as hex string for kbid
+        const uidBytes = (viableInfo as Uint8Array).slice(4, 12);
+        kbinfo.kbid = Array.from(uidBytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
-        // console.log("Payload Size:", payload_size, "Offset:", sizeOffset);
+        // Get compressed JSON payload size via Viable protocol
+        const sizeResp = await this.usb.sendViable(ViableUSB.CMD_VIABLE_DEFINITION_SIZE, [], {
+            uint32: true,
+            index: 0,
+        });
+        const payload_size = sizeResp as number;
 
         if (payload_size > 50 * 1024 * 1024) { // Safety sanity check (50MB)
             throw new Error(`Invalid payload size: ${payload_size}`);
         }
 
-        let block = 0;
-        let sz = payload_size;
+        // Fetch definition in chunks using Viable protocol
+        const chunkSize = 28;
         const payload = new ArrayBuffer(payload_size);
         const pdv = new DataView(payload);
-        let dstOffset = 0;
+        let offset = 0;
 
-        let protocolDataOffset = 0; // Will be determined on first block
+        while (offset < payload_size) {
+            const requestSize = Math.min(chunkSize, payload_size - offset);
+            const resp = await this.usb.sendViable(
+                ViableUSB.CMD_VIABLE_DEFINITION_CHUNK,
+                [...LE16(offset), requestSize],
+                { uint8: true }
+            );
 
-        while (sz > 0) {
-            const data = await this.usb.sendVial(VialUSB.CMD_VIAL_GET_DEFINITION, [...LE32(block)], {
-                uint8: true,
-            });
-
-            // On first block, detect offset using XZ Magic Bytes (FD 37 7A 58 5A 00)
-            if (block === 0) {
-                // Check for Echo (FE 02)
-                if ((data[0] as number) === VialUSB.CMD_VIA_VIAL_PREFIX && (data[1] as number) === VialUSB.CMD_VIAL_GET_DEFINITION) {
-                    // It *looks* like an echo, but verify against XZ magic if possible to be sure
-                    // XZ Magic: FD 37 7A 58 5A 00
-                    if (data[2] === 0xFD && data[3] === 0x37) {
-                        protocolDataOffset = 2;
-                    } else if (data[0] === 0xFD && data[1] === 0x37) {
-                        protocolDataOffset = 0;
-                    } else {
-                        // Fallback heuristic: assume echo if we saw it earlier or strictly see pattern
-                        protocolDataOffset = 2;
-                    }
-                } else {
-                    protocolDataOffset = 0;
-                }
-                // console.log("Definition Protocol Offset:", protocolDataOffset);
+            const data = resp as Uint8Array;
+            // Response format: [offset_lo][offset_hi][actual_size][data...]
+            const actualSize = data[2];
+            for (let i = 0; i < actualSize && offset < payload_size; i++) {
+                pdv.setInt8(offset, data[3 + i]);
+                offset++;
             }
 
-            // Copy data
-            // Available data length in this chunk
-            const available = data.length - protocolDataOffset;
-            const toCopy = Math.min(available, sz);
-
-            for (let i = 0; i < toCopy; i++) {
-                if (dstOffset < payload_size) {
-                    pdv.setInt8(dstOffset, data[protocolDataOffset + i]);
-                    dstOffset += 1;
-                }
-            }
-
-            // NOTE: Vial protocol usually implies 32 bytes of DATA.
-            // If echo eats 2 bytes, we validly only got 30 bytes of data.
-            // We decrement 'sz' by actual copied amount.
-            // But 'block' increments by 1.
-            // Does 'block' map to 32-byte chunks or (32-offset)-byte chunks?
-            // Standard Vial firmware uses: `offset = block * 32`. 
-            // So if we lose 2 bytes, we have HOLES in our data. 
-            // HOWEVER, if the firmware echoes, it implies it's wrapping the response.
-            // If it's wrapping, a compliant firmware should probably shift the offset or we are doomed to corruption.
-            // Let's assume for now that if Echo exists, the firmware implementation handles `memcpy(buf+2, data + block*30, 30)` logic OR
-            // we are simply missing bytes.
-            // Given the user error "XZ decompression failed", it's possible we were getting data but it was corrupt.
-            // CORRECTION: corrupted likely means "Header bytes treated as data".
-            // So stripping headers is the correct first step. 
-            // If the buffer is then "short", we just process next block.
-            // IMPORTANT: If firmware uses `block * 32`, and we only read 30 bytes, we miss 2 bytes every chunk.
-            // THIS would be catastrophic for XZ.
-            // HOPEFULLY, 'Echo' implies 'No data loss' (packet size > 32?) or 'offset logic changed'.
-            // Or maybe 'get_definition' does NOT echo, even if 'get_size' did?
-            // The heuristic above (checking XZ magic at 0) handles the "Does not echo" case.
-            // If it DOES echo, we have to assume the data at [2..] is the valid stream continuation.
-
-            sz = sz - toCopy;
-            block += 1;
+            if (actualSize < requestSize) break; // End of data
         }
 
         // Decompress and parse JSON
-        // Note: Original uses Int8Array spread, but we can pass buffer directly
         const decompressed = await decompress(payload);
         const payloadData = JSON.parse(decompressed);
         kbinfo.payload = payloadData;
@@ -237,30 +196,35 @@ export class VialService {
         kbinfo.cols = payloadData.matrix.cols;
         kbinfo.custom_keycodes = payloadData.customKeycodes;
 
+        // Extract Viable feature counts from the definition
+        if (payloadData.viable) {
+            kbinfo.tapdance_count = payloadData.viable.tap_dance || 0;
+            kbinfo.combo_count = payloadData.viable.combo || 0;
+            kbinfo.key_override_count = payloadData.viable.key_override || 0;
+            kbinfo.alt_repeat_key_count = payloadData.viable.alt_repeat_key || 0;
+            kbinfo.leader_count = payloadData.viable.leader || 0;
+        }
+
         return kbinfo;
     }
 
     async getFeatures(kbinfo: KeyboardInfo): Promise<void> {
-        // Get feature counts
-        const counts = await this.usb.sendVial(VialUSB.CMD_VIAL_DYNAMIC_ENTRY_OP, [], {});
+        // Get macro info via VIA commands (wrapped)
+        const macro_count = await this.usb.send(ViableUSB.CMD_VIA_MACRO_GET_COUNT, [], { uint8: true, index: 1 });
 
-        const macro_count = await this.usb.send(VialUSB.CMD_VIA_MACRO_GET_COUNT, [], { uint8: true, index: 1 });
-
-        const macros_size = (await this.usb.send(VialUSB.CMD_VIA_MACRO_GET_BUFFER_SIZE, [], {
+        const macros_size = (await this.usb.send(ViableUSB.CMD_VIA_MACRO_GET_BUFFER_SIZE, [], {
             unpack: "B>H",
             index: 1,
         })) as number;
 
-        // Store feature information in kbinfo
-        kbinfo.tapdance_count = counts[0];
-        kbinfo.combo_count = counts[1];
-        kbinfo.key_override_count = counts[2];
         kbinfo.macro_count = macro_count;
         kbinfo.macros_size = macros_size;
+
+        // Feature counts are already loaded from viable.json in getKeyboardInfo
     }
 
     async getKeyMap(kbinfo: KeyboardInfo): Promise<void> {
-        kbinfo.layers = await this.usb.send(VialUSB.CMD_VIA_GET_LAYER_COUNT, [], {
+        kbinfo.layers = await this.usb.send(ViableUSB.CMD_VIA_GET_LAYER_COUNT, [], {
             uint8: true,
             index: 1,
         });
@@ -272,11 +236,10 @@ export class VialService {
         const size = kbinfo.layers * kbinfo.rows * kbinfo.cols;
 
         // Get keymap data as uint16 array (big-endian converted to host endian)
-        const alldata = await this.usb.getViaBuffer(VialUSB.CMD_VIA_KEYMAP_GET_BUFFER, size * 2, { uint16: true, slice: 2, bigendian: true, bytes: 2 });
+        const alldata = await this.usb.getViaBuffer(ViableUSB.CMD_VIA_KEYMAP_GET_BUFFER, size * 2, { uint16: true, slice: 2, bigendian: true, bytes: 2 });
 
         kbinfo.keymap = [];
 
-        // alldata is now an array of uint16 values
         if (!Array.isArray(alldata)) {
             throw new Error("Expected array of keycodes from getViaBuffer");
         }
@@ -288,32 +251,104 @@ export class VialService {
                     const offset = l * kbinfo.rows * kbinfo.cols + r * kbinfo.cols + c;
                     const keycode = alldata[offset];
                     layer.push(keycode);
-                    // console.log(`Layer ${l} [${r},${c}] = 0x${keycode.toString(16).padStart(4, '0')} "${keyService.stringify(keycode)}"`);
                 }
             }
             kbinfo.keymap[l] = layer;
         }
     }
 
+    /**
+     * Get Alt Repeat Key entries from keyboard
+     */
+    async getAltRepeatKeys(kbinfo: KeyboardInfo): Promise<void> {
+        if (!kbinfo.alt_repeat_key_count) return;
+
+        kbinfo.alt_repeat_keys = [];
+        for (let i = 0; i < kbinfo.alt_repeat_key_count; i++) {
+            const data = await this.usb.sendViable(
+                ViableUSB.CMD_VIABLE_ALT_REPEAT_KEY_GET,
+                [i],
+                { uint8: true }
+            ) as Uint8Array;
+
+            // Response: [index][keycode:2][alt_keycode:2][allowed_mods][options]
+            const dv = new DataView(data.buffer);
+            const entry: AltRepeatKeyEntry = {
+                arkid: i,
+                keycode: keyService.stringify(dv.getUint16(1, true)),
+                alt_keycode: keyService.stringify(dv.getUint16(3, true)),
+                allowed_mods: data[5],
+                options: data[6],
+            };
+            kbinfo.alt_repeat_keys.push(entry);
+        }
+    }
+
+    /**
+     * Get Leader sequence entries from keyboard
+     */
+    async getLeaders(kbinfo: KeyboardInfo): Promise<void> {
+        if (!kbinfo.leader_count) return;
+
+        kbinfo.leaders = [];
+        for (let i = 0; i < kbinfo.leader_count; i++) {
+            const data = await this.usb.sendViable(
+                ViableUSB.CMD_VIABLE_LEADER_GET,
+                [i],
+                { uint8: true }
+            ) as Uint8Array;
+
+            // Response: [index][seq0:2][seq1:2][seq2:2][seq3:2][seq4:2][output:2][options:2]
+            const dv = new DataView(data.buffer);
+            const sequence: string[] = [];
+            for (let j = 0; j < 5; j++) {
+                const kc = dv.getUint16(1 + j * 2, true);
+                if (kc !== 0) {
+                    sequence.push(keyService.stringify(kc));
+                }
+            }
+
+            const entry: LeaderEntry = {
+                ldrid: i,
+                sequence,
+                output: keyService.stringify(dv.getUint16(11, true)),
+                options: dv.getUint16(13, true),
+            };
+            kbinfo.leaders.push(entry);
+        }
+    }
+
+    /**
+     * Get One-shot settings from keyboard
+     */
+    async getOneShot(kbinfo: KeyboardInfo): Promise<void> {
+        const data = await this.usb.sendViable(
+            ViableUSB.CMD_VIABLE_ONE_SHOT_GET,
+            [],
+            { uint8: true }
+        ) as Uint8Array;
+
+        // Response: [timeout:2][tap_toggle]
+        const dv = new DataView(data.buffer);
+        kbinfo.one_shot = {
+            timeout: dv.getUint16(0, true),
+            tap_toggle: data[2],
+        };
+    }
+
     async pollMatrix(kbinfo: KeyboardInfo): Promise<boolean[][]> {
-        const data = await this.usb.send(VialUSB.CMD_VIA_GET_KEYBOARD_VALUE, [VialUSB.VIA_SWITCH_MATRIX_STATE], {}) as Uint8Array;
+        const data = await this.usb.send(ViableUSB.CMD_VIA_GET_KEYBOARD_VALUE, [ViableUSB.VIA_SWITCH_MATRIX_STATE], {}) as Uint8Array;
         const rowbytes = Math.ceil(kbinfo.cols / 8);
 
-        // Debug polling
-        // console.log("Poll data len:", data.length, "Rowbytes:", rowbytes, "Rows:", kbinfo.rows, "Cols:", kbinfo.cols);
-        // console.log("Byte 0:", data[0], "Byte 1:", data[1]);
-
-        // Determine offset: some firmwares echo the command (0x02 0x03), others might not? 
-        // Standard VIA echoes. 
+        // Determine offset: VIA echoes the command
         let offset = 0;
-        if (data[0] === VialUSB.CMD_VIA_GET_KEYBOARD_VALUE && data[1] === VialUSB.VIA_SWITCH_MATRIX_STATE) {
+        if (data[0] === ViableUSB.CMD_VIA_GET_KEYBOARD_VALUE && data[1] === ViableUSB.VIA_SWITCH_MATRIX_STATE) {
             offset = 2;
         }
 
         const kmpressed: boolean[][] = [];
         for (let row = 0; row < kbinfo.rows; row++) {
             const rowpressed: boolean[] = [];
-            // Ensure we don't read past buffer
             if (offset + rowbytes > data.length) {
                 break;
             }
@@ -322,7 +357,6 @@ export class VialService {
                 const colbyte = Math.floor(col / 8);
                 const colbit = 1 << (col % 8);
 
-                // Safety check for colbyte
                 if (colbyte < coldata.length) {
                     rowpressed.push((coldata[colbyte] & colbit) !== 0);
                 } else {
@@ -338,22 +372,101 @@ export class VialService {
     // API methods for updating keyboard settings
     async updateKey(layer: number, row: number, col: number, keymask: number): Promise<void> {
         const BE16 = (num: number) => [(num >> 8) & 0xff, num & 0xff];
-        await this.usb.send(VialUSB.CMD_VIA_SET_KEYCODE, [layer, row, col, ...BE16(keymask)], {});
+        await this.usb.send(ViableUSB.CMD_VIA_SET_KEYCODE, [layer, row, col, ...BE16(keymask)], {});
     }
+
     async updateMacros(kbinfo: KeyboardInfo) {
         await this.macro.push(kbinfo);
     }
+
     async updateTapdance(kbinfo: KeyboardInfo, tdid: number) {
         await this.tapdance.push(kbinfo, tdid);
     }
+
     async updateCombo(kbinfo: KeyboardInfo, cmbid: number) {
         await this.combo.push(kbinfo, cmbid);
     }
+
     async updateKeyoverride(kbinfo: KeyboardInfo, koid: number) {
         await this.override.push(kbinfo, koid);
     }
+
     async updateQMKSetting(kbinfo: KeyboardInfo, qfield: number) {
         await this.qmk.push(kbinfo, qfield);
+    }
+
+    /**
+     * Update Alt Repeat Key entry on keyboard
+     */
+    async updateAltRepeatKey(kbinfo: KeyboardInfo, arkid: number): Promise<void> {
+        const entry = kbinfo.alt_repeat_keys?.[arkid];
+        if (!entry) return;
+
+        const keycode = keyService.parse(entry.keycode);
+        const alt_keycode = keyService.parse(entry.alt_keycode);
+
+        await this.usb.sendViable(ViableUSB.CMD_VIABLE_ALT_REPEAT_KEY_SET, [
+            arkid,
+            keycode & 0xff,
+            (keycode >> 8) & 0xff,
+            alt_keycode & 0xff,
+            (alt_keycode >> 8) & 0xff,
+            entry.allowed_mods,
+            entry.options,
+        ], {});
+    }
+
+    /**
+     * Update Leader sequence entry on keyboard
+     */
+    async updateLeader(kbinfo: KeyboardInfo, ldrid: number): Promise<void> {
+        const entry = kbinfo.leaders?.[ldrid];
+        if (!entry) return;
+
+        const args: number[] = [ldrid];
+
+        // Add up to 5 sequence keys
+        for (let i = 0; i < 5; i++) {
+            const kc = entry.sequence[i] ? keyService.parse(entry.sequence[i]) : 0;
+            args.push(kc & 0xff, (kc >> 8) & 0xff);
+        }
+
+        // Add output keycode
+        const output = keyService.parse(entry.output);
+        args.push(output & 0xff, (output >> 8) & 0xff);
+
+        // Add options
+        args.push(entry.options & 0xff, (entry.options >> 8) & 0xff);
+
+        await this.usb.sendViable(ViableUSB.CMD_VIABLE_LEADER_SET, args, {});
+    }
+
+    /**
+     * Update One-shot settings on keyboard
+     */
+    async updateOneShot(kbinfo: KeyboardInfo): Promise<void> {
+        const os = kbinfo.one_shot;
+        if (!os) return;
+
+        await this.usb.sendViable(ViableUSB.CMD_VIABLE_ONE_SHOT_SET, [
+            os.timeout & 0xff,
+            (os.timeout >> 8) & 0xff,
+            os.tap_toggle,
+        ], {});
+    }
+
+    /**
+     * Save all Viable settings to EEPROM
+     */
+    async saveViable(): Promise<void> {
+        await this.usb.sendViable(ViableUSB.CMD_VIABLE_SAVE, [], {});
+    }
+
+    /**
+     * Reset all Viable settings to defaults
+     */
+    async resetViable(): Promise<void> {
+        await this.usb.sendViable(ViableUSB.CMD_VIABLE_RESET, [], {});
     }
 
     isLayerEmpty(layer: number[]): boolean {
@@ -361,4 +474,9 @@ export class VialService {
     }
 }
 
-export const vialService = new VialService(usbInstance);
+// Export with both names for backward compatibility
+export const viableService = new ViableService(usbInstance);
+export const vialService = viableService; // Alias for backward compatibility
+
+// Also export the class with old name
+export { ViableService as VialService };

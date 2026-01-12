@@ -55,6 +55,7 @@ describe('VialService', () => {
     mockUSB = {
       send: vi.fn(),
       sendVial: vi.fn(),
+      sendViable: vi.fn(),
       getViaBuffer: vi.fn(),
       getDynamicEntries: vi.fn(),
       open: vi.fn().mockResolvedValue(true),
@@ -110,19 +111,19 @@ describe('VialService', () => {
     });
 
     mockUSB.sendVial.mockImplementation((cmd: number, args: number[], options?: any) => {
-      if (cmd === 0x00) { // Get keyboard ID
+      if (cmd === 0x00) { // Get keyboard ID (legacy)
         if (options?.unpack === 'I<Q') {
           return Promise.resolve([6, BigInt('0x1234567890ABCDEF')]);
         }
         return Promise.resolve(new Uint8Array([0xFE, 0x00, 0x06, 0, 0, 0, 0xEF, 0xCD, 0xAB, 0x90, 0x78, 0x56, 0x34, 0x12]));
       }
-      if (cmd === 0x01) { // Get size
+      if (cmd === 0x01) { // Get size (legacy)
         if (options?.uint32 && options?.index === 0) {
           return Promise.resolve(100); // Small payload for testing
         }
         return Promise.resolve(new Uint8Array([100, 0, 0, 0]));
       }
-      if (cmd === 0x02) { // Get definition
+      if (cmd === 0x02) { // Get definition (legacy)
         if (options?.uint8) {
           // Return mock compressed data
           const data = new Uint8Array(32);
@@ -137,6 +138,55 @@ describe('VialService', () => {
       }
       if (cmd === 0x0D) { // Dynamic entry op
         return Promise.resolve(new Uint8Array([0xFE, 0x0D]));
+      }
+      return Promise.resolve(new Uint8Array(32));
+    });
+
+    // Viable protocol mock
+    mockUSB.sendViable.mockImplementation((cmd: number, args: number[], options?: any) => {
+      if (cmd === 0x00) { // CMD_VIABLE_GET_INFO
+        // Response format: [protocol_version:4][uid:8][feature_flags:1]
+        // Protocol version = 6 (0x00000006), UID = 0x1234567890ABCDEF, feature_flags = 0
+        if (options?.uint8) {
+          const response = new Uint8Array(13);
+          // Protocol version (LE32): 6
+          response[0] = 0x06;
+          response[1] = 0x00;
+          response[2] = 0x00;
+          response[3] = 0x00;
+          // UID (8 bytes): will be converted to hex string for kbid
+          response[4] = 0xEF;
+          response[5] = 0xCD;
+          response[6] = 0xAB;
+          response[7] = 0x90;
+          response[8] = 0x78;
+          response[9] = 0x56;
+          response[10] = 0x34;
+          response[11] = 0x12;
+          // Feature flags
+          response[12] = 0x00;
+          return Promise.resolve(response);
+        }
+        return Promise.resolve(new Uint8Array(13));
+      }
+      if (cmd === 0x05) { // CMD_VIABLE_DEFINITION_SIZE
+        if (options?.uint32 && options?.index === 0) {
+          return Promise.resolve(100); // Small payload for testing
+        }
+        return Promise.resolve(new Uint8Array([100, 0, 0, 0]));
+      }
+      if (cmd === 0x06) { // CMD_VIABLE_DEFINITION_CHUNK
+        if (options?.uint8) {
+          // Return mock compressed data
+          const data = new Uint8Array(32);
+          data[0] = 0xFD; // XZ magic bytes
+          data[1] = 0x37;
+          data[2] = 0x7A;
+          data[3] = 0x58;
+          data[4] = 0x5A;
+          return Promise.resolve(data);
+        }
+        return Promise.resolve(new Uint8Array(32));
       }
       return Promise.resolve(new Uint8Array(32));
     });
@@ -190,8 +240,8 @@ describe('VialService', () => {
     it('should retrieve keyboard ID', async () => {
       const kbinfo = createTestKeyboardInfo();
       await vialService.getKeyboardInfo(kbinfo);
-      // The bigint 0x1234567890ABCDEF is converted to decimal string
-      expect(kbinfo.kbid).toBe('1311768467294899695');
+      // The UID bytes are converted to hex string
+      expect(kbinfo.kbid).toBe('efcdab9078563412');
     });
 
     it('should handle USB disconnection during info retrieval', async () => {
@@ -301,8 +351,8 @@ describe('VialService', () => {
 
       expect(result).toBe(kbinfo);
       expect(kbinfo.via_proto).toBe(0x0C);
-      expect(kbinfo.vial_proto).toBe(6);
-      expect(kbinfo.kbid).toBe('1311768467294899695');
+      expect(kbinfo.viable_proto).toBe(6);
+      expect(kbinfo.kbid).toBe('efcdab9078563412');
       expect(kbinfo.macro_count).toBe(2);
       expect(kbinfo.keymap).toHaveLength(4);
     });
@@ -371,7 +421,7 @@ describe('VialService', () => {
 
     it('should handle errors during load gracefully', async () => {
       const kbinfo = createTestKeyboardInfo();
-      mockUSB.sendVial.mockRejectedValue(new Error('Load failed'));
+      mockUSB.sendViable.mockRejectedValue(new Error('Load failed'));
 
       await expect(vialService.load(kbinfo)).rejects.toThrow('Load failed');
     });
@@ -436,7 +486,8 @@ describe('VialService', () => {
 
       expect(mockUSB.send).toHaveBeenCalledWith(
         0x05, // CMD_VIA_SET_KEYCODE
-        [0, 1, 2, 0, 4] // layer, row, col, BE16(keymask)
+        [0, 1, 2, 0, 4], // layer, row, col, BE16(keymask)
+        {} // options
       );
     });
 
@@ -445,7 +496,8 @@ describe('VialService', () => {
 
       expect(mockUSB.send).toHaveBeenCalledWith(
         0x05,
-        [2, 3, 7, 0x12, 0x34] // 0x1234 in big endian
+        [2, 3, 7, 0x12, 0x34], // 0x1234 in big endian
+        {} // options
       );
     });
 

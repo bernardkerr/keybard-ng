@@ -1,29 +1,35 @@
 import type { KeyboardInfo } from "../types/vial.types";
 import { keyService } from "./key.service";
-import { VialUSB } from "./usb.service";
+import { ViableUSB } from "./usb.service";
 
 export class TapdanceService {
-    constructor(private usb: VialUSB) { }
+    constructor(private usb: ViableUSB) { }
 
     async get(kbinfo: KeyboardInfo): Promise<void> {
         const tapdance_count = kbinfo.tapdance_count || 0;
-        const all_entries = (await this.usb.getDynamicEntries(
-            VialUSB.DYNAMIC_VIAL_TAP_DANCE_GET,
-            tapdance_count,
-            { unpack: "HHHHB" }
-        )) as any[][];
+        if (tapdance_count === 0) return;
 
         kbinfo.tapdances = [];
-        all_entries.forEach((raw: any[], idx: number) => {
-            kbinfo.tapdances!.push({
-                idx: idx,
-                tap: keyService.stringify(raw[0]),
-                hold: keyService.stringify(raw[1]),
-                doubletap: keyService.stringify(raw[2]),
-                taphold: keyService.stringify(raw[3]),
-                tapping_term: raw[4],
+
+        // Use Viable protocol: direct tap dance get command
+        for (let i = 0; i < tapdance_count; i++) {
+            const data = await this.usb.sendViable(
+                ViableUSB.CMD_VIABLE_TAP_DANCE_GET,
+                [i],
+                { uint8: true }
+            ) as Uint8Array;
+
+            // Response: [index][tap:2][hold:2][doubletap:2][taphold:2][tapping_term]
+            const dv = new DataView(data.buffer);
+            kbinfo.tapdances.push({
+                idx: i,
+                tap: keyService.stringify(dv.getUint16(1, true)),
+                hold: keyService.stringify(dv.getUint16(3, true)),
+                doubletap: keyService.stringify(dv.getUint16(5, true)),
+                taphold: keyService.stringify(dv.getUint16(7, true)),
+                tapping_term: data[9],
             });
-        });
+        }
     }
 
     async push(kbinfo: KeyboardInfo, tdid?: number): Promise<void> {
@@ -34,15 +40,15 @@ export class TapdanceService {
             : kbinfo.tapdances;
 
         for (const td of toPush) {
-            await this.usb.sendVial(VialUSB.CMD_VIAL_DYNAMIC_ENTRY_OP, [
-                VialUSB.DYNAMIC_VIAL_TAP_DANCE_SET,
+            // Use Viable protocol: direct tap dance set command
+            await this.usb.sendViable(ViableUSB.CMD_VIABLE_TAP_DANCE_SET, [
                 td.idx,
                 ...this.LE16(keyService.parse(td.tap)),
                 ...this.LE16(keyService.parse(td.hold)),
                 ...this.LE16(keyService.parse(td.doubletap)),
                 ...this.LE16(keyService.parse(td.taphold)),
                 td.tapping_term,
-            ]);
+            ], {});
         }
     }
 

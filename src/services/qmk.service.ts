@@ -1,7 +1,7 @@
 // QMK Settings service - fetching, parsing, and pushing QMK settings
 import { QMK_SETTINGS } from '../constants/qmk-settings';
 import type { KeyboardInfo } from '../types/vial.types';
-import { VialUSB, usbInstance } from './usb.service';
+import { ViableUSB, usbInstance } from './usb.service';
 import { LE16, LE32 } from './utils';
 
 /**
@@ -12,9 +12,9 @@ import { LE16, LE32 } from './utils';
  * - First byte returned is the QSID echo (ignored)
  */
 export class QMKService {
-  private usb: VialUSB;
+  private usb: ViableUSB;
 
-  constructor(usb: VialUSB) {
+  constructor(usb: ViableUSB) {
     this.usb = usb;
   }
 
@@ -27,8 +27,9 @@ export class QMKService {
     let query = true;
 
     while (query) {
-      const data = await this.usb.sendVial(
-        VialUSB.CMD_VIAL_QMK_SETTINGS_QUERY,
+      // Use Viable protocol: QMK settings query command
+      const data = await this.usb.sendViable(
+        ViableUSB.CMD_VIABLE_QMK_SETTINGS_QUERY,
         [offset],
         { uint16: true }
       );
@@ -69,8 +70,9 @@ export class QMKService {
 
       // Don't forget the ignored byte
       const unpack = 'B' + qsidUnpacks[qsidNum];
-      const val = await this.usb.sendVial(
-        VialUSB.CMD_VIAL_QMK_SETTINGS_GET,
+      // Use Viable protocol: QMK settings get command
+      const val = await this.usb.sendViable(
+        ViableUSB.CMD_VIABLE_QMK_SETTINGS_GET,
         [qsidNum],
         { unpack }
       );
@@ -88,7 +90,15 @@ export class QMKService {
     const val = kbinfo.settings[qsid];
     const vals = LE32(val);
     console.log('Pushing QMK setting:', qsid, vals);
-    await this.usb.sendVial(VialUSB.CMD_VIAL_QMK_SETTINGS_SET, [...LE16(qsid), ...vals]);
+    // Use Viable protocol: QMK settings set command
+    await this.usb.sendViable(ViableUSB.CMD_VIABLE_QMK_SETTINGS_SET, [...LE16(qsid), ...vals], {});
+  }
+
+  /**
+   * Reset all QMK settings to defaults
+   */
+  async reset(): Promise<void> {
+    await this.usb.sendViable(ViableUSB.CMD_VIABLE_QMK_SETTINGS_RESET, [], {});
   }
 }
 

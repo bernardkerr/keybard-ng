@@ -1,4 +1,4 @@
-import type { VialUSB } from '../../src/services/usb';
+import type { ViableUSB } from '../../src/services/usb.service';
 
 export interface MockUSBControl {
   setConnected: (connected: boolean) => void;
@@ -18,7 +18,7 @@ export interface MockUSBStats {
   lastReportId: number | null;
 }
 
-class MockUSBInstance implements Partial<VialUSB> {
+class MockUSBInstance implements Partial<ViableUSB> {
   private connected = false;
   private shouldFail = false;
   private responseData: Uint8Array | ((cmd: Uint8Array) => Uint8Array) = new Uint8Array(32);
@@ -91,6 +91,45 @@ class MockUSBInstance implements Partial<VialUSB> {
   async sendVial(cmd: number, args: number[], options?: any): Promise<any> {
     // Vial commands are sent with 0xFE prefix
     return this.send(0xFE, [cmd, ...args], options);
+  }
+
+  async sendViable(cmd: number, args: number[], options?: any): Promise<any> {
+    // Viable commands are sent with 0xDF prefix (wrapped in 0xDD client wrapper)
+    // For testing, we simulate the response without the actual wrapper
+    this.stats.sendCalls++;
+    const data = new Uint8Array([0xDF, cmd, ...args]);
+    this.stats.lastSentData = data;
+    this.stats.lastReportId = null;
+
+    if (!this.connected) {
+      throw new Error('USB device not connected');
+    }
+
+    if (this.shouldFail) {
+      throw new Error('USB communication failed');
+    }
+
+    // Return mock response based on command
+    if (typeof this.responseData === 'function') {
+      return this.responseData(data);
+    }
+
+    // Handle different response formats based on options
+    if (options?.uint16) {
+      return new Uint16Array(this.responseData.buffer);
+    }
+    if (options?.uint8) {
+      return this.responseData;
+    }
+    if (options?.unpack) {
+      // Simple unpack simulation - return array of values
+      const result = [];
+      for (let i = 0; i < this.responseData.length; i++) {
+        result.push(this.responseData[i]);
+      }
+      return result;
+    }
+    return this.responseData;
   }
 
   async getViaBuffer(cmd: number, size: number, options?: any): Promise<Uint8Array> {
@@ -182,7 +221,7 @@ class MockUSBInstance implements Partial<VialUSB> {
   }
 }
 
-export function createMockUSB(): { mock: VialUSB; control: MockUSBControl } {
+export function createMockUSB(): { mock: ViableUSB; control: MockUSBControl } {
   const instance = new MockUSBInstance();
 
   const control: MockUSBControl = {
@@ -196,7 +235,7 @@ export function createMockUSB(): { mock: VialUSB; control: MockUSBControl } {
   };
 
   return {
-    mock: instance as unknown as VialUSB,
+    mock: instance as unknown as ViableUSB,
     control
   };
 }
@@ -286,7 +325,7 @@ export const USBResponses = {
 };
 
 // Helper to simulate disconnection scenarios
-export function simulateUSBDisconnect(_mock: VialUSB, control: MockUSBControl): void {
+export function simulateUSBDisconnect(_mock: ViableUSB, control: MockUSBControl): void {
   control.triggerDisconnect();
   control.setShouldFail(true);
 }
@@ -298,7 +337,7 @@ export function simulatePermissionDenied(control: MockUSBControl): void {
 }
 
 // Helper to create a mock that responds like a real keyboard
-export function createRealisticKeyboardMock(): { mock: VialUSB; control: MockUSBControl } {
+export function createRealisticKeyboardMock(): { mock: ViableUSB; control: MockUSBControl } {
   const { mock, control } = createMockUSB();
 
   // Set up realistic responses based on command

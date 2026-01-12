@@ -1,9 +1,26 @@
-// USB HID communication layer for Vial protocol
+// USB HID communication layer for Viable protocol
+// Supports client ID wrapper (0xDD) for multi-client concurrent access
 import type { USBSendOptions } from "../types/vial.types";
 import { BE16, LE16, MSG_LEN } from "./utils";
 
-export class VialUSB {
-  // Via+Vial command constants
+// Protocol prefixes
+const WRAPPER_PREFIX = 0xdd;
+const VIABLE_PREFIX = 0xdf;
+const VIA_PREFIX = 0xfe;
+
+// Client ID constants
+const NONCE_SIZE = 20;
+const DEFAULT_TTL_SECS = 120;
+
+// Generate cryptographically random nonce
+function generateNonce(): Uint8Array {
+  const nonce = new Uint8Array(NONCE_SIZE);
+  crypto.getRandomValues(nonce);
+  return nonce;
+}
+
+export class ViableUSB {
+  // VIA command constants (unchanged, used via wrapper)
   static readonly CMD_VIA_GET_PROTOCOL_VERSION = 0x01;
   static readonly CMD_VIA_GET_KEYBOARD_VALUE = 0x02;
   static readonly CMD_VIA_SET_KEYBOARD_VALUE = 0x03;
@@ -18,7 +35,6 @@ export class VialUSB {
   static readonly CMD_VIA_MACRO_SET_BUFFER = 0x0f;
   static readonly CMD_VIA_GET_LAYER_COUNT = 0x11;
   static readonly CMD_VIA_KEYMAP_GET_BUFFER = 0x12;
-  static readonly CMD_VIA_VIAL_PREFIX = 0xfe;
 
   static readonly VIA_LAYOUT_OPTIONS = 0x02;
   static readonly VIA_SWITCH_MATRIX_STATE = 0x03;
@@ -35,29 +51,30 @@ export class VialUSB {
   static readonly VIALRGB_GET_SUPPORTED = 0x42;
   static readonly VIALRGB_SET_MODE = 0x41;
 
-  static readonly CMD_VIAL_GET_KEYBOARD_ID = 0x00;
-  static readonly CMD_VIAL_GET_SIZE = 0x01;
-  static readonly CMD_VIAL_GET_DEFINITION = 0x02;
-  static readonly CMD_VIAL_GET_ENCODER = 0x03;
-  static readonly CMD_VIAL_SET_ENCODER = 0x04;
-  static readonly CMD_VIAL_GET_UNLOCK_STATUS = 0x05;
-  static readonly CMD_VIAL_UNLOCK_START = 0x06;
-  static readonly CMD_VIAL_UNLOCK_POLL = 0x07;
-  static readonly CMD_VIAL_LOCK = 0x08;
-  static readonly CMD_VIAL_QMK_SETTINGS_QUERY = 0x09;
-  static readonly CMD_VIAL_QMK_SETTINGS_GET = 0x0a;
-  static readonly CMD_VIAL_QMK_SETTINGS_SET = 0x0b;
-  static readonly CMD_VIAL_QMK_SETTINGS_RESET = 0x0c;
-  static readonly CMD_VIAL_DYNAMIC_ENTRY_OP = 0x0d;
+  // Viable command IDs (0xDF protocol)
+  static readonly CMD_VIABLE_GET_INFO = 0x00;
+  static readonly CMD_VIABLE_TAP_DANCE_GET = 0x01;
+  static readonly CMD_VIABLE_TAP_DANCE_SET = 0x02;
+  static readonly CMD_VIABLE_COMBO_GET = 0x03;
+  static readonly CMD_VIABLE_COMBO_SET = 0x04;
+  static readonly CMD_VIABLE_KEY_OVERRIDE_GET = 0x05;
+  static readonly CMD_VIABLE_KEY_OVERRIDE_SET = 0x06;
+  static readonly CMD_VIABLE_ALT_REPEAT_KEY_GET = 0x07;
+  static readonly CMD_VIABLE_ALT_REPEAT_KEY_SET = 0x08;
+  static readonly CMD_VIABLE_ONE_SHOT_GET = 0x09;
+  static readonly CMD_VIABLE_ONE_SHOT_SET = 0x0a;
+  static readonly CMD_VIABLE_SAVE = 0x0b;
+  static readonly CMD_VIABLE_RESET = 0x0c;
+  static readonly CMD_VIABLE_DEFINITION_SIZE = 0x0d;
+  static readonly CMD_VIABLE_DEFINITION_CHUNK = 0x0e;
+  static readonly CMD_VIABLE_QMK_SETTINGS_QUERY = 0x10;
+  static readonly CMD_VIABLE_QMK_SETTINGS_GET = 0x11;
+  static readonly CMD_VIABLE_QMK_SETTINGS_SET = 0x12;
+  static readonly CMD_VIABLE_QMK_SETTINGS_RESET = 0x13;
+  static readonly CMD_VIABLE_LEADER_GET = 0x14;
+  static readonly CMD_VIABLE_LEADER_SET = 0x15;
 
-  static readonly DYNAMIC_VIAL_GET_NUMBER_OF_ENTRIES = 0x00;
-  static readonly DYNAMIC_VIAL_TAP_DANCE_GET = 0x01;
-  static readonly DYNAMIC_VIAL_TAP_DANCE_SET = 0x02;
-  static readonly DYNAMIC_VIAL_COMBO_GET = 0x03;
-  static readonly DYNAMIC_VIAL_COMBO_SET = 0x04;
-  static readonly DYNAMIC_VIAL_KEY_OVERRIDE_GET = 0x05;
-  static readonly DYNAMIC_VIAL_KEY_OVERRIDE_SET = 0x06;
-
+  // Svalboard-specific constants
   static readonly SVAL_GET_LEFT_DPI = 0x00;
   static readonly SVAL_GET_RIGHT_DPI = 0x00;
   static readonly SVAL_GET_LEFT_SCROLL = 0x00;
@@ -76,6 +93,12 @@ export class VialUSB {
   private queue: Promise<void> = Promise.resolve();
   private listener: (data: ArrayBuffer, ev: HIDInputReportEvent) => void =
     () => { };
+
+  // Client ID management
+  private clientId: number = 0;
+  private clientTtl: number = DEFAULT_TTL_SECS;
+  private clientIdExpiry: number = 0;
+  private renewalTimer?: ReturnType<typeof setTimeout>;
 
   public onDisconnect?: () => void;
 
@@ -97,7 +120,93 @@ export class VialUSB {
     }
     await this.initListener();
     navigator.hid.addEventListener("disconnect", this.handleDisconnect);
+
+    // Bootstrap client ID for Viable protocol
+    await this.bootstrapClientId();
+
     return true;
+  }
+
+  /**
+   * Check if the device is a Viable keyboard by checking serial number
+   * TODO: Implement proper detection by checking "viable:" prefix in USB serial
+   */
+  isViableDevice(): boolean {
+    // For now, assume viable if connected
+    // Real detection would check USB serial string for "viable:" prefix
+    return true;
+  }
+
+  /**
+   * Bootstrap a client ID from the keyboard
+   * Request: [0xDD][0x00000000][nonce:20]
+   * Response: [0xDD][0x00000000][nonce:20][new_client_id:4][ttl:2]
+   */
+  private async bootstrapClientId(): Promise<void> {
+    if (!this.device) throw new Error("USB device not connected");
+
+    const nonce = generateNonce();
+
+    const message = new Uint8Array(MSG_LEN);
+    message[0] = WRAPPER_PREFIX;
+    // Client ID = 0 (bootstrap)
+    message[1] = 0;
+    message[2] = 0;
+    message[3] = 0;
+    message[4] = 0;
+    // Nonce
+    message.set(nonce, 5);
+
+    const response = await this.sendRaw(message);
+
+    // Validate response
+    if (response[0] !== WRAPPER_PREFIX) {
+      throw new Error("Invalid bootstrap response prefix");
+    }
+
+    // Verify nonce echo (bytes 5-24)
+    for (let i = 0; i < NONCE_SIZE; i++) {
+      if (response[5 + i] !== nonce[i]) {
+        throw new Error("Bootstrap nonce mismatch - possible MITM");
+      }
+    }
+
+    // Extract client ID (bytes 25-28, little-endian)
+    this.clientId = response[25] |
+      (response[26] << 8) |
+      (response[27] << 16) |
+      (response[28] << 24);
+
+    // Extract TTL (bytes 29-30, little-endian)
+    this.clientTtl = response[29] | (response[30] << 8);
+
+    // Set expiry time (with 10% buffer for renewal)
+    this.clientIdExpiry = Date.now() + (this.clientTtl * 900); // 90% of TTL
+
+    // Schedule renewal
+    this.scheduleRenewal();
+
+    console.log(`Viable client ID bootstrapped: 0x${this.clientId.toString(16)}, TTL: ${this.clientTtl}s`);
+  }
+
+  /**
+   * Schedule client ID renewal before expiry
+   */
+  private scheduleRenewal(): void {
+    if (this.renewalTimer) {
+      clearTimeout(this.renewalTimer);
+    }
+
+    const renewIn = this.clientIdExpiry - Date.now();
+    if (renewIn > 0) {
+      this.renewalTimer = setTimeout(async () => {
+        try {
+          await this.bootstrapClientId();
+        } catch (e) {
+          console.error("Failed to renew client ID:", e);
+        }
+      }, renewIn);
+    }
   }
 
   getDeviceName(): string | null {
@@ -105,6 +214,13 @@ export class VialUSB {
   }
 
   async close(): Promise<void> {
+    if (this.renewalTimer) {
+      clearTimeout(this.renewalTimer);
+      this.renewalTimer = undefined;
+    }
+    this.clientId = 0;
+    this.clientIdExpiry = 0;
+
     if (this.device) {
       if (this.handleEvent) {
         this.device.removeEventListener("inputreport", this.handleEvent);
@@ -130,7 +246,78 @@ export class VialUSB {
     this.device.addEventListener("inputreport", handleEvent);
   }
 
-  // Overload signatures for send()
+  /**
+   * Send raw message without wrapper (used for bootstrap)
+   */
+  private async sendRaw(message: Uint8Array): Promise<Uint8Array> {
+    if (!this.device) throw new Error("USB device not connected");
+
+    return new Promise<Uint8Array>((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error("USB Command Timeout"));
+      }, 1000);
+
+      const originalListener = this.listener;
+      this.listener = (data: ArrayBuffer) => {
+        clearTimeout(timeoutId);
+        this.listener = originalListener;
+        resolve(new Uint8Array(data));
+      };
+
+      this.device!.sendReport(0, message as BufferSource).catch(err => {
+        clearTimeout(timeoutId);
+        this.listener = originalListener;
+        reject(err);
+      });
+    });
+  }
+
+  /**
+   * Build wrapped message with client ID
+   * Format: [0xDD][client_id:4][protocol][payload...]
+   */
+  private buildWrappedMessage(protocol: number, payload: number[]): Uint8Array {
+    const message = new Uint8Array(MSG_LEN);
+    message[0] = WRAPPER_PREFIX;
+    // Client ID (little-endian)
+    message[1] = this.clientId & 0xff;
+    message[2] = (this.clientId >> 8) & 0xff;
+    message[3] = (this.clientId >> 16) & 0xff;
+    message[4] = (this.clientId >> 24) & 0xff;
+    // Protocol
+    message[5] = protocol;
+    // Payload
+    for (let i = 0; i < payload.length && i < MSG_LEN - 6; i++) {
+      message[6 + i] = payload[i];
+    }
+    return message;
+  }
+
+  /**
+   * Parse wrapped response, stripping wrapper header
+   * Input: [0xDD][client_id:4][protocol][payload...]
+   * Output: payload starting after protocol byte
+   */
+  private parseWrappedResponse(data: ArrayBuffer, options: USBSendOptions): Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[] {
+    const u8 = new Uint8Array(data);
+
+    // Verify wrapper prefix
+    if (u8[0] !== WRAPPER_PREFIX) {
+      throw new Error("Invalid response wrapper prefix");
+    }
+
+    // Verify client ID matches
+    const responseClientId = u8[1] | (u8[2] << 8) | (u8[3] << 16) | (u8[4] << 24);
+    if (responseClientId !== this.clientId) {
+      throw new Error("Response client ID mismatch");
+    }
+
+    // Extract payload (skip wrapper header + protocol byte = 6 bytes)
+    const payloadBuffer = data.slice(6);
+    return this.parseResponse(payloadBuffer, options);
+  }
+
+  // Overload signatures for send() - sends VIA commands via wrapper
   async send(cmd: number, args: number[], options: USBSendOptions & { unpack: string; index: number }): Promise<number | bigint>;
   async send(cmd: number, args: number[], options: USBSendOptions & { unpack: string; index?: undefined }): Promise<(number | bigint)[]>;
   async send(cmd: number, args: number[], options: USBSendOptions & { uint8: true; index: number }): Promise<number>;
@@ -141,9 +328,10 @@ export class VialUSB {
   async send(cmd: number, args: number[], options: USBSendOptions & { uint32: true; index?: undefined }): Promise<Uint32Array>;
   async send(cmd: number, args: number[], options?: USBSendOptions): Promise<Uint8Array>;
 
-  // Implementation
-
-
+  /**
+   * Send VIA command via wrapper
+   * Wraps: [0xDD][client_id:4][0xFE][via_cmd][args...]
+   */
   async send(
     cmd: number,
     args: number[],
@@ -151,13 +339,11 @@ export class VialUSB {
   ): Promise<Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[]> {
     if (!this.device) throw new Error("USB device not connected");
 
-    const message = new Uint8Array(MSG_LEN);
-    message[0] = cmd;
-    for (let i = 0; i < args.length; i++) {
-      message[i + 1] = args[i];
-    }
+    // Build VIA command payload
+    const payload = [cmd, ...args];
+    const message = this.buildWrappedMessage(VIA_PREFIX, payload);
 
-    // Queue the operations to prevent listener collision using a simple mutex pattern
+    // Queue the operations to prevent listener collision
     const operation = this.queue.then(async () => {
       return new Promise<Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[]>((resolve, reject) => {
         const timeoutId = setTimeout(() => {
@@ -167,53 +353,109 @@ export class VialUSB {
 
         this.listener = (data: ArrayBuffer) => {
           const u8 = new Uint8Array(data);
-          // Validation: Only filter out explicit mismatches if validation is provided
+
+          // Validation: check wrapper prefix and client ID
+          if (u8[0] !== WRAPPER_PREFIX) return;
+          const respClientId = u8[1] | (u8[2] << 8) | (u8[3] << 16) | (u8[4] << 24);
+          if (respClientId !== this.clientId) return;
+
+          // Additional validation if provided
           if (options.validateInput) {
-            if (!options.validateInput(u8)) {
+            // Pass unwrapped data to validator
+            const unwrapped = new Uint8Array(data.slice(6));
+            if (!options.validateInput(unwrapped)) {
               return;
             }
           }
 
           clearTimeout(timeoutId);
           try {
-            const result = this.parseResponse(data, options);
+            const result = this.parseWrappedResponse(data, options);
             resolve(result);
           } catch (e) {
             reject(e);
           }
         };
 
-        this.device!.sendReport(0, message).catch(err => {
+        this.device!.sendReport(0, message as BufferSource).catch(err => {
           clearTimeout(timeoutId);
           reject(err);
         });
       });
     });
 
-    // Advance queue, handling errors so queue doesn't get stuck
     this.queue = operation.then(() => undefined).catch(() => undefined);
-
     return operation;
   }
 
-  // Overload signatures for sendVial()
-  async sendVial(cmd: number, args: number[], options: USBSendOptions & { unpack: string; index: number }): Promise<number | bigint>;
-  async sendVial(cmd: number, args: number[], options: USBSendOptions & { unpack: string; index?: undefined }): Promise<(number | bigint)[]>;
-  async sendVial(cmd: number, args: number[], options: USBSendOptions & { uint8: true; index: number }): Promise<number>;
-  async sendVial(cmd: number, args: number[], options: USBSendOptions & { uint8: true; index?: undefined }): Promise<Uint8Array>;
-  async sendVial(cmd: number, args: number[], options: USBSendOptions & { uint16: true; index: number }): Promise<number>;
-  async sendVial(cmd: number, args: number[], options: USBSendOptions & { uint16: true; index?: undefined }): Promise<Uint16Array>;
-  async sendVial(cmd: number, args: number[], options: USBSendOptions & { uint32: true; index: number }): Promise<number>;
-  async sendVial(cmd: number, args: number[], options: USBSendOptions & { uint32: true; index?: undefined }): Promise<Uint32Array>;
-  async sendVial(cmd: number, args: number[], options?: USBSendOptions): Promise<Uint8Array>;
+  // Overload signatures for sendViable()
+  async sendViable(cmd: number, args: number[], options: USBSendOptions & { unpack: string; index: number }): Promise<number | bigint>;
+  async sendViable(cmd: number, args: number[], options: USBSendOptions & { unpack: string; index?: undefined }): Promise<(number | bigint)[]>;
+  async sendViable(cmd: number, args: number[], options: USBSendOptions & { uint8: true; index: number }): Promise<number>;
+  async sendViable(cmd: number, args: number[], options: USBSendOptions & { uint8: true; index?: undefined }): Promise<Uint8Array>;
+  async sendViable(cmd: number, args: number[], options: USBSendOptions & { uint16: true; index: number }): Promise<number>;
+  async sendViable(cmd: number, args: number[], options: USBSendOptions & { uint16: true; index?: undefined }): Promise<Uint16Array>;
+  async sendViable(cmd: number, args: number[], options: USBSendOptions & { uint32: true; index: number }): Promise<number>;
+  async sendViable(cmd: number, args: number[], options: USBSendOptions & { uint32: true; index?: undefined }): Promise<Uint32Array>;
+  async sendViable(cmd: number, args: number[], options?: USBSendOptions): Promise<Uint8Array>;
 
-  // Implementation
-  async sendVial(
+  /**
+   * Send Viable command via wrapper
+   * Wraps: [0xDD][client_id:4][0xDF][viable_cmd][args...]
+   */
+  async sendViable(
     cmd: number,
     args: number[],
     options: USBSendOptions = {}
   ): Promise<Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[]> {
-    return this.send(VialUSB.CMD_VIA_VIAL_PREFIX, [cmd, ...args], options);
+    if (!this.device) throw new Error("USB device not connected");
+
+    // Build Viable command payload
+    const payload = [cmd, ...args];
+    const message = this.buildWrappedMessage(VIABLE_PREFIX, payload);
+
+    // Queue the operations
+    const operation = this.queue.then(async () => {
+      return new Promise<Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[]>((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          console.warn("Viable Command Timed out:", cmd);
+          reject(new Error("USB Command Timeout"));
+        }, 1000);
+
+        this.listener = (data: ArrayBuffer) => {
+          const u8 = new Uint8Array(data);
+
+          // Validation: check wrapper prefix and client ID
+          if (u8[0] !== WRAPPER_PREFIX) return;
+          const respClientId = u8[1] | (u8[2] << 8) | (u8[3] << 16) | (u8[4] << 24);
+          if (respClientId !== this.clientId) return;
+
+          // Additional validation if provided
+          if (options.validateInput) {
+            const unwrapped = new Uint8Array(data.slice(6));
+            if (!options.validateInput(unwrapped)) {
+              return;
+            }
+          }
+
+          clearTimeout(timeoutId);
+          try {
+            const result = this.parseWrappedResponse(data, options);
+            resolve(result);
+          } catch (e) {
+            reject(e);
+          }
+        };
+
+        this.device!.sendReport(0, message as BufferSource).catch(err => {
+          clearTimeout(timeoutId);
+          reject(err);
+        });
+      });
+    });
+
+    this.queue = operation.then(() => undefined).catch(() => undefined);
+    return operation;
   }
 
   // Overload signatures for type safety
@@ -227,14 +469,12 @@ export class VialUSB {
   private parseResponse(data: ArrayBuffer, options: USBSendOptions & { uint32: true; index?: undefined }): Uint32Array;
   private parseResponse(data: ArrayBuffer, options: USBSendOptions): Uint8Array;
 
-  // Implementation signature
   private parseResponse(data: ArrayBuffer, options: USBSendOptions): Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[] {
     const dv = new DataView(data);
     const u8 = new Uint8Array(data);
 
     if (options.unpack) {
       const unpacked = this.unpackData(dv, options.unpack);
-      // If index is specified, return just that element
       if (options.index !== undefined) {
         return unpacked[options.index];
       }
@@ -242,7 +482,6 @@ export class VialUSB {
     }
 
     if (options.uint8) {
-      // If index is specified, return single byte; otherwise return full array
       if (options.index !== undefined) {
         return u8[options.index];
       }
@@ -250,33 +489,23 @@ export class VialUSB {
     }
 
     if (options.uint16) {
-      // If index is specified, return single uint16; otherwise return array
       if (options.index !== undefined) {
         return dv.getUint16(options.index, !options.bigendian);
       }
-      // Create uint16 array
       let u16Array = new Uint16Array(data);
-
-      // Convert from big-endian to little-endian if needed
       if (options.bigendian) {
-        // Swap bytes for each uint16
         u16Array = u16Array.map(num => ((num >> 8) & 0xFF) | ((num << 8) & 0xFF00));
       }
-
-      // Apply slice if specified
       if (options.slice !== undefined) {
         u16Array = u16Array.slice(options.slice);
       }
-
       return u16Array;
     }
 
     if (options.uint32) {
-      // If index is specified, return single uint32; otherwise return array
       if (options.index !== undefined) {
         return dv.getUint32(options.index, !options.bigendian);
       }
-      // Return array of uint32 values
       const u32Array = new Uint32Array(data);
       return u32Array;
     }
@@ -296,19 +525,19 @@ export class VialUSB {
 
     for (const char of formatChars) {
       switch (char) {
-        case "B": // unsigned byte
+        case "B":
           results.push(dv.getUint8(offset));
           offset += 1;
           break;
-        case "H": // unsigned short
+        case "H":
           results.push(dv.getUint16(offset, littleEndian));
           offset += 2;
           break;
-        case "I": // unsigned int
+        case "I":
           results.push(dv.getUint32(offset, littleEndian));
           offset += 4;
           break;
-        case "Q": // unsigned long long
+        case "Q":
           results.push(dv.getBigUint64(offset, littleEndian));
           offset += 8;
           break;
@@ -335,17 +564,11 @@ export class VialUSB {
         sz = size - offset;
       }
 
-      // Send command with big-endian offset
       const args = [...BE16(offset), sz];
-      // Cast the result of this.send to Uint8Array because we expect byte data here.
-      // The `options` passed to `send` here don't specify `unpack`, `uint16`, or `uint32`,
-      // so the default return type from the `send` implementation is `Uint8Array`.
       const data = await this.send(cmd, args, options) as Uint8Array;
 
-      // If we got less than requested, slice the data
       if (sz < chunksize) {
         const sliceSize = Math.floor(sz / bytes);
-        // `data` is now guaranteed to be Uint8Array due to the cast
         alldata.push(...Array.from(data).slice(0, sliceSize));
       } else {
         if (Array.isArray(data)) {
@@ -362,13 +585,50 @@ export class VialUSB {
       offset += chunksize;
     }
 
-    // If uint16 was requested, the data is already processed by send()
-    // Just return the array as-is
     if (options.uint16) {
       return alldata;
     }
 
-    // Otherwise return as Uint8Array for backward compatibility
+    return new Uint8Array(alldata);
+  }
+
+  /**
+   * Get keyboard definition via Viable protocol
+   * Uses CMD_VIABLE_DEFINITION_SIZE and CMD_VIABLE_DEFINITION_CHUNK
+   */
+  async getViableDefinition(): Promise<Uint8Array> {
+    // Get definition size
+    const sizeResp = await this.sendViable(
+      ViableUSB.CMD_VIABLE_DEFINITION_SIZE,
+      [],
+      { uint32: true, index: 0 }
+    );
+    const size = sizeResp as number;
+
+    // Fetch definition in chunks
+    const chunkSize = 28; // VIABLE_DEFINITION_CHUNK_SIZE
+    const alldata: number[] = [];
+    let offset = 0;
+
+    while (offset < size) {
+      const requestSize = Math.min(chunkSize, size - offset);
+      const resp = await this.sendViable(
+        ViableUSB.CMD_VIABLE_DEFINITION_CHUNK,
+        [...LE16(offset), requestSize],
+        { uint8: true }
+      );
+
+      const data = resp as Uint8Array;
+      // Response format: [offset_lo][offset_hi][actual_size][data...]
+      const actualSize = data[2];
+      for (let i = 0; i < actualSize; i++) {
+        alldata.push(data[3 + i]);
+      }
+
+      offset += actualSize;
+      if (actualSize < requestSize) break; // End of data
+    }
+
     return new Uint8Array(alldata);
   }
 
@@ -392,35 +652,36 @@ export class VialUSB {
     }
   }
 
-  // Overload signatures for getDynamicEntries()
-  async getDynamicEntries(dynamicCmd: number, count: number, options: USBSendOptions & { unpack: string; index: number }): Promise<(number | bigint)[]>;
-  async getDynamicEntries(dynamicCmd: number, count: number, options: USBSendOptions & { unpack: string; index?: undefined }): Promise<(number | bigint)[][]>;
-  async getDynamicEntries(dynamicCmd: number, count: number, options: USBSendOptions & { uint8: true; index: number }): Promise<number[]>;
-  async getDynamicEntries(dynamicCmd: number, count: number, options: USBSendOptions & { uint8: true; index?: undefined }): Promise<Uint8Array[]>;
-  async getDynamicEntries(dynamicCmd: number, count: number, options: USBSendOptions & { uint16: true; index: number }): Promise<number[]>;
-  async getDynamicEntries(dynamicCmd: number, count: number, options: USBSendOptions & { uint16: true; index?: undefined }): Promise<Uint16Array[]>;
-  async getDynamicEntries(dynamicCmd: number, count: number, options: USBSendOptions & { uint32: true; index: number }): Promise<number[]>;
-  async getDynamicEntries(dynamicCmd: number, count: number, options: USBSendOptions & { uint32: true; index?: undefined }): Promise<Uint32Array[]>;
-  async getDynamicEntries(dynamicCmd: number, count: number, options?: USBSendOptions): Promise<Uint8Array[]>;
+  // Overload signatures for getViableEntries()
+  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { unpack: string; index: number }): Promise<(number | bigint)[]>;
+  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { unpack: string; index?: undefined }): Promise<(number | bigint)[][]>;
+  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { uint8: true; index: number }): Promise<number[]>;
+  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { uint8: true; index?: undefined }): Promise<Uint8Array[]>;
+  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { uint16: true; index: number }): Promise<number[]>;
+  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { uint16: true; index?: undefined }): Promise<Uint16Array[]>;
+  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { uint32: true; index: number }): Promise<number[]>;
+  async getViableEntries(getCmd: number, count: number, options: USBSendOptions & { uint32: true; index?: undefined }): Promise<Uint32Array[]>;
+  async getViableEntries(getCmd: number, count: number, options?: USBSendOptions): Promise<Uint8Array[]>;
 
-  // Implementation
-  async getDynamicEntries(
-    dynamicCmd: number,
+  /**
+   * Get multiple entries using Viable protocol
+   */
+  async getViableEntries(
+    getCmd: number,
     count: number,
     options: USBSendOptions = {}
   ): Promise<(Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[])[]> {
     const entries: (Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[])[] = [];
     for (let i = 0; i < count; i++) {
-      const data = await this.sendVial(
-        VialUSB.CMD_VIAL_DYNAMIC_ENTRY_OP,
-        [dynamicCmd, i],
-        options
-      );
-      console.log("data", data);
+      const data = await this.sendViable(getCmd, [i], options);
       entries.push(data);
     }
     return entries;
   }
 }
 
-export const usbInstance = new VialUSB();
+// Export singleton instance
+export const usbInstance = new ViableUSB();
+
+// Backward compatibility alias
+export { ViableUSB as VialUSB };
