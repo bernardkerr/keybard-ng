@@ -99,6 +99,7 @@ export class ViableUSB {
   private clientTtl: number = DEFAULT_TTL_SECS;
   private clientIdExpiry: number = 0;
   private renewalTimer?: ReturnType<typeof setTimeout>;
+  private bootstrapPromise?: Promise<void>; // Prevent concurrent bootstraps
 
   public onDisconnect?: () => void;
 
@@ -121,8 +122,9 @@ export class ViableUSB {
     await this.initListener();
     navigator.hid.addEventListener("disconnect", this.handleDisconnect);
 
-    // Bootstrap client ID for Viable protocol
-    await this.bootstrapClientId();
+    // Don't bootstrap here - do it lazily on first command
+    // This helps debug connection issues
+    console.log("USB device opened:", this.device.productName);
 
     return true;
   }
@@ -135,6 +137,27 @@ export class ViableUSB {
     // For now, assume viable if connected
     // Real detection would check USB serial string for "viable:" prefix
     return true;
+  }
+
+  /**
+   * Ensure we have a valid client ID, bootstrapping if needed
+   */
+  private async ensureClientId(): Promise<void> {
+    // If bootstrap already in progress, wait for it
+    if (this.bootstrapPromise) {
+      await this.bootstrapPromise;
+      return;
+    }
+
+    if (this.clientId === 0 || Date.now() >= this.clientIdExpiry) {
+      console.log("Bootstrapping client ID...");
+      this.bootstrapPromise = this.bootstrapClientId();
+      try {
+        await this.bootstrapPromise;
+      } finally {
+        this.bootstrapPromise = undefined;
+      }
+    }
   }
 
   /**
@@ -157,36 +180,101 @@ export class ViableUSB {
     // Nonce
     message.set(nonce, 5);
 
-    const response = await this.sendRaw(message);
+    console.log("Bootstrap request:", Array.from(message.slice(0, 30)).map(b => b.toString(16).padStart(2, '0')).join(' '));
 
-    // Validate response
-    if (response[0] !== WRAPPER_PREFIX) {
-      throw new Error("Invalid bootstrap response prefix");
-    }
+    // Send bootstrap request and wait for OUR response (might get other clients' responses first)
+    const maxAttempts = 5;
+    const maxReadsPerAttempt = 50;
 
-    // Verify nonce echo (bytes 5-24)
-    for (let i = 0; i < NONCE_SIZE; i++) {
-      if (response[5 + i] !== nonce[i]) {
-        throw new Error("Bootstrap nonce mismatch - possible MITM");
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Send the bootstrap request
+      await this.device!.sendReport(0, message as BufferSource);
+
+      // Read responses until we find ours or timeout
+      for (let read = 0; read < maxReadsPerAttempt; read++) {
+        const response = await this.readWithTimeout(500);
+        if (!response) {
+          console.log("Bootstrap read timeout, retrying send...");
+          break; // Timeout - retry the send
+        }
+
+        console.log("Bootstrap response:", Array.from(response.slice(0, 32)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+
+        // Validate wrapper prefix
+        if (response[0] !== WRAPPER_PREFIX) {
+          console.log("Unexpected response prefix, reading again...");
+          continue;
+        }
+
+        // Check if client ID is 0 (bootstrap response)
+        const respClientId = response[1] | (response[2] << 8) | (response[3] << 16) | (response[4] << 24);
+        if (respClientId !== 0) {
+          console.log(`Discarding response for client 0x${respClientId.toString(16)}, reading again...`);
+          continue;
+        }
+
+        // Verify nonce echo (bytes 5-24)
+        let nonceMatch = true;
+        for (let i = 0; i < NONCE_SIZE; i++) {
+          if (response[5 + i] !== nonce[i]) {
+            nonceMatch = false;
+            break;
+          }
+        }
+        if (!nonceMatch) {
+          console.log("Nonce mismatch (another client's response), reading again...");
+          continue;
+        }
+
+        // Extract client ID (bytes 25-28, little-endian)
+        const newClientId = response[25] |
+          (response[26] << 8) |
+          (response[27] << 16) |
+          (response[28] << 24);
+
+        // Check for error
+        if (newClientId === 0xFFFFFFFF) {
+          const errorCode = response[29];
+          throw new Error(`Bootstrap failed with error code ${errorCode}`);
+        }
+
+        this.clientId = newClientId;
+
+        // Extract TTL (bytes 29-30, little-endian)
+        this.clientTtl = response[29] | (response[30] << 8);
+
+        // Set expiry time (with 10% buffer for renewal)
+        this.clientIdExpiry = Date.now() + (this.clientTtl * 900); // 90% of TTL
+
+        // Schedule renewal
+        this.scheduleRenewal();
+
+        console.log(`Viable client ID bootstrapped: 0x${this.clientId.toString(16)}, TTL: ${this.clientTtl}s`);
+        return;
       }
     }
 
-    // Extract client ID (bytes 25-28, little-endian)
-    this.clientId = response[25] |
-      (response[26] << 8) |
-      (response[27] << 16) |
-      (response[28] << 24);
+    throw new Error("Bootstrap failed after all retries");
+  }
 
-    // Extract TTL (bytes 29-30, little-endian)
-    this.clientTtl = response[29] | (response[30] << 8);
+  /**
+   * Read a single HID report with timeout
+   */
+  private readWithTimeout(timeoutMs: number): Promise<Uint8Array | null> {
+    return new Promise((resolve) => {
+      const timeoutId = setTimeout(() => {
+        this.device?.removeEventListener("inputreport", handler);
+        resolve(null);
+      }, timeoutMs);
 
-    // Set expiry time (with 10% buffer for renewal)
-    this.clientIdExpiry = Date.now() + (this.clientTtl * 900); // 90% of TTL
+      const handler = (ev: HIDInputReportEvent) => {
+        clearTimeout(timeoutId);
+        this.device?.removeEventListener("inputreport", handler);
+        resolve(new Uint8Array(ev.data.buffer));
+      };
 
-    // Schedule renewal
-    this.scheduleRenewal();
-
-    console.log(`Viable client ID bootstrapped: 0x${this.clientId.toString(16)}, TTL: ${this.clientTtl}s`);
+      this.device?.addEventListener("inputreport", handler);
+    });
   }
 
   /**
@@ -244,32 +332,6 @@ export class ViableUSB {
     };
     this.handleEvent = handleEvent;
     this.device.addEventListener("inputreport", handleEvent);
-  }
-
-  /**
-   * Send raw message without wrapper (used for bootstrap)
-   */
-  private async sendRaw(message: Uint8Array): Promise<Uint8Array> {
-    if (!this.device) throw new Error("USB device not connected");
-
-    return new Promise<Uint8Array>((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error("USB Command Timeout"));
-      }, 1000);
-
-      const originalListener = this.listener;
-      this.listener = (data: ArrayBuffer) => {
-        clearTimeout(timeoutId);
-        this.listener = originalListener;
-        resolve(new Uint8Array(data));
-      };
-
-      this.device!.sendReport(0, message as BufferSource).catch(err => {
-        clearTimeout(timeoutId);
-        this.listener = originalListener;
-        reject(err);
-      });
-    });
   }
 
   /**
@@ -338,6 +400,9 @@ export class ViableUSB {
     options: USBSendOptions = {}
   ): Promise<Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[]> {
     if (!this.device) throw new Error("USB device not connected");
+
+    // Ensure we have a valid client ID
+    await this.ensureClientId();
 
     // Build VIA command payload
     const payload = [cmd, ...args];
@@ -410,6 +475,9 @@ export class ViableUSB {
   ): Promise<Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[]> {
     if (!this.device) throw new Error("USB device not connected");
 
+    // Ensure we have a valid client ID
+    await this.ensureClientId();
+
     // Build Viable command payload
     const payload = [cmd, ...args];
     const message = this.buildWrappedMessage(VIABLE_PREFIX, payload);
@@ -429,6 +497,14 @@ export class ViableUSB {
           if (u8[0] !== WRAPPER_PREFIX) return;
           const respClientId = u8[1] | (u8[2] << 8) | (u8[3] << 16) | (u8[4] << 24);
           if (respClientId !== this.clientId) return;
+
+          // Check for error response (protocol byte = 0xFF)
+          if (u8[5] === 0xFF) {
+            clearTimeout(timeoutId);
+            const errorCode = u8[6];
+            reject(new Error(`Viable protocol error: code ${errorCode}`));
+            return;
+          }
 
           // Additional validation if provided
           if (options.validateInput) {
@@ -553,7 +629,8 @@ export class ViableUSB {
     options: USBSendOptions = {},
     checkComplete?: (data: number[] | Uint8Array) => boolean
   ): Promise<number[] | Uint8Array> {
-    const chunksize = 28;
+    // VIA_BUFFER_CHUNK_SIZE = 22 (32 total - 6 wrapper - 4 VIA response header)
+    const chunksize = 22;
     const bytes = options.bytes || 1;
     const alldata: number[] = [];
     let offset = 0;
@@ -598,15 +675,17 @@ export class ViableUSB {
    */
   async getViableDefinition(): Promise<Uint8Array> {
     // Get definition size
+    // Response format after wrapper stripped: [cmd_echo][size0][size1][size2][size3]
     const sizeResp = await this.sendViable(
       ViableUSB.CMD_VIABLE_DEFINITION_SIZE,
       [],
-      { uint32: true, index: 0 }
+      { uint32: true, index: 1 } // Skip cmd_echo
     );
     const size = sizeResp as number;
 
     // Fetch definition in chunks
-    const chunkSize = 28; // VIABLE_DEFINITION_CHUNK_SIZE
+    // VIABLE_DEFINITION_CHUNK_SIZE = 22 (32 total - 6 wrapper - 4 response header)
+    const chunkSize = 22;
     const alldata: number[] = [];
     let offset = 0;
 
@@ -619,10 +698,10 @@ export class ViableUSB {
       );
 
       const data = resp as Uint8Array;
-      // Response format: [offset_lo][offset_hi][actual_size][data...]
-      const actualSize = data[2];
+      // Response format after wrapper stripped: [cmd_echo][offset_lo][offset_hi][actual_size][data...]
+      const actualSize = data[3]; // Skip cmd_echo
       for (let i = 0; i < actualSize; i++) {
-        alldata.push(data[3 + i]);
+        alldata.push(data[4 + i]); // Skip cmd_echo + header
       }
 
       offset += actualSize;
@@ -640,9 +719,11 @@ export class ViableUSB {
     const buffer = new Uint8Array(data);
     let offset = 0;
     let chunkOffset = 0;
+    // VIA_BUFFER_CHUNK_SIZE = 22 (matches get chunk size)
+    const chunkSize = 22;
 
     while (offset < size) {
-      const chunk = new Uint8Array(MSG_LEN - 4);
+      const chunk = new Uint8Array(chunkSize);
       for (let i = 0; i < chunk.length && offset < size; i++) {
         chunk[i] = buffer[offset++];
       }

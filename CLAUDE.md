@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Related Repositories
+
+| Repository | Branch | Purpose |
+|------------|--------|---------|
+| `viable-qmk` | `svalboard` | QMK firmware with Viable protocol |
+| `viable-gui` | `viable` | Reference Python GUI implementation |
+| `keybard-ng` (upstream) | `main` | Original Vial-compatible GUI |
+
 ## Project Overview
 
 KeyBard-NG is a React 19 + TypeScript web application for configuring Viable-compatible keyboards (especially Svalboard) via WebHID API. It enables real-time keymap editing, macro programming, and QMK settings management.

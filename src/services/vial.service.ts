@@ -3,8 +3,13 @@ import { keyService } from "./key.service";
 import { ViableUSB, usbInstance } from "./usb.service";
 import { LE16 } from "./utils";
 
-import { XzReadableStream } from "xz-decompress";
+import LZMA from "js-lzma";
 import type { KeyboardInfo, AltRepeatKeyEntry, LeaderEntry } from "../types/vial.types";
+
+// Viable feature flags (from protocol info response)
+// CAPS_WORD = 0x01, LAYER_LOCK = 0x02 - not currently used
+const VIABLE_FLAG_ONESHOT = 0x04;
+const VIABLE_FLAG_LEADER = 0x08;
 import { ComboService } from "./combo.service";
 import { MacroService } from "./macro.service";
 import { OverrideService } from "./override.service";
@@ -12,38 +17,48 @@ import { QMKService } from "./qmk.service";
 import { svalService } from "./sval.service";
 import { TapdanceService } from "./tapdance.service";
 
-// XZ decompression helper
+// Stream wrapper for js-lzma (Viable uses raw LZMA, not XZ container)
+class LZMAInStream {
+    private data: Uint8Array;
+    private offset: number = 0;
+
+    constructor(data: Uint8Array) {
+        this.data = data;
+    }
+
+    readByte(): number {
+        if (this.offset >= this.data.length) {
+            return -1;
+        }
+        return this.data[this.offset++];
+    }
+}
+
+class LZMAOutStream {
+    private buffer: number[] = [];
+
+    writeByte(byte: number): void {
+        this.buffer.push(byte);
+    }
+
+    getBytes(): Uint8Array {
+        return new Uint8Array(this.buffer);
+    }
+}
+
+// LZMA decompression helper
 async function decompress(buffer: ArrayBuffer): Promise<string> {
     try {
-        const stream = new ReadableStream({
-            start(controller) {
-                controller.enqueue(new Uint8Array(buffer));
-                controller.close();
-            },
-        });
+        const compressed = new Uint8Array(buffer);
+        const inStream = new LZMAInStream(compressed);
+        const outStream = new LZMAOutStream();
 
-        const xzStream = new XzReadableStream(stream);
-        const reader = xzStream.getReader();
-        const chunks: Uint8Array[] = [];
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-        }
-
-        const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-        const result = new Uint8Array(totalLength);
-        let offset = 0;
-        for (const chunk of chunks) {
-            result.set(chunk, offset);
-            offset += chunk.length;
-        }
+        LZMA.decompressFile(inStream, outStream);
 
         const decoder = new TextDecoder();
-        return decoder.decode(result);
+        return decoder.decode(outStream.getBytes());
     } catch (error) {
-        console.error("XZ decompression failed:", error);
+        console.error("LZMA decompression failed:", error);
         console.error("Buffer size:", buffer.byteLength);
         console.error("Buffer preview:", new Uint8Array(buffer).slice(0, 32));
         throw error;
@@ -121,10 +136,34 @@ export class ViableService {
         await this.combo.get(kbinfo);
         await this.override.get(kbinfo);
 
-        // Load Viable-specific features
-        await this.getAltRepeatKeys(kbinfo);
-        await this.getLeaders(kbinfo);
-        await this.getOneShot(kbinfo);
+        // Load Viable-specific features based on feature flags
+        // Alt Repeat Keys don't have a flag - check entry count from definition
+        if (kbinfo.alt_repeat_key_count && kbinfo.alt_repeat_key_count > 0) {
+            try {
+                await this.getAltRepeatKeys(kbinfo);
+            } catch (e) {
+                console.warn("Alt Repeat Keys not available:", e);
+            }
+        }
+
+        // Leaders require LEADER flag (0x08)
+        const flags = kbinfo.feature_flags ?? 0;
+        if ((flags & VIABLE_FLAG_LEADER) && kbinfo.leader_count && kbinfo.leader_count > 0) {
+            try {
+                await this.getLeaders(kbinfo);
+            } catch (e) {
+                console.warn("Leaders not available:", e);
+            }
+        }
+
+        // One-shot requires ONESHOT flag (0x04)
+        if (flags & VIABLE_FLAG_ONESHOT) {
+            try {
+                await this.getOneShot(kbinfo);
+            } catch (e) {
+                console.warn("One-shot settings not available:", e);
+            }
+        }
 
         return kbinfo;
     }
@@ -142,19 +181,20 @@ export class ViableService {
         });
 
         // Parse Viable info response:
-        // [protocol_version:4][uid:8][feature_flags:1]
+        // Response format after wrapper stripped: [cmd_echo][protocol_version:4][uid:8][feature_flags:1]
         const dv = new DataView((viableInfo as Uint8Array).buffer);
-        kbinfo.viable_proto = dv.getUint32(0, true);
-        kbinfo.feature_flags = viableInfo[12];
+        kbinfo.viable_proto = dv.getUint32(1, true); // Skip cmd_echo
+        kbinfo.feature_flags = viableInfo[13]; // Skip cmd_echo
 
         // Extract UID as hex string for kbid
-        const uidBytes = (viableInfo as Uint8Array).slice(4, 12);
+        const uidBytes = (viableInfo as Uint8Array).slice(5, 13); // Skip cmd_echo
         kbinfo.kbid = Array.from(uidBytes).map(b => b.toString(16).padStart(2, '0')).join('');
 
         // Get compressed JSON payload size via Viable protocol
+        // Response format after wrapper stripped: [cmd_echo][size0][size1][size2][size3]
         const sizeResp = await this.usb.sendViable(ViableUSB.CMD_VIABLE_DEFINITION_SIZE, [], {
             uint32: true,
-            index: 0,
+            index: 1, // Skip command echo byte
         });
         const payload_size = sizeResp as number;
 
@@ -163,7 +203,8 @@ export class ViableService {
         }
 
         // Fetch definition in chunks using Viable protocol
-        const chunkSize = 28;
+        // VIABLE_DEFINITION_CHUNK_SIZE = 22 (32 total - 6 wrapper - 4 response header)
+        const chunkSize = 22;
         const payload = new ArrayBuffer(payload_size);
         const pdv = new DataView(payload);
         let offset = 0;
@@ -177,10 +218,10 @@ export class ViableService {
             );
 
             const data = resp as Uint8Array;
-            // Response format: [offset_lo][offset_hi][actual_size][data...]
-            const actualSize = data[2];
+            // Response format after wrapper stripped: [cmd_echo][offset_lo][offset_hi][actual_size][data...]
+            const actualSize = data[3];
             for (let i = 0; i < actualSize && offset < payload_size; i++) {
-                pdv.setInt8(offset, data[3 + i]);
+                pdv.setInt8(offset, data[4 + i]);
                 offset++;
             }
 
@@ -271,14 +312,14 @@ export class ViableService {
                 { uint8: true }
             ) as Uint8Array;
 
-            // Response: [index][keycode:2][alt_keycode:2][allowed_mods][options]
+            // Response format after wrapper stripped: [cmd_echo][index][keycode:2][alt_keycode:2][allowed_mods][options]
             const dv = new DataView(data.buffer);
             const entry: AltRepeatKeyEntry = {
                 arkid: i,
-                keycode: keyService.stringify(dv.getUint16(1, true)),
-                alt_keycode: keyService.stringify(dv.getUint16(3, true)),
-                allowed_mods: data[5],
-                options: data[6],
+                keycode: keyService.stringify(dv.getUint16(2, true)), // Skip cmd_echo + index
+                alt_keycode: keyService.stringify(dv.getUint16(4, true)),
+                allowed_mods: data[6],
+                options: data[7],
             };
             kbinfo.alt_repeat_keys.push(entry);
         }
@@ -298,11 +339,11 @@ export class ViableService {
                 { uint8: true }
             ) as Uint8Array;
 
-            // Response: [index][seq0:2][seq1:2][seq2:2][seq3:2][seq4:2][output:2][options:2]
+            // Response format after wrapper stripped: [cmd_echo][index][seq0:2][seq1:2][seq2:2][seq3:2][seq4:2][output:2][options:2]
             const dv = new DataView(data.buffer);
             const sequence: string[] = [];
             for (let j = 0; j < 5; j++) {
-                const kc = dv.getUint16(1 + j * 2, true);
+                const kc = dv.getUint16(2 + j * 2, true); // Skip cmd_echo + index
                 if (kc !== 0) {
                     sequence.push(keyService.stringify(kc));
                 }
@@ -311,8 +352,8 @@ export class ViableService {
             const entry: LeaderEntry = {
                 ldrid: i,
                 sequence,
-                output: keyService.stringify(dv.getUint16(11, true)),
-                options: dv.getUint16(13, true),
+                output: keyService.stringify(dv.getUint16(12, true)), // Skip cmd_echo
+                options: dv.getUint16(14, true),
             };
             kbinfo.leaders.push(entry);
         }
@@ -328,11 +369,11 @@ export class ViableService {
             { uint8: true }
         ) as Uint8Array;
 
-        // Response: [timeout:2][tap_toggle]
+        // Response format after wrapper stripped: [cmd_echo][timeout:2][tap_toggle]
         const dv = new DataView(data.buffer);
         kbinfo.one_shot = {
-            timeout: dv.getUint16(0, true),
-            tap_toggle: data[2],
+            timeout: dv.getUint16(1, true), // Skip cmd_echo
+            tap_toggle: data[3],
         };
     }
 
