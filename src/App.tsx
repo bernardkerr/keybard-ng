@@ -1,4 +1,5 @@
 import MainScreen from "./components/MainScreen";
+import PrintableKeymapWrapper from "./components/PrintableKeymapWrapper";
 import { ChangesProvider } from "./contexts/ChangesContext";
 import { KeyBindingProvider } from "./contexts/KeyBindingContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
@@ -13,6 +14,7 @@ function App() {
                 <ChangesProvider>
                     <KeyBindingProvider>
                         <MainScreen />
+                        <PrintableKeymapWrapper />
                     </KeyBindingProvider>
                 </ChangesProvider>
             </SettingsProvider>

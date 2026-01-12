@@ -17,6 +17,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
 import { fileService } from "@/services/file.service";
+import { printService } from "@/services/print.service";
 import { useRef, useState } from "react";
 
 const SettingsPanel = () => {
@@ -30,6 +31,9 @@ const SettingsPanel = () => {
     const [isExportOpen, setIsExportOpen] = useState(false);
     const [exportFormat, setExportFormat] = useState<"viable" | "vil" | "kbi">("viable");
     const [includeMacros, setIncludeMacros] = useState(true);
+
+    // Print Dialog State
+    const [isPrintOpen, setIsPrintOpen] = useState(false);
 
     const { queue } = useChanges();
 
@@ -87,6 +91,26 @@ const SettingsPanel = () => {
         }
     };
 
+    const handlePrint = () => {
+        if (!keyboard) {
+            console.error("No keyboard loaded");
+            return;
+        }
+
+        const nonEmptyLayers = printService.getNonEmptyLayers(keyboard);
+        if (nonEmptyLayers.length === 0) {
+            console.warn("No non-empty layers to print");
+            return;
+        }
+
+        // Dispatch a custom event that the PrintableKeymap wrapper will listen for
+        window.dispatchEvent(new CustomEvent('keybard-print', {
+            detail: { keyboard, layers: nonEmptyLayers }
+        }));
+
+        setIsPrintOpen(false);
+    };
+
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col w-full mx-auto py-4">
              {/* Hidden file input for import */}
@@ -137,6 +161,34 @@ const SettingsPanel = () => {
                         </Button>
                         <Button type="button" onClick={handleExport}>
                             Export
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Print Dialog */}
+            <Dialog open={isPrintOpen} onOpenChange={setIsPrintOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Print Keyboard Layout</DialogTitle>
+                        <DialogDescription>
+                            Print all layers that contain configured keys (excluding empty KC_NO and transparent KC_TRNS only layers).
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-4 py-4">
+                        {keyboard && (
+                            <div className="text-sm text-muted-foreground">
+                                <p><strong>Keyboard:</strong> {keyboard.cosmetic?.name || keyboard.name || 'Unknown'}</p>
+                                <p><strong>Non-empty layers:</strong> {printService.getNonEmptyLayers(keyboard).length} of {keyboard.keymap?.length || 0}</p>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="secondary" onClick={() => setIsPrintOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={handlePrint}>
+                            Print
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -214,6 +266,8 @@ const SettingsPanel = () => {
                                             fileInputRef.current?.click();
                                         } else if (setting.action === "export-settings") {
                                             setIsExportOpen(true);
+                                        } else if (setting.action === "print-keymap") {
+                                            setIsPrintOpen(true);
                                         }
                                     }}
                                 >
