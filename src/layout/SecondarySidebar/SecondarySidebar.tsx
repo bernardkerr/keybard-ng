@@ -101,7 +101,7 @@ const SecondarySidebar = () => {
 
     // Check if we should show the key picker overlay
     // We show it if we are editing an item and we are in a panel that supports key picking
-    const showPicker = itemToEdit !== null && ["tapdances", "combos", "macros", "overrides"].includes(activePanel || "");
+    const showPicker = itemToEdit !== null && ["tapdances", "combos", "macros", "overrides", "altrepeat"].includes(activePanel || "");
 
     const [pickerMode, setPickerMode] = React.useState<PickerMode>("keyboard");
     const [isClosingEditor, setIsClosingEditor] = React.useState(false);

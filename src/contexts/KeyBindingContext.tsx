@@ -8,7 +8,7 @@ import { KEYBOARD_EVENT_MAP } from "@/utils/keyboard-mapper";
 import { useVial } from "./VialContext";
 
 interface BindingTarget {
-    type: "keyboard" | "combo" | "tapdance" | "macro" | "override";
+    type: "keyboard" | "combo" | "tapdance" | "macro" | "override" | "altrepeat";
     layer?: number;
     row?: number;
     col?: number;
@@ -24,6 +24,8 @@ interface BindingTarget {
     label?: string;
     overrideId?: number;
     overrideSlot?: "trigger" | "replacement";
+    altRepeatId?: number;
+    altRepeatSlot?: "keycode" | "alt_keycode";
 }
 
 
@@ -34,6 +36,7 @@ interface KeyBindingContextType {
     selectTapdanceKey: (tapdanceId: number, slot: "tap" | "hold" | "doubletap" | "taphold") => void;
     selectMacroKey: (macroId: number, index: number) => void;
     selectOverrideKey: (overrideId: number, slot: "trigger" | "replacement") => void;
+    selectAltRepeatKey: (altRepeatId: number, slot: "keycode" | "alt_keycode") => void;
     assignKeycode: (keycode: number | string) => void;
     clearSelection: () => void;
     isBinding: boolean;
@@ -107,6 +110,15 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             type: "override",
             overrideId,
             overrideSlot: slot,
+        });
+        setIsBinding(true);
+    }, []);
+
+    const selectAltRepeatKey = useCallback((altRepeatId: number, slot: "keycode" | "alt_keycode") => {
+        setSelectedTarget({
+            type: "altrepeat",
+            altRepeatId,
+            altRepeatSlot: slot,
         });
         setIsBinding(true);
     }, []);
@@ -384,6 +396,37 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
                     break;
                 }
+
+                case "altrepeat": {
+                    const { altRepeatId, altRepeatSlot } = currentTarget;
+                    if (altRepeatId === undefined || altRepeatSlot === undefined) break;
+
+                    const altRepeatKeys = updatedKeyboard.alt_repeat_keys;
+                    if (!altRepeatKeys || !altRepeatKeys[altRepeatId]) break;
+
+                    const previousValue = altRepeatKeys[altRepeatId][altRepeatSlot];
+                    const keycodeName = typeof keycode === "string" ? keycode : `KC_${keycode}`;
+                    altRepeatKeys[altRepeatId][altRepeatSlot] = keycodeName;
+
+                    // Queue the change with callback
+                    const changeDesc = `altrepeat_${altRepeatId}_${altRepeatSlot}`;
+                    queue(
+                        changeDesc,
+                        async () => {
+                            console.log(`Committing alt-repeat change: AltRepeat ${altRepeatId}, ${altRepeatSlot} → ${keycodeName}`);
+                            // TODO: Call vialService.updateAltRepeatKey when live updating is fixed
+                        },
+                        {
+                            type: "altrepeat" as any,
+                            altRepeatId,
+                            altRepeatSlot,
+                            keycode: keycodeValue,
+                            previousValue,
+                        } as any
+                    );
+
+                    break;
+                }
             }
             setKeyboard(updatedKeyboard);
             clearSelection();
@@ -425,6 +468,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         selectTapdanceKey,
         selectMacroKey,
         selectOverrideKey,
+        selectAltRepeatKey,
         assignKeycode,
         clearSelection,
         isBinding,
