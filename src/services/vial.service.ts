@@ -11,6 +11,8 @@ import type { KeyboardInfo, AltRepeatKeyEntry, LeaderEntry } from "../types/vial
 const VIABLE_FLAG_ONESHOT = 0x04;
 const VIABLE_FLAG_LEADER = 0x08;
 import { ComboService } from "./combo.service";
+import { FragmentComposerService } from "./fragment-composer.service";
+import { FragmentService } from "./fragment.service";
 import { MacroService } from "./macro.service";
 import { OverrideService } from "./override.service";
 import { QMKService } from "./qmk.service";
@@ -81,6 +83,8 @@ export class ViableService {
     private override: OverrideService;
     private qmk: QMKService;
     private kle: KleService;
+    private fragment: FragmentService;
+    private fragmentComposer: FragmentComposerService;
 
     constructor(usb: ViableUSB) {
         this.usb = usb;
@@ -90,6 +94,8 @@ export class ViableService {
         this.override = new OverrideService(usb);
         this.qmk = new QMKService(usb);
         this.kle = new KleService();
+        this.fragment = new FragmentService(usb);
+        this.fragmentComposer = new FragmentComposerService(this.kle, this.fragment);
     }
 
     static isWebHIDSupported(): boolean {
@@ -162,6 +168,21 @@ export class ViableService {
                 await this.getOneShot(kbinfo);
             } catch (e) {
                 console.warn("One-shot settings not available:", e);
+            }
+        }
+
+        // Load fragment data (hardware detection and EEPROM selections)
+        if (this.fragment.hasFragments(kbinfo)) {
+            try {
+                await this.fragment.get(kbinfo);
+                // Compose keyboard layout from fragments
+                const composedLayout = this.fragmentComposer.composeLayout(kbinfo);
+                if (Object.keys(composedLayout).length > 0) {
+                    kbinfo.keylayout = composedLayout;
+                    console.log("Fragment layout composed:", Object.keys(composedLayout).length, "keys");
+                }
+            } catch (e) {
+                console.warn("Fragments not available:", e);
             }
         }
 
@@ -238,6 +259,11 @@ export class ViableService {
         kbinfo.cols = payloadData.matrix.cols;
         kbinfo.custom_keycodes = payloadData.customKeycodes;
 
+        // Extract keyboard name from definition
+        if (payloadData.name) {
+            kbinfo.name = payloadData.name;
+        }
+
         // Extract Viable feature counts from the definition
         if (payloadData.viable) {
             kbinfo.tapdance_count = payloadData.viable.tap_dance || 0;
@@ -245,6 +271,14 @@ export class ViableService {
             kbinfo.key_override_count = payloadData.viable.key_override || 0;
             kbinfo.alt_repeat_key_count = payloadData.viable.alt_repeat_key || 0;
             kbinfo.leader_count = payloadData.viable.leader || 0;
+        }
+
+        // Extract fragments and composition for modular layouts
+        if (payloadData.fragments) {
+            kbinfo.fragments = payloadData.fragments;
+        }
+        if (payloadData.composition) {
+            kbinfo.composition = payloadData.composition;
         }
 
         return kbinfo;
@@ -495,6 +529,31 @@ export class ViableService {
             (os.timeout >> 8) & 0xff,
             os.tap_toggle,
         ], {});
+    }
+
+    /**
+     * Update a fragment selection on keyboard
+     */
+    async updateFragmentSelection(
+        kbinfo: KeyboardInfo,
+        instanceIdx: number,
+        optionIdx: number
+    ): Promise<boolean> {
+        return this.fragment.setSelection(kbinfo, instanceIdx, optionIdx);
+    }
+
+    /**
+     * Get fragment service for direct access if needed
+     */
+    getFragmentService(): FragmentService {
+        return this.fragment;
+    }
+
+    /**
+     * Get fragment composer service for recomposing layouts
+     */
+    getFragmentComposer(): FragmentComposerService {
+        return this.fragmentComposer;
     }
 
     /**

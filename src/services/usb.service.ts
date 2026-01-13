@@ -73,6 +73,11 @@ export class ViableUSB {
   static readonly CMD_VIABLE_QMK_SETTINGS_RESET = 0x13;
   static readonly CMD_VIABLE_LEADER_GET = 0x14;
   static readonly CMD_VIABLE_LEADER_SET = 0x15;
+  static readonly CMD_VIABLE_LAYER_STATE_GET = 0x16;
+  static readonly CMD_VIABLE_LAYER_STATE_SET = 0x17;
+  static readonly CMD_VIABLE_FRAGMENT_GET_HARDWARE = 0x18;
+  static readonly CMD_VIABLE_FRAGMENT_GET_SELECTIONS = 0x19;
+  static readonly CMD_VIABLE_FRAGMENT_SET_SELECTIONS = 0x1a;
 
   // Svalboard-specific constants
   static readonly SVAL_GET_LEFT_DPI = 0x00;
