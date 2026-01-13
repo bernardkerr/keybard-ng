@@ -143,6 +143,7 @@ export interface USBSendOptions {
     bigendian?: boolean;
     slice?: number;
     bytes?: number;
+    skipBytes?: number;  // Skip N bytes from start of payload before parsing (e.g., skip cmd echo)
     validateInput?: (data: Uint8Array) => boolean;
 }
 

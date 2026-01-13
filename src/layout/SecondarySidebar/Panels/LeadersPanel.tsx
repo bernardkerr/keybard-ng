@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
+import { keyService } from "@/services/key.service";
 import { useVial } from "@/contexts/VialContext";
 import { useLayer } from "@/contexts/LayerContext";
 import { usePanels } from "@/contexts/PanelsContext";
@@ -15,7 +16,7 @@ import { cn } from "@/lib/utils";
 
 const LeadersPanel: React.FC = () => {
     const { keyboard, setKeyboard } = useVial();
-    const { selectLeaderKey } = useKeyBinding();
+    const { selectLeaderKey, assignKeycode, isBinding } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const {
         setItemToEdit,
@@ -98,8 +99,38 @@ const LeadersPanel: React.FC = () => {
         );
     };
 
+    const handleAssignLeaderKey = () => {
+        if (!isBinding) return;
+        assignKeycode("QK_LEADER");
+    };
+
+    const leaderKeyLabel = keyService.define("QK_LEADER")?.str || "Leader";
+    const leaderKeyContents = getKeyContents(keyboard, "QK_LEADER") as KeyContent;
+
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
+            {/* Placeable Leader key */}
+            <div className="px-2 flex flex-col gap-2">
+                <div className="text-sm font-medium">Leader Key</div>
+                <div className="flex">
+                    <Key
+                        isRelative
+                        x={0} y={0} w={1} h={1} row={-1} col={-1}
+                        keycode="QK_LEADER"
+                        label={leaderKeyLabel}
+                        keyContents={leaderKeyContents}
+                        layerColor="sidebar"
+                        className={cn(
+                            "border-kb-gray cursor-pointer",
+                            isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor}`
+                        )}
+                        headerClassName="bg-kb-sidebar-dark"
+                        variant="small"
+                        onClick={handleAssignLeaderKey}
+                    />
+                </div>
+            </div>
+
             <div className="px-2 pb-2 text-sm text-muted-foreground">
                 Leader sequences trigger an output when you press a specific sequence of keys after the Leader key.
                 Click on a key slot to assign a keycode.

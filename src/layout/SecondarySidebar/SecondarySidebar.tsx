@@ -16,6 +16,7 @@ import SpecialKeysPanel from "./Panels/SpecialKeysPanel/SpecialKeysPanel";
 import OverridesPanel from "./Panels/OverridesPanel";
 import QmkKeyPanel from "./Panels/QmkKeysPanel";
 import MousePanel from "./Panels/MousePanel";
+import QMKSettingsPanel from "./Panels/QMKSettingsPanel";
 import SettingsPanel from "./Panels/SettingsPanel";
 import TapdancePanel from "./Panels/TapdancePanel";
 
@@ -45,6 +46,7 @@ const getPanelTitle = (panel: string | null | undefined): string => {
         altrepeat: "Alt-Repeat Keys",
         leaders: "Leader Sequences",
         fragments: "Fragment Selections",
+        qmksettings: "QMK Settings",
         settings: "Settings",
         about: "About",
     };
@@ -142,6 +144,7 @@ const SecondarySidebar = () => {
             case "qmk": return <QmkKeyPanel />;
             case "special": return <SpecialKeysPanel />;
             case "mouse": return <MousePanel />;
+            case "qmksettings": return <QMKSettingsPanel />;
             case "settings": return <SettingsPanel />;
             default:
                 return (

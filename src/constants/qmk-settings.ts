@@ -35,9 +35,15 @@ export const QMK_SETTINGS: QMKSettings = {
         { "type": "boolean", "title": "Ignore Mod Tap Interrupt", "qsid": 8, "bit": 1 },
         { "type": "boolean", "title": "Tapping Force Hold", "qsid": 8, "bit": 2 },
         { "type": "boolean", "title": "Retro Tapping", "qsid": 8, "bit": 3 },
+        { "type": "boolean", "title": "Permissive Hold (new)", "qsid": 22 },
+        { "type": "boolean", "title": "Hold On Other Key Press", "qsid": 23 },
+        { "type": "boolean", "title": "Retro Tapping (new)", "qsid": 24 },
+        { "type": "integer", "title": "Quick Tap Term", "qsid": 25, "min": 0, "max": 10000, "width": 2 },
         { "type": "integer", "title": "Tap Code Delay", "qsid": 18, "min": 0, "max": 1000, "width": 2 },
         { "type": "integer", "title": "Tap Hold Caps Delay", "qsid": 19, "min": 0, "max": 1000, "width": 2 },
-        { "type": "integer", "title": "Tapping Toggle", "qsid": 20, "min": 0, "max": 100, "width": 1 }
+        { "type": "integer", "title": "Tapping Toggle", "qsid": 20, "min": 0, "max": 100, "width": 1 },
+        { "type": "boolean", "title": "Chordal Hold", "qsid": 26 },
+        { "type": "integer", "title": "Flow Tap", "qsid": 27, "min": 0, "max": 10000, "width": 2 }
       ]
     },
     {
@@ -78,6 +84,13 @@ export const QMK_SETTINGS: QMKSettings = {
         { "type": "integer", "title": "Time between wheel movements", "qsid": 15, "min": 0, "max": 10000, "width": 2 },
         { "type": "integer", "title": "Maximum number of scroll steps per scroll action", "qsid": 16, "min": 0, "max": 1000, "width": 2 },
         { "type": "integer", "title": "Time until maximum scroll speed is reached", "qsid": 17, "min": 0, "max": 1000, "width": 2 }
+      ]
+    },
+    {
+      "name": "Leader Key",
+      "fields": [
+        { "type": "integer", "title": "Leader timeout (ms)", "qsid": 28, "min": 50, "max": 5000, "width": 2 },
+        { "type": "boolean", "title": "Per-key timing (reset timeout on each key)", "qsid": 29 }
       ]
     }
   ]

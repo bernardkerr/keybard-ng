@@ -7,7 +7,6 @@ import { keyService } from "../services/key.service";
 import { qmkService } from "../services/qmk.service";
 import { usbInstance } from "../services/usb.service";
 import type { KeyboardInfo } from "../types/vial.types";
-import { storage } from "../utils/storage";
 
 interface VialContextType {
     keyboard: KeyboardInfo | null;
@@ -63,6 +62,7 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             await usbInstance.close();
             setIsConnected(false);
+            setLoadedFrom(null);
         } catch (error) {
             console.error("Failed to disconnect:", error);
         }
@@ -83,8 +83,10 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const loadedInfo = await vialService.load(kbinfo);
 
             // Load QMK settings
+            console.log("[VialContext] About to load QMK settings...");
             try {
                 await qmkService.get(loadedInfo);
+                console.log("[VialContext] QMK settings loaded:", loadedInfo.settings);
             } catch (error) {
                 console.warn("Failed to load QMK settings:", error);
             }
@@ -116,36 +118,16 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setKeyboard(kbinfo);
             const filePath = file.name;
             setLoadedFrom(filePath);
-            storage.setLastFilePath(filePath);
             setIsConnected(false);
-            await storage.saveFile(kbinfo).catch((err) => {
-                console.error("Failed to save file:", err);
-            });
         } catch (error) {
             console.error("Failed to load file:", error);
             throw error;
         }
     }, []);
 
-    useEffect(() => {
-        // On mount, try to load last saved file from localStorage
-        const loadSavedFile = async () => {
-            try {
-                const savedContent = localStorage.getItem("keybard_saved_file");
-                if (savedContent) {
-                    const kbinfo = JSON.parse(savedContent) as KeyboardInfo;
-                    svalService.setupCosmeticLayerNames(kbinfo);
-                    keyService.generateAllKeycodes(kbinfo);
-                    setKeyboard(kbinfo);
-                    setLoadedFrom("Last Saved File");
-                    setIsConnected(false);
-                }
-            } catch (error) {
-                console.error("Failed to load saved file from storage:", error);
-            }
-        };
-        loadSavedFile();
-    }, []);
+    // Note: Auto-restore from localStorage was removed to ensure users always
+    // see the "Connect or Load a File" page on refresh. Users should explicitly
+    // connect to a device or load a file each session.
 
     const updateKey = useCallback(
         async (layer: number, row: number, col: number, keymask: number) => {

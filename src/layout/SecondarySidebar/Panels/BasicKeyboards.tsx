@@ -130,6 +130,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
         { keycode: "QK_REPEAT_KEY", label: "Repeat" },
         // { keycode: "QK_ALT_REPEAT_KEY", label: "Alt Repeat" },
         { keycode: "QK_LAYER_LOCK", label: "Lyr Lock" },
+        { keycode: "QK_LEADER", label: "Leader" },
     ];
 
     const renderKeyGrid = (keys: { keycode: string, label: string }[], gridCols?: string) => (

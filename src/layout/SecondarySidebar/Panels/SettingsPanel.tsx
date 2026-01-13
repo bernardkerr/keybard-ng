@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { useChanges } from "@/contexts/ChangesContext";
+import { usePanels } from "@/contexts/PanelsContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ const SettingsPanel = () => {
     const { getSetting, updateSetting, settingsDefinitions, settingsCategories } = useSettings();
     const [activeCategory, setActiveCategory] = useState<string>("general");
     const { keyboard, setKeyboard, isConnected } = useVial();
+    const { setActivePanel } = usePanels();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -303,6 +305,8 @@ const SettingsPanel = () => {
                                             setIsExportOpen(true);
                                         } else if (setting.action === "print-keymap") {
                                             setIsPrintOpen(true);
+                                        } else if (setting.action === "open-qmk-settings") {
+                                            setActivePanel("qmksettings");
                                         }
                                     }}
                                 >

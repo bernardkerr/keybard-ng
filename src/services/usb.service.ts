@@ -551,11 +551,14 @@ export class ViableUSB {
   private parseResponse(data: ArrayBuffer, options: USBSendOptions): Uint8Array;
 
   private parseResponse(data: ArrayBuffer, options: USBSendOptions): Uint8Array | Uint16Array | Uint32Array | number | bigint | (number | bigint)[] {
+    const skipBytes = options.skipBytes || 0;
     const dv = new DataView(data);
     const u8 = new Uint8Array(data);
 
     if (options.unpack) {
-      const unpacked = this.unpackData(dv, options.unpack);
+      // For unpack, create a new DataView starting at skipBytes offset
+      const offsetDv = skipBytes > 0 ? new DataView(data, skipBytes) : dv;
+      const unpacked = this.unpackData(offsetDv, options.unpack);
       if (options.index !== undefined) {
         return unpacked[options.index];
       }
@@ -564,19 +567,24 @@ export class ViableUSB {
 
     if (options.uint8) {
       if (options.index !== undefined) {
-        return u8[options.index];
+        return u8[skipBytes + options.index];
       }
-      return u8;
+      return skipBytes > 0 ? u8.slice(skipBytes) : u8;
     }
 
     if (options.uint16) {
+      const littleEndian = !options.bigendian;
       if (options.index !== undefined) {
-        return dv.getUint16(options.index, !options.bigendian);
+        // index is a byte offset, not an element index
+        return dv.getUint16(skipBytes + options.index, littleEndian);
       }
-      let u16Array = new Uint16Array(data);
-      if (options.bigendian) {
-        u16Array = u16Array.map(num => ((num >> 8) & 0xFF) | ((num << 8) & 0xFF00));
+      // Read uint16 values using DataView to handle odd byte offsets
+      const numValues = Math.floor((data.byteLength - skipBytes) / 2);
+      const values: number[] = [];
+      for (let i = 0; i < numValues; i++) {
+        values.push(dv.getUint16(skipBytes + i * 2, littleEndian));
       }
+      let u16Array = new Uint16Array(values);
       if (options.slice !== undefined) {
         u16Array = u16Array.slice(options.slice);
       }
@@ -584,14 +592,21 @@ export class ViableUSB {
     }
 
     if (options.uint32) {
+      const littleEndian = !options.bigendian;
       if (options.index !== undefined) {
-        return dv.getUint32(options.index, !options.bigendian);
+        // index is a byte offset, not an element index
+        return dv.getUint32(skipBytes + options.index, littleEndian);
       }
-      const u32Array = new Uint32Array(data);
-      return u32Array;
+      // Read uint32 values using DataView to handle odd byte offsets
+      const numValues = Math.floor((data.byteLength - skipBytes) / 4);
+      const values: number[] = [];
+      for (let i = 0; i < numValues; i++) {
+        values.push(dv.getUint32(skipBytes + i * 4, littleEndian));
+      }
+      return new Uint32Array(values);
     }
 
-    return u8;
+    return skipBytes > 0 ? u8.slice(skipBytes) : u8;
   }
 
   private unpackData(dv: DataView, format: string): (number | bigint)[] {

@@ -1,4 +1,6 @@
 import type { KeyboardInfo } from "../types/vial.types";
+import { FragmentComposerService } from "./fragment-composer.service";
+import { FragmentService } from "./fragment.service";
 import { keyService } from "./key.service";
 import { KleService } from "./kle.service";
 
@@ -423,6 +425,34 @@ export class FileService {
             viable.oneshot = oneshot;
         }
 
+        // Save resolved fragment selections for each instance (not just user selections)
+        // This captures hardware-detected, EEPROM, or user-selected fragments
+        if (kbinfo.composition?.instances && kbinfo.fragments) {
+            const fragmentService = new FragmentService(null as any); // No USB needed
+            const resolvedSelections: Record<string, string> = {};
+
+            kbinfo.composition.instances.forEach((instance, idx) => {
+                if (instance.fragment_options) {
+                    const resolved = fragmentService.resolveFragment(kbinfo, idx, instance);
+                    if (resolved) {
+                        resolvedSelections[instance.id] = resolved;
+                    }
+                }
+            });
+
+            if (Object.keys(resolvedSelections).length > 0) {
+                viable.fragment_selections = resolvedSelections;
+            }
+        }
+
+        // Save fragment definitions and composition for offline loading
+        if (kbinfo.fragments) {
+            viable.fragments = kbinfo.fragments;
+        }
+        if (kbinfo.composition) {
+            viable.composition = kbinfo.composition;
+        }
+
         // Stringify and replace UID placeholder with BigInt value (no quotes)
         let result = JSON.stringify(viable, undefined, 2);
         const numericUid = kbinfo.kbid ? BigInt('0x' + kbinfo.kbid).toString() : '0';
@@ -673,6 +703,40 @@ export class FileService {
         kbinfo.keymap = km;
         (kbinfo as any).keylayout = keylayout;
         kbinfo.kbid = '' + viable.uid;
+
+        // Restore fragment definitions and composition
+        if (viable.fragments) {
+            kbinfo.fragments = viable.fragments;
+        }
+        if (viable.composition) {
+            kbinfo.composition = viable.composition;
+        }
+
+        // Restore fragment selections if present
+        if (viable.fragment_selections) {
+            kbinfo.fragmentState = {
+                hwDetection: new Map(),
+                eepromSelections: new Map(),
+                userSelections: new Map(Object.entries(viable.fragment_selections)),
+            };
+        }
+
+        // Compose layout from fragments if available
+        if (kbinfo.fragments && kbinfo.composition) {
+            try {
+                const fragmentService = new FragmentService(null as any); // No USB needed for offline
+                const fragmentComposer = new FragmentComposerService(this.kleService, fragmentService);
+                if (fragmentComposer.hasFragments(kbinfo)) {
+                    const composedLayout = fragmentComposer.composeLayout(kbinfo);
+                    if (Object.keys(composedLayout).length > 0) {
+                        kbinfo.keylayout = composedLayout;
+                        console.log("Fragment layout composed from file:", Object.keys(composedLayout).length, "keys");
+                    }
+                }
+            } catch (e) {
+                console.warn("Failed to compose fragment layout from file:", e);
+            }
+        }
 
         return kbinfo;
     }

@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
+import { keyService } from "@/services/key.service";
 import { useVial } from "@/contexts/VialContext";
 import { useLayer } from "@/contexts/LayerContext";
 import { usePanels } from "@/contexts/PanelsContext";
@@ -15,7 +16,7 @@ import { cn } from "@/lib/utils";
 
 const AltRepeatPanel: React.FC = () => {
     const { keyboard, setKeyboard } = useVial();
-    const { selectAltRepeatKey } = useKeyBinding();
+    const { selectAltRepeatKey, assignKeycode, isBinding } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const {
         setItemToEdit,
@@ -98,8 +99,38 @@ const AltRepeatPanel: React.FC = () => {
         );
     };
 
+    const handleAssignAltRepeatKey = () => {
+        if (!isBinding) return;
+        assignKeycode("QK_ALT_REPEAT_KEY");
+    };
+
+    const altRepeatKeyLabel = keyService.define("QK_ALT_REPEAT_KEY")?.str || "Alt Repeat";
+    const altRepeatKeyContents = getKeyContents(keyboard, "QK_ALT_REPEAT_KEY") as KeyContent;
+
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
+            {/* Placeable Alt-Repeat key */}
+            <div className="px-2 flex flex-col gap-2">
+                <div className="text-sm font-medium">Alt-Repeat Key</div>
+                <div className="flex">
+                    <Key
+                        isRelative
+                        x={0} y={0} w={1} h={1} row={-1} col={-1}
+                        keycode="QK_ALT_REPEAT_KEY"
+                        label={altRepeatKeyLabel}
+                        keyContents={altRepeatKeyContents}
+                        layerColor="sidebar"
+                        className={cn(
+                            "border-kb-gray cursor-pointer",
+                            isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor}`
+                        )}
+                        headerClassName="bg-kb-sidebar-dark"
+                        variant="small"
+                        onClick={handleAssignAltRepeatKey}
+                    />
+                </div>
+            </div>
+
             <div className="px-2 pb-2 text-sm text-muted-foreground">
                 Alt-Repeat keys remap what happens when you press Alt-Repeat after a specific key.
                 Click on a key slot to assign a keycode.

@@ -20,32 +20,40 @@ export class QMKService {
 
   async get(kbinfo: KeyboardInfo): Promise<void> {
     // Get array of QSIDs that the keyboard supports
-    // Response format: [1, 2, 3, 4, 5, 6, 7, ... 20, 21, 0xFFFF, 0xFFFF]
+    // Protocol: Query returns QSIDs > cur, terminated by 0xFFFF
+    // Pagination: Track max QSID found, query again until no new QSIDs
     const supported: Record<number, boolean> = {};
 
-    let offset = 0;
-    let query = true;
+    let cur = 0;
 
-    while (query) {
-      // Use Viable protocol: QMK settings query command
+    console.log('[QMK] Starting QMK settings query...');
+
+    while (true) {
+      // Query for QSIDs > cur (pass as 2-byte little-endian)
       const data = await this.usb.sendViable(
         ViableUSB.CMD_VIABLE_QMK_SETTINGS_QUERY,
-        [offset],
-        { uint16: true }
+        [...LE16(cur)],
+        { uint16: true, skipBytes: 1 }
       );
+
+      console.log('[QMK] Query response (cur', cur, '):', data);
 
       // data should be a Uint16Array
       const dataArray = Array.isArray(data) ? data : Array.from(data);
 
-      for (const val of dataArray) {
-        if (val === 0xffff) {
-          query = false;
-          break;
-        }
-        supported[val] = true;
+      let gotAny = false;
+      for (const qsid of dataArray) {
+        if (qsid === 0xFFFF) break;
+        gotAny = true;
+        cur = Math.max(cur, qsid);  // Track highest QSID found
+        supported[qsid] = true;
       }
-      offset += 16;
+
+      // If no new QSIDs found, we're done
+      if (!gotAny) break;
     }
+
+    console.log('[QMK] Supported QSIDs:', Object.keys(supported));
 
     // Parse out the widths for each QSID value
     // No width = B (byte). Width 2 = H (short). Width 4 = I (int).
@@ -64,21 +72,44 @@ export class QMKService {
 
     // Fetch each supported setting
     const settings: Record<number, number> = {};
+    console.log('[QMK] Known QSIDs from settings file:', Object.keys(qsidUnpacks));
+
     for (const qsid of Object.keys(qsidUnpacks)) {
       const qsidNum = parseInt(qsid);
-      if (!supported[qsidNum]) continue;
+      if (!supported[qsidNum]) {
+        console.log('[QMK] Skipping unsupported QSID:', qsidNum);
+        continue;
+      }
 
-      // Don't forget the ignored byte
-      const unpack = 'B' + qsidUnpacks[qsidNum];
-      // Use Viable protocol: QMK settings get command
-      const val = await this.usb.sendViable(
+      // First get raw bytes to debug
+      const rawResp = await this.usb.sendViable(
         ViableUSB.CMD_VIABLE_QMK_SETTINGS_GET,
         [qsidNum],
-        { unpack }
+        { uint8: true }
       );
-      settings[qsidNum] = val[1] as number;
+      console.log('[QMK] Raw response for QSID', qsidNum, ':', Array.from(rawResp as Uint8Array).slice(0, 10).map(b => b.toString(16).padStart(2, '0')).join(' '));
+
+      // Response format: [cmd_echo:1][status:1][value:width]
+      // Parse manually based on width
+      const raw = rawResp as Uint8Array;
+      let value: number;
+      const width = qsidUnpacks[qsidNum] === 'B' ? 1 : qsidUnpacks[qsidNum] === 'H' ? 2 : 4;
+
+      // Skip cmd_echo (1 byte) and status (1 byte) = offset 2
+      const valueOffset = 2;
+      if (width === 1) {
+        value = raw[valueOffset];
+      } else if (width === 2) {
+        value = raw[valueOffset] | (raw[valueOffset + 1] << 8); // little-endian
+      } else {
+        value = raw[valueOffset] | (raw[valueOffset + 1] << 8) | (raw[valueOffset + 2] << 16) | (raw[valueOffset + 3] << 24);
+      }
+
+      console.log('[QMK] Fetched QSID', qsidNum, '(width', width, ') =', value);
+      settings[qsidNum] = value;
     }
 
+    console.log('[QMK] Final settings object:', settings);
     kbinfo.settings = settings;
   }
 
