@@ -49,8 +49,8 @@ export const primarySidebarItems: SidebarItem[] = [
     { title: "Macros", url: "macros", icon: MacrosIcon },
 ];
 
-// Alt-Repeat hidden until firmware hook is implemented (see viable-alt-repeat-bug.md)
-const SHOW_ALT_REPEAT = false;
+// Alt-Repeat - enabled for testing
+const SHOW_ALT_REPEAT = true;
 // Leaders - enable when ready to test
 const SHOW_LEADERS = true;
 
