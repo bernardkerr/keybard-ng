@@ -41,12 +41,23 @@ export const MatrixTester: FC = () => {
         }
     }, [keyVariant]);
 
+    // Use dynamic keylayout from keyboard if available (same logic as Keyboard.tsx)
+    const keyboardLayout = useMemo(() => {
+        if (keyboard?.keylayout && Object.keys(keyboard.keylayout).length > 0) {
+            return keyboard.keylayout as Record<number, { x: number; y: number; w: number; h: number; row?: number; col?: number }>;
+        }
+        return SVALBOARD_LAYOUT;
+    }, [keyboard?.keylayout]);
+
+    // Use dynamic matrix columns from keyboard
+    const matrixCols = keyboard?.cols || MATRIX_COLS;
+
     // Calculate keyboard dimensions
     const keyboardDimensions = useMemo(() => {
         let maxX = 0;
         let maxY = 0;
 
-        Object.values(SVALBOARD_LAYOUT).forEach((key) => {
+        Object.values(keyboardLayout).forEach((key) => {
             maxX = Math.max(maxX, key.x + key.w);
             maxY = Math.max(maxY, key.y + key.h);
         });
@@ -55,7 +66,7 @@ export const MatrixTester: FC = () => {
             width: maxX * currentUnitSize,
             height: maxY * currentUnitSize,
         };
-    }, [currentUnitSize]);
+    }, [currentUnitSize, keyboardLayout]);
 
     // Clear matrix history handler
     const handleClearMatrix = useCallback(() => {
@@ -141,10 +152,11 @@ export const MatrixTester: FC = () => {
                     height: `${keyboardDimensions.height}px`
                 }}
             >
-                {Object.entries(SVALBOARD_LAYOUT).map(([matrixPos, layout]) => {
+                {Object.entries(keyboardLayout).map(([matrixPos, layout]) => {
                     const pos = Number(matrixPos);
-                    const row = Math.floor(pos / MATRIX_COLS);
-                    const col = pos % MATRIX_COLS;
+                    // Use layout.row/col if available (from fragments), else calculate from dynamic cols
+                    const row = typeof layout.row === 'number' ? layout.row : Math.floor(pos / matrixCols);
+                    const col = typeof layout.col === 'number' ? layout.col : pos % matrixCols;
                     const keyId = createKeyId(row, col);
                     const isPressed = pressedKeys.has(keyId);
                     const wasPressed = detectedKeys.has(keyId);

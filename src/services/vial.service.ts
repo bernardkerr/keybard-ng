@@ -416,10 +416,10 @@ export class ViableService {
         const data = await this.usb.send(ViableUSB.CMD_VIA_GET_KEYBOARD_VALUE, [ViableUSB.VIA_SWITCH_MATRIX_STATE], {}) as Uint8Array;
         const rowbytes = Math.ceil(kbinfo.cols / 8);
 
-        // Determine offset: VIA echoes the command
+        // Skip first 3 bytes: cmd echo, value ID, offset byte (matches viable-gui)
         let offset = 0;
         if (data[0] === ViableUSB.CMD_VIA_GET_KEYBOARD_VALUE && data[1] === ViableUSB.VIA_SWITCH_MATRIX_STATE) {
-            offset = 2;
+            offset = 3;
         }
 
         const kmpressed: boolean[][] = [];
@@ -430,10 +430,11 @@ export class ViableService {
             }
             const coldata = data.slice(offset, offset + rowbytes);
             for (let col = 0; col < kbinfo.cols; col++) {
-                const colbyte = Math.floor(col / 8);
+                // Reverse byte order within row (matches viable-gui)
+                const colbyte = rowbytes - 1 - Math.floor(col / 8);
                 const colbit = 1 << (col % 8);
 
-                if (colbyte < coldata.length) {
+                if (colbyte >= 0 && colbyte < coldata.length) {
                     rowpressed.push((coldata[colbyte] & colbit) !== 0);
                 } else {
                     rowpressed.push(false);
