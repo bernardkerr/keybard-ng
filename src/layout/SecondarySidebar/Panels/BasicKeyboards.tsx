@@ -125,10 +125,9 @@ const BasicKeyboards = ({ isPicker }: Props) => {
         { keycode: "KC_TRNS", label: "▽" },
     ];
 
-    // Alt-Repeat hidden until firmware hook is implemented (see viable-alt-repeat-bug.md)
     const otherKeys = [
         { keycode: "QK_REPEAT_KEY", label: "Repeat" },
-        // { keycode: "QK_ALT_REPEAT_KEY", label: "Alt Repeat" },
+        { keycode: "QK_ALT_REPEAT_KEY", label: "Alt-Repeat" },
         { keycode: "QK_LAYER_LOCK", label: "Lyr Lock" },
         { keycode: "QK_LEADER", label: "Leader" },
     ];
