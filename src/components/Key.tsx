@@ -6,6 +6,7 @@ import { colorClasses, hoverContainerTextClasses } from "@/utils/colors";
 import { UNIT_SIZE } from "../constants/svalboard-layout";
 import { KeyContent } from "@/types/vial.types";
 import { getHeaderIcons, getCenterContent, getTypeIcon } from "@/utils/key-icons";
+import { getPendingChangeClassName } from "@/constants/pending-change-styles";
 
 interface KeyProps {
     x: number; // X position in key units
@@ -28,6 +29,7 @@ interface KeyProps {
     hoverBackgroundColor?: string;
     hoverLayerColor?: string;
     disableHover?: boolean;
+    hasPendingChange?: boolean; // Whether this key has a pending change to push
 }
 
 /**
@@ -55,6 +57,7 @@ export const Key: React.FC<KeyProps> = ({
     hoverBackgroundColor,
     hoverLayerColor,
     disableHover = false,
+    hasPendingChange = false,
 }) => {
     const isSmall = variant === "small";
     const isMedium = variant === "medium";
@@ -166,6 +169,9 @@ export const Key: React.FC<KeyProps> = ({
     const effectiveHoverColorName = hoverLayerColor || layerColor;
     const hoverContainerTextClass = hoverContainerTextClasses[effectiveHoverColorName] || hoverContainerTextClasses["primary"];
 
+    // Get pending change styling if applicable
+    const pendingChangeClass = hasPendingChange ? getPendingChangeClassName() : "";
+
     // Common container classes
     const containerClasses = cn(
         "flex flex-col items-center justify-between cursor-pointer transition-all duration-200 ease-in-out uppercase group overflow-hidden",
@@ -180,6 +186,7 @@ export const Key: React.FC<KeyProps> = ({
                 !disableHover && hoverBackgroundColor,
                 !disableHover && hoverContainerTextClass
             ),
+        pendingChangeClass,
         className
     );
 

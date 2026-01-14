@@ -19,6 +19,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { useChanges } from "@/hooks/useChanges";
 import { Zap } from "lucide-react";
 import { MatrixTester } from "@/components/MatrixTester";
+import { MATRIX_COLS } from "@/constants/svalboard-layout";
 
 const EditorLayout = () => {
     return (
@@ -35,13 +36,13 @@ const EditorLayout = () => {
 };
 
 const EditorLayoutInner = () => {
-    const { keyboard, isConnected } = useVial();
+    const { keyboard, isConnected, setKeyboard } = useVial();
     const { selectedLayer, setSelectedLayer } = useLayer();
     const { clearSelection } = useKeyBinding();
     const { keyVariant, setKeyVariant } = useLayoutSettings();
 
-    const { getSetting } = useSettings();
-    const { getPendingCount, commit, setInstant } = useChanges();
+    const { getSetting, updateSetting } = useSettings();
+    const { getPendingCount, commit, setInstant, clearAll, getPendingChanges } = useChanges();
 
     const liveUpdating = getSetting("live-updating");
 
@@ -50,6 +51,35 @@ const EditorLayoutInner = () => {
     }, [liveUpdating, setInstant]);
 
     const hasChanges = getPendingCount() > 0;
+
+    // Revert function that restores original values from pending changes
+    const revert = React.useCallback(() => {
+        if (!keyboard || getPendingCount() === 0) {
+            clearAll();
+            return;
+        }
+
+        const pendingChanges = getPendingChanges();
+        const restoredKeyboard = JSON.parse(JSON.stringify(keyboard));
+
+        for (const change of pendingChanges) {
+            if (change.type === 'key' &&
+                change.layer !== undefined &&
+                change.row !== undefined &&
+                change.col !== undefined &&
+                change.previousValue !== undefined) {
+                const matrixPos = change.row * MATRIX_COLS + change.col;
+                if (restoredKeyboard.keymap?.[change.layer]) {
+                    restoredKeyboard.keymap[change.layer][matrixPos] = change.previousValue;
+                }
+            }
+            // Note: combo/tapdance/override revert would need additional logic
+            // For now, those changes will just be discarded from the queue
+        }
+
+        setKeyboard(restoredKeyboard);
+        clearAll();
+    }, [keyboard, setKeyboard, getPendingCount, getPendingChanges, clearAll]);
 
     const primarySidebar = useSidebar("primary-nav", { defaultOpen: false });
     const { isMobile, state, activePanel } = usePanels();
@@ -89,28 +119,65 @@ const EditorLayoutInner = () => {
 
                 <div className="absolute bottom-9 left-[37px] flex items-center gap-6">
                     {liveUpdating ? (
-                        <div className={cn("flex items-center gap-2 text-sm font-medium animate-in fade-in zoom-in duration-300", !isConnected && "opacity-30")}>
-                            <Zap className="h-4 w-4 fill-black text-black" />
-                            <span>Live Updating</span>
-                        </div>
-                    ) : (
+                        // Live mode - clickable indicator to switch to Push mode
                         <button
-                            className={cn(
-                                "h-9 rounded-full px-4 text-sm font-medium transition-all shadow-sm flex items-center gap-2",
-                                isConnected
-                                    ? "bg-black text-white hover:bg-black/90 cursor-pointer animate-in fade-in zoom-in duration-300"
-                                    : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
-                            )}
-                            disabled={!isConnected}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                if (hasChanges) {
-                                    commit();
-                                }
+                                updateSetting("live-updating", false);
                             }}
+                            className={cn(
+                                "flex items-center gap-2 text-sm font-medium cursor-pointer transition-opacity hover:opacity-70 animate-in fade-in zoom-in duration-300",
+                                !isConnected && "opacity-30 cursor-not-allowed"
+                            )}
+                            disabled={!isConnected}
+                            title="Click to switch to Push mode"
                         >
-                            Update Changes
+                            <Zap className="h-4 w-4 fill-black text-black" />
+                            <span>Live Updating</span>
                         </button>
+                    ) : (
+                        // Push mode - buttons row
+                        <div className="flex items-center gap-3 animate-in fade-in zoom-in duration-300">
+                            <button
+                                className={cn(
+                                    "h-9 rounded-full px-4 text-sm font-medium transition-all shadow-sm flex items-center gap-2",
+                                    hasChanges && isConnected
+                                        ? "bg-black text-white hover:bg-black/90 cursor-pointer"
+                                        : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                                )}
+                                disabled={!hasChanges || !isConnected}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    commit();
+                                }}
+                            >
+                                Push Changes{hasChanges && ` (${getPendingCount()})`}
+                            </button>
+
+                            {hasChanges && (
+                                <button
+                                    className="h-9 rounded-full px-4 text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-all"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        revert();
+                                    }}
+                                    title="Restore original values and discard pending changes"
+                                >
+                                    Revert
+                                </button>
+                            )}
+
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    updateSetting("live-updating", true);
+                                }}
+                                className="p-2 rounded-full hover:bg-gray-200 transition-colors"
+                                title="Click to switch to Live mode"
+                            >
+                                <Zap className="h-4 w-4 text-gray-400" />
+                            </button>
+                        </div>
                     )}
 
                     <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50 w-fit">

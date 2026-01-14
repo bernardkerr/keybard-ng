@@ -12,6 +12,7 @@ import { getLabelForKeycode } from "./Keyboards/layouts";
 import { headerClasses, hoverHeaderClasses, hoverBackgroundClasses, hoverBorderClasses } from "@/utils/colors";
 import { InfoIcon } from "./icons/InfoIcon";
 import { usePanels } from "@/contexts/PanelsContext";
+import { useChanges } from "@/hooks/useChanges";
 
 interface KeyboardProps {
     keyboard: KeyboardInfo;
@@ -24,6 +25,7 @@ interface KeyboardProps {
 export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) => {
     const { selectKeyboardKey, selectedTarget, clearSelection, hoveredKey, assignKeycode } = useKeyBinding();
     const { activePanel, itemToEdit } = usePanels();
+    const { hasPendingChangeForKey } = useChanges();
     const [showInfoPanel, setShowInfoPanel] = React.useState(false);
 
     // Use dynamic keylayout from fragments if available, otherwise fallback to hardcoded layout
@@ -190,6 +192,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                             hoverBorderColor={keyHoverBorder}
                             hoverLayerColor={keyHoverLayerColor}
                             variant={keyVariant}
+                            hasPendingChange={hasPendingChangeForKey(selectedLayer, row, col)}
                         />
                     );
                 })}
