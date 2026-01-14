@@ -416,6 +416,11 @@ export class FileService {
             viable.composition = kbinfo.composition;
         }
 
+        // Save keylayout for physical key positions (needed for proper rendering)
+        if (kbinfo.keylayout) {
+            viable.keylayout = kbinfo.keylayout;
+        }
+
         // Stringify and replace UID placeholder with BigInt value (no quotes)
         let result = JSON.stringify(viable, undefined, 2);
         const numericUid = kbinfo.kbid ? BigInt('0x' + kbinfo.kbid).toString() : '0';
@@ -664,8 +669,15 @@ export class FileService {
             }
         }
         kbinfo.keymap = km;
-        (kbinfo as any).keylayout = keylayout;
         kbinfo.kbid = '' + viable.uid;
+
+        // Restore keylayout from file if available, otherwise use generated fallback
+        if (viable.keylayout) {
+            kbinfo.keylayout = viable.keylayout;
+            console.log("Loaded keylayout from file:", Object.keys(viable.keylayout).length, "keys");
+        } else {
+            kbinfo.keylayout = keylayout;
+        }
 
         // Restore fragment definitions and composition
         if (viable.fragments) {

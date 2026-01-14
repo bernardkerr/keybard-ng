@@ -1,4 +1,4 @@
-import { ChevronsRight, Download, HelpCircle, Keyboard, LayoutGrid, ListOrdered, LucideIcon, Piano, Repeat, Settings, SquareDot, Unplug, Upload, Zap } from "lucide-react";
+import { HelpCircle, Keyboard, LayoutGrid, ListOrdered, LucideIcon, Piano, Repeat, Settings, SquareDot, Unplug, Upload, Zap } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 import ComboIcon from "@/components/ComboIcon";
@@ -383,32 +383,18 @@ const AppSidebar = () => {
                     </SidebarMenuItem>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild size="nav" className="text-slate-600 transition-colors">
-                            <button type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="flex w-full items-center justify-start">
+                            <div className="flex w-full items-center justify-start">
                                 <div className={cn(ICON_GUTTER_WIDTH, "h-4 flex items-center justify-start shrink-0", BASE_ICON_PADDING)}>
                                     <Upload className="h-4 w-4 shrink-0" />
                                 </div>
-                                <span className="text-md font-medium truncate group-data-[state=collapsed]:hidden">Import</span>
-                            </button>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild size="nav" className="text-slate-600 transition-colors">
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }} className="flex w-full items-center justify-start" disabled={!keyboard}>
-                                <div className={cn(ICON_GUTTER_WIDTH, "h-4 flex items-center justify-start shrink-0", BASE_ICON_PADDING)}>
-                                    <Download className="h-4 w-4 shrink-0" />
-                                </div>
-                                <span className="text-md font-medium truncate group-data-[state=collapsed]:hidden">Export</span>
-                            </button>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild size="nav" className="text-slate-600 transition-colors">
-                            <button type="button" onClick={(e) => { e.stopPropagation(); toggleSidebar(); }} className="flex w-full items-center justify-start">
-                                <div className={cn(ICON_GUTTER_WIDTH, "h-4 flex items-center justify-start shrink-0", BASE_ICON_PADDING)}>
-                                    <ChevronsRight className={cn("h-4 w-4 shrink-0 transition-transform", !isCollapsed ? "rotate-180" : "")} />
-                                </div>
-                                <span className="text-md font-medium truncate group-data-[state=collapsed]:hidden">Hide Menu</span>
-                            </button>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="text-sm font-medium hover:text-slate-900 group-data-[state=collapsed]:hidden">
+                                    Import
+                                </button>
+                                <span className="text-slate-300 mx-1.5 group-data-[state=collapsed]:hidden">|</span>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }} className="text-sm font-medium hover:text-slate-900 disabled:opacity-50 group-data-[state=collapsed]:hidden" disabled={!keyboard}>
+                                    Export
+                                </button>
+                            </div>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
