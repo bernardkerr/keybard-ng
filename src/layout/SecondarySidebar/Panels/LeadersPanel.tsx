@@ -5,7 +5,6 @@ import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow"
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
-import { keyService } from "@/services/key.service";
 import { qmkService } from "@/services/qmk.service";
 import { useVial } from "@/contexts/VialContext";
 import { useLayer } from "@/contexts/LayerContext";
@@ -154,20 +153,19 @@ const LeadersPanel: React.FC = () => {
         assignKeycode("QK_LEADER");
     };
 
-    const leaderKeyLabel = keyService.define("QK_LEADER")?.str || "Leader";
-    const leaderKeyContents = getKeyContents(keyboard, "QK_LEADER") as KeyContent;
+    // Custom key contents for the placeable key with explicit label
+    const leaderKeyContents: KeyContent = { str: "Leader", type: "special" };
 
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
             {/* Placeable Leader key */}
-            <div className="px-2 flex flex-col gap-2">
-                <div className="text-sm font-medium">Leader Key</div>
+            <div className="px-3 flex flex-col gap-2">
                 <div className="flex">
                     <Key
                         isRelative
-                        x={0} y={0} w={1} h={1} row={-1} col={-1}
+                        x={0} y={0} w={1.5} h={1} row={-1} col={-1}
                         keycode="QK_LEADER"
-                        label={leaderKeyLabel}
+                        label="Leader"
                         keyContents={leaderKeyContents}
                         layerColor="sidebar"
                         className={cn(
@@ -175,7 +173,6 @@ const LeadersPanel: React.FC = () => {
                             isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor}`
                         )}
                         headerClassName="bg-kb-sidebar-dark"
-                        variant="small"
                         onClick={handleAssignLeaderKey}
                     />
                 </div>

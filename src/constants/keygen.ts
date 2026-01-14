@@ -10647,7 +10647,7 @@ export const KEYMAP: KeyMap = {
   "QK_LEADER": {
     "code": 0x7c58,
     "qmkid": "QK_LEADER",
-    "str": "QK_LEADER",
+    "str": "Leader",
     "title": "QK_LEADER"
   },
   "QK_LOCK": {
@@ -10779,7 +10779,7 @@ export const KEYMAP: KeyMap = {
   "QK_ALT_REPEAT_KEY": {
     "code": 0x7c7a,
     "qmkid": "QK_ALT_REPEAT_KEY",
-    "str": "AltRep",
+    "str": "Alt-Repeat",
     "title": "QK_ALT_REPEAT_KEY"
   },
   "QK_LAYER_LOCK": {
