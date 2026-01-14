@@ -156,7 +156,7 @@ const AppSidebar = () => {
     // Import/Export state
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isExportOpen, setIsExportOpen] = useState(false);
-    const [exportFormat, setExportFormat] = useState<"viable" | "vil" | "kbi">("viable");
+    const [exportFormat, setExportFormat] = useState<"viable" | "vil">("viable");
     const [includeMacros, setIncludeMacros] = useState(true);
 
     const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -233,10 +233,8 @@ const AppSidebar = () => {
         try {
             if (exportFormat === "viable") {
                 await fileService.downloadViable(keyboard, includeMacros);
-            } else if (exportFormat === "vil") {
-                await fileService.downloadVIL(keyboard, includeMacros);
             } else {
-                await fileService.downloadKBI(keyboard, includeMacros);
+                await fileService.downloadVIL(keyboard, includeMacros);
             }
             setIsExportOpen(false);
         } catch (err) {
@@ -297,7 +295,7 @@ const AppSidebar = () => {
         <input
             ref={fileInputRef}
             type="file"
-            accept=".viable,.vil,.kbi,.json"
+            accept=".viable,.vil,.json"
             className="hidden"
             onChange={handleFileImport}
         />
@@ -314,14 +312,13 @@ const AppSidebar = () => {
                 <div className="grid gap-4 py-4">
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="format" className="text-right">Format</Label>
-                        <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as "viable" | "vil" | "kbi")}>
+                        <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as "viable" | "vil")}>
                             <SelectTrigger className="col-span-3">
                                 <SelectValue placeholder="Select format" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="viable">.viable (Recommended)</SelectItem>
                                 <SelectItem value="vil">.vil (Vial compatible)</SelectItem>
-                                <SelectItem value="kbi">.kbi (Legacy)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

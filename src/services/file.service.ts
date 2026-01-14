@@ -37,7 +37,7 @@ export class FileService {
     async loadFile(file: File): Promise<KeyboardInfo> {
         await this.validateFile(file);
         const content = await this.readFile(file);
-        // Use parseContent to handle all file formats (.kbi, .vil, .viable)
+        // Use parseContent to handle all file formats (.vil, .viable)
         return this.parseContent(content);
     }
 
@@ -94,40 +94,6 @@ export class FileService {
                 description: 'Vial .vil files',
                 accept: {
                     'text/vial': ['.vil'],
-                },
-            }],
-        });
-    }
-
-    async downloadKBI(kbinfo: KeyboardInfo, includeMacros: boolean = true): Promise<void> {
-        const copy = structuredClone(kbinfo);
-
-        // Ensure keylayout exists
-        if (!(copy as any).keylayout && copy.payload?.layouts?.keymap) {
-            try {
-                (copy as any).keylayout = this.kleService.deserializeToKeylayout(copy, copy.payload.layouts.keymap as unknown as any[]);
-            } catch (e) {
-                console.warn("Could not generate keylayout for export", e);
-            }
-        }
-        if (!includeMacros && copy.macros) {
-            // Clear macros
-            copy.macros = copy.macros.map((_m, mid: number) => ({ mid: mid, actions: [] }));
-        }
-
-        if (copy.keymap) {
-            (copy as any).keymap = copy.keymap.map(layer =>
-                layer.map(keycode => keyService.stringify(keycode))
-            );
-        }
-
-        const kbi = JSON.stringify(copy, undefined, 2);
-        await this.downloadTEXT(kbi, {
-            suggestedName: includeMacros ? 'keyboard.kbi' : 'keyboard-nomacro.kbi',
-            types: [{
-                description: 'Keybard .kbi files',
-                accept: {
-                    'text/vial': ['.kbi'],
                 },
             }],
         });
@@ -203,17 +169,14 @@ export class FileService {
         const js = JSON.parse(content);
         let kbinfo: KeyboardInfo | null = null;
 
-        if (js.kbid) {
-            // It's a .kbi (raw KBINFO)
-            kbinfo = js as KeyboardInfo;
-        } else if (js.uid && (js.viable_protocol !== undefined || js.version === 1)) {
+        if (js.uid && (js.viable_protocol !== undefined || js.version === 1)) {
             // It's a .viable file (has uid + viable_protocol or version: 1)
             kbinfo = this.viableToKBINFO(js);
         } else if (js.uid) {
             // It's a .vil (has uid but no viable_protocol)
             kbinfo = this.vilToKBINFO(js);
         } else {
-            throw new Error('Unknown json type');
+            throw new Error('Unknown file format. Expected .viable or .vil file.');
         }
 
         // Deserialize layout using KLE logic

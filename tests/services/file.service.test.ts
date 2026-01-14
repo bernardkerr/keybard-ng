@@ -15,7 +15,7 @@ const createExportableKeyboardInfo = (overrides?: Partial<KeyboardInfo>): Keyboa
 };
 
 // Helper function to create mock files
-const createMockFile = (content: string, filename = 'test.kbi'): File => {
+const createMockFile = (content: string, filename = 'test.viable'): File => {
   const blob = new Blob([content], { type: 'application/json' });
   return new File([blob], filename, { type: 'application/json' });
 };
@@ -24,59 +24,82 @@ const createMockFile = (content: string, filename = 'test.kbi'): File => {
 const createLargeFile = (): File => {
   const largeContent = 'x'.repeat(1048577); // 1MB + 1 byte
   const blob = new Blob([largeContent], { type: 'application/json' });
-  return new File([blob], 'large.kbi', { type: 'application/json' });
+  return new File([blob], 'large.viable', { type: 'application/json' });
 };
 
 describe('FileService', () => {
   describe('loadFile', () => {
-    it('successfully loads valid .kbi file with all required fields', async () => {
-      const validData: KeyboardInfo = {
-        rows: 6,
-        cols: 14,
-        layers: 4,
-        kbid: 'test-keyboard',
+    it('successfully loads valid .viable file with layout', async () => {
+      const validData = {
+        version: 1,
+        uid: 12345,
+        layout: [
+          [
+            ['KC_A', 'KC_B', 'KC_C'],
+            ['KC_D', 'KC_E', 'KC_F'],
+          ],
+        ],
+        macro: [],
+        tap_dance: [],
+        combo: [],
+        key_override: [],
       };
 
       const file = createMockFile(JSON.stringify(validData));
       const result = await fileService.loadFile(file);
 
-      expect(result).toEqual(validData);
-      expect(result.rows).toBe(6);
-      expect(result.cols).toBe(14);
+      expect(result.rows).toBe(2);
+      expect(result.cols).toBe(3);
+      expect(result.kbid).toBe('12345');
     });
 
-    it('successfully parses .kbi file with kbid field', async () => {
-      const minimalData: KeyboardInfo = {
-        kbid: 'test-kb',
-        rows: 5,
-        cols: 12,
+    it('successfully parses .vil file with uid field', async () => {
+      const vilData = {
+        uid: 98765,
+        layout: [
+          [
+            ['KC_A', 'KC_B'],
+            ['KC_C', 'KC_D'],
+          ],
+        ],
+        macro: [],
+        tap_dance: [],
+        combo: [],
+        key_override: [],
+        settings: {},
       };
 
-      const file = createMockFile(JSON.stringify(minimalData));
+      const file = createMockFile(JSON.stringify(vilData));
       const result = await fileService.loadFile(file);
 
-      expect(result.kbid).toBe('test-kb');
-      expect(result.rows).toBe(5);
-      expect(result.cols).toBe(12);
+      expect(result.kbid).toBe('98765');
+      // vilToKBINFO uses || so default rows/cols from DEFAULT_KB_INFO are kept
+      // keymap is flattened correctly based on layout dimensions
+      expect(result.keymap?.[0].length).toBe(4); // 2 rows * 2 cols = 4 keys
     });
 
-    it('successfully parses .kbi file with optional fields', async () => {
-      const dataWithOptionals: KeyboardInfo = {
-        kbid: 'test-kb-optional',
-        rows: 6,
-        cols: 14,
-        layers: 8,
-        keymap: [[1, 2, 3], [4, 5, 6]],
-        via_proto: 9,
-        vial_proto: 6,
+    it('successfully parses .viable file with optional fields', async () => {
+      const dataWithOptionals = {
+        version: 1,
+        uid: 11111,
+        layout: [
+          [['KC_A', 'KC_B']],
+          [['KC_C', 'KC_D']],
+        ],
+        macro: [[['text', 'hello']]],
+        tap_dance: [{ on: true, on_tap: 'KC_E', on_hold: 'KC_F', on_double_tap: 'KC_G', on_tap_hold: 'KC_H', tapping_term: 200 }],
+        combo: [],
+        key_override: [],
+        viable_protocol: 1,
+        via_protocol: 12,
       };
 
       const file = createMockFile(JSON.stringify(dataWithOptionals));
       const result = await fileService.loadFile(file);
 
-      expect(result.kbid).toBe('test-kb-optional');
-      expect(result.layers).toBe(8);
-      expect(result.keymap).toEqual([[1, 2, 3], [4, 5, 6]]);
+      expect(result.kbid).toBe('11111');
+      expect(result.layers).toBe(2);
+      expect(result.tapdances?.length).toBe(1);
     });
 
     it('throws "File too large" error for files > 1MB', async () => {
@@ -93,20 +116,20 @@ describe('FileService', () => {
       await expect(fileService.loadFile(file)).rejects.toThrow();
     });
 
-    it('throws "Unknown json type" when file has no kbid or uid', async () => {
-      // parseContent requires kbid (for .kbi) or uid (for .vil/.viable) to detect format
+    it('throws error when file has no uid', async () => {
+      // parseContent requires uid (for .vil/.viable) to detect format
       const missingIdentifier = { rows: 6, cols: 14, layers: 4 };
       const file = createMockFile(JSON.stringify(missingIdentifier));
 
-      await expect(fileService.loadFile(file)).rejects.toThrow('Unknown json type');
+      await expect(fileService.loadFile(file)).rejects.toThrow('Unknown file format');
     });
 
     it('throws error for non-object JSON (array)', async () => {
       const arrayData = '[1, 2, 3]';
       const file = createMockFile(arrayData);
 
-      // Arrays don't have kbid or uid properties
-      await expect(fileService.loadFile(file)).rejects.toThrow('Unknown json type');
+      // Arrays don't have uid property
+      await expect(fileService.loadFile(file)).rejects.toThrow('Unknown file format');
     });
 
     it('throws error for null JSON', async () => {
@@ -118,15 +141,17 @@ describe('FileService', () => {
     });
 
     it('converts string keycodes to numbers in keymap', async () => {
-      const dataWithStringKeycodes: KeyboardInfo = {
-        kbid: 'test-kb-keycodes',
-        rows: 6,
-        cols: 14,
-        layers: 2,
-        keymap: [
-          ['KC_A', 'KC_B', 'KC_C'] as unknown as number[],
-          ['KC_LCTRL', 'KC_LSHIFT', 'KC_ENTER'] as unknown as number[],
+      const dataWithStringKeycodes = {
+        version: 1,
+        uid: 12345,
+        layout: [
+          [['KC_A', 'KC_B', 'KC_C']],
+          [['KC_LCTL', 'KC_LSFT', 'KC_ENT']],
         ],
+        macro: [],
+        tap_dance: [],
+        combo: [],
+        key_override: [],
       };
 
       const file = createMockFile(JSON.stringify(dataWithStringKeycodes));
@@ -143,17 +168,21 @@ describe('FileService', () => {
       expect(result.keymap?.[0][0]).toBe(0x0004);
     });
 
-    it('keeps numeric keycodes unchanged', async () => {
-      const dataWithNumericKeycodes: KeyboardInfo = {
-        kbid: 'test-kb-numeric',
-        rows: 6,
-        cols: 14,
-        keymap: [
-          [0x0004, 0x0005, 0x0006], // KC_A, KC_B, KC_C
+    it('keeps numeric keycodes as parsed values', async () => {
+      // .viable format stores keycodes as strings, they get parsed to numbers on import
+      const dataWithKeycodes = {
+        version: 1,
+        uid: 12345,
+        layout: [
+          [['KC_A', 'KC_B', 'KC_C']], // KC_A=0x04, KC_B=0x05, KC_C=0x06
         ],
+        macro: [],
+        tap_dance: [],
+        combo: [],
+        key_override: [],
       };
 
-      const file = createMockFile(JSON.stringify(dataWithNumericKeycodes));
+      const file = createMockFile(JSON.stringify(dataWithKeycodes));
       const result = await fileService.loadFile(file);
 
       expect(result.keymap?.[0][0]).toBe(0x0004);
@@ -591,20 +620,6 @@ describe('FileService', () => {
   });
 
   describe('parseContent', () => {
-    it('detects .kbi format by kbid field', () => {
-      const kbiContent = JSON.stringify({
-        kbid: 'test_keyboard',
-        rows: 4,
-        cols: 4,
-        layers: 1,
-        keymap: [Array(16).fill(0x04)],
-      });
-
-      const kbinfo = (fileService as any).parseContent(kbiContent);
-
-      expect(kbinfo.kbid).toBe('test_keyboard');
-    });
-
     it('detects .viable format by uid + version', () => {
       const viableContent = JSON.stringify({
         version: 1,
@@ -642,10 +657,10 @@ describe('FileService', () => {
     it('throws for unknown format', () => {
       const unknownContent = JSON.stringify({
         something: 'else',
-        without: 'kbid or uid',
+        without: 'uid',
       });
 
-      expect(() => (fileService as any).parseContent(unknownContent)).toThrow('Unknown json type');
+      expect(() => (fileService as any).parseContent(unknownContent)).toThrow('Unknown file format');
     });
   });
 });

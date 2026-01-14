@@ -31,7 +31,7 @@ const SettingsPanel = () => {
 
     // Export Dialog State
     const [isExportOpen, setIsExportOpen] = useState(false);
-    const [exportFormat, setExportFormat] = useState<"viable" | "vil" | "kbi">("viable");
+    const [exportFormat, setExportFormat] = useState<"viable" | "vil">("viable");
     const [includeMacros, setIncludeMacros] = useState(true);
 
     // Print Dialog State
@@ -117,10 +117,8 @@ const SettingsPanel = () => {
         try {
             if (exportFormat === "viable") {
                 await fileService.downloadViable(keyboard, includeMacros);
-            } else if (exportFormat === "vil") {
-                await fileService.downloadVIL(keyboard, includeMacros);
             } else {
-                await fileService.downloadKBI(keyboard, includeMacros);
+                await fileService.downloadVIL(keyboard, includeMacros);
             }
             setIsExportOpen(false);
         } catch (err) {
@@ -155,7 +153,7 @@ const SettingsPanel = () => {
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                accept=".viable,.vil,.kbi,.json"
+                accept=".viable,.vil,.json"
                 onChange={handleFileImport}
             />
 
@@ -171,14 +169,13 @@ const SettingsPanel = () => {
                     <div className="flex flex-col gap-4 py-4">
                         <div className="flex flex-col gap-2">
                              <Label>Format</Label>
-                             <Select value={exportFormat} onValueChange={(v: "viable" | "vil" | "kbi") => setExportFormat(v)}>
+                             <Select value={exportFormat} onValueChange={(v: "viable" | "vil") => setExportFormat(v)}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select format" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="viable">Viable (.viable) - Native Format</SelectItem>
                                     <SelectItem value="vil">Vial (.vil) - Legacy Compatibility</SelectItem>
-                                    <SelectItem value="kbi">Keybard (.kbi) - Full Backup</SelectItem>
                                 </SelectContent>
                              </Select>
                         </div>
