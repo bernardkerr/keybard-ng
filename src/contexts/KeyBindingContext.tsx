@@ -1,14 +1,16 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
-import { MATRIX_COLS } from "@/constants/svalboard-layout";
+import { MATRIX_COLS, SVALBOARD_LAYOUT } from "@/constants/svalboard-layout";
 import { useChanges } from "@/contexts/ChangesContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { keyService } from "@/services/key.service";
+import { vialService } from "@/services/vial.service";
 import { KEYBOARD_EVENT_MAP } from "@/utils/keyboard-mapper";
+import { getOrderedKeyPositions, SerialMode } from "@/utils/serial-assignment";
 import { useVial } from "./VialContext";
 
 interface BindingTarget {
-    type: "keyboard" | "combo" | "tapdance" | "macro" | "override";
+    type: "keyboard" | "combo" | "tapdance" | "macro" | "override" | "altrepeat" | "leaders";
     layer?: number;
     row?: number;
     col?: number;
@@ -24,6 +26,11 @@ interface BindingTarget {
     label?: string;
     overrideId?: number;
     overrideSlot?: "trigger" | "replacement";
+    altRepeatId?: number;
+    altRepeatSlot?: "keycode" | "alt_keycode";
+    leaderId?: number;
+    leaderSlot?: "sequence" | "output";
+    leaderSeqIndex?: number; // 0-4 for sequence keys
 }
 
 
@@ -34,6 +41,8 @@ interface KeyBindingContextType {
     selectTapdanceKey: (tapdanceId: number, slot: "tap" | "hold" | "doubletap" | "taphold") => void;
     selectMacroKey: (macroId: number, index: number) => void;
     selectOverrideKey: (overrideId: number, slot: "trigger" | "replacement") => void;
+    selectAltRepeatKey: (altRepeatId: number, slot: "keycode" | "alt_keycode") => void;
+    selectLeaderKey: (leaderId: number, slot: "sequence" | "output", seqIndex?: number) => void;
     assignKeycode: (keycode: number | string) => void;
     clearSelection: () => void;
     isBinding: boolean;
@@ -47,6 +56,7 @@ const KeyBindingContext = createContext<KeyBindingContextType | undefined>(undef
 export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { keyboard, setKeyboard, updateKey } = useVial();
     const { queue } = useChanges();
+    const { getSetting } = useSettings();
     const [selectedTarget, setSelectedTarget] = useState<BindingTarget | null>(null);
     const [hoveredKey, setHoveredKey] = useState<BindingTarget | null>(null);
     const [isBinding, setIsBinding] = useState(false);
@@ -111,10 +121,58 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setIsBinding(true);
     }, []);
 
+    const selectAltRepeatKey = useCallback((altRepeatId: number, slot: "keycode" | "alt_keycode") => {
+        setSelectedTarget({
+            type: "altrepeat",
+            altRepeatId,
+            altRepeatSlot: slot,
+        });
+        setIsBinding(true);
+    }, []);
+
+    const selectLeaderKey = useCallback((leaderId: number, slot: "sequence" | "output", seqIndex?: number) => {
+        setSelectedTarget({
+            type: "leaders",
+            leaderId,
+            leaderSlot: slot,
+            leaderSeqIndex: seqIndex,
+        });
+        setIsBinding(true);
+    }, []);
+
     const clearSelection = useCallback(() => {
         setSelectedTarget(null);
         setIsBinding(false);
     }, []);
+
+    const selectNextKey = useCallback(() => {
+        const currentTarget = selectedTargetRef.current;
+        if (!currentTarget || currentTarget.type !== 'keyboard' || !keyboard) return;
+
+        const { row, col, layer } = currentTarget;
+        if (row === undefined || col === undefined || layer === undefined) return;
+
+        // Get keyboard layout (same logic as Keyboard.tsx lines 30-37)
+        const keylayout = (keyboard.keylayout && Object.keys(keyboard.keylayout).length > 0)
+            ? keyboard.keylayout as Record<number, { x: number; y: number; w: number; h: number; row?: number; col?: number }>
+            : SVALBOARD_LAYOUT;
+
+        const matrixCols = keyboard.cols || MATRIX_COLS;
+        const mode = getSetting('serial-assignment', 'col-row') as SerialMode;
+        const ordered = getOrderedKeyPositions(keylayout, mode, matrixCols);
+
+        if (ordered.length === 0) {
+            clearSelection();
+            return;
+        }
+
+        // Find current position in ordered list
+        const currentIdx = ordered.findIndex(pos => pos.row === row && pos.col === col);
+
+        // Select next (wrap to 0 if at end or not found)
+        const nextIdx = currentIdx === -1 ? 0 : (currentIdx + 1) % ordered.length;
+        selectKeyboardKey(layer, ordered[nextIdx].row, ordered[nextIdx].col);
+    }, [keyboard, getSetting, clearSelection, selectKeyboardKey]);
 
     const assignKeycode = useCallback(
         (keycode: number | string) => {
@@ -218,32 +276,21 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         console.log("combo update debug: newKeys after", combo.keys);
                     }
 
+                    // Capture comboId for closure
+                    const cmbId = comboId;
+
                     // Queue the change with callback
                     const changeDesc = `combo_${comboId}_${comboSlot}`;
                     queue(
                         changeDesc,
                         async () => {
-                            console.log(`Committing combo change: Combo ${comboId}, Slot ${comboSlot} → ${keycodeName}`);
-                            // We need to use updateCombo which takes the whole KBINFO and ID.
-                            // The service 'push' method uses the ID to look up the combo in KBINFO.
-                            // updateKey is NOT for combos.
-
-                            // Check if 'updateCombo' is available in useVial?
-                            // KeyBindingContext uses 'updateKey' from useVial().
-                            // It seems assignKeycode assumes 'updateKey' works for everything?
-                            // Wait, existing code didn't call ANY update function for combos inside the queue callback?
-                            // Line 176: just console.log?
-                            // Ah, queue callback usage: 
-                            // Line 138 calls `updateKey`.
-                            // Line 176 just logs. 
-                            // This implies saving combos might rely on 'setKeyboard' triggering a save or something else?
-                            // Or maybe the queue isn't hooking up the commit action properly for combos?
-                            // The VIAL API has updateCombo. But KeyBindingContext doesn't use it here?
-                            // Actually, let's fix this too.
-
-                            // Import vialService locally or use context?
-                            // useVial doesn't expose updateCombo?
-                            // Let's check useVial.
+                            console.log(`Committing combo change: Combo ${cmbId}, Slot ${comboSlot} → ${keycodeName}`);
+                            try {
+                                await vialService.updateCombo(updatedKeyboard, cmbId);
+                                await vialService.saveViable();
+                            } catch (err) {
+                                console.error("Failed to update combo:", err);
+                            }
                         },
                         {
                             type: "combo",
@@ -253,19 +300,6 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                             previousValue,
                         }
                     );
-
-                    // Actually commit:
-                    // Since 'queue' callback runs later (or immediately?), we should call the API there.
-                    // The existing code for 'keyboard' calls updateKey.
-                    // The existing code for 'combo' did NOT call anything. That seems like a BUG or stub.
-                    // I should probably fix it to call updateCombo.
-                    // But I don't have updateCombo in 'useVial' context interface yet (checked previously).
-                    // VialContext has: updateKey.
-
-                    // I will leave the queue callback as is (stub) but maybe add a TODO or try to call service if possible.
-                    // Ideally I should expose updateCombo in VialContext.
-                    // But for this "tidy up" I'll stick to fixing the Typescript logic first.
-                    // I'll leave the console.log but acknowledge it works as before (stubbed).
 
                     break;
                 }
@@ -294,12 +328,21 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     const keycodeName = typeof keycode === "string" ? keycode : `KC_${keycode}`;
                     tapdances[tapdanceId][tapdanceSlot] = keycodeName;
 
+                    // Capture tapdanceId for closure
+                    const tdId = tapdanceId;
+
                     // Queue the change with callback
                     const changeDesc = `tapdance_${tapdanceId}_${tapdanceSlot}`;
                     queue(
                         changeDesc,
                         async () => {
-                            console.log(`Committing tapdance change: Tapdance ${tapdanceId}, ${tapdanceSlot} → ${keycodeName}`);
+                            console.log(`Committing tapdance change: Tapdance ${tdId}, ${tapdanceSlot} → ${keycodeName}`);
+                            try {
+                                await vialService.updateTapdance(updatedKeyboard, tdId);
+                                await vialService.saveViable();
+                            } catch (err) {
+                                console.error("Failed to update tapdance:", err);
+                            }
                         },
                         {
                             type: "tapdance",
@@ -366,12 +409,21 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     const keycodeName = typeof keycode === "string" ? keycode : `KC_${keycode}`;
                     overrides[overrideId][overrideSlot] = keycodeName;
 
+                    // Capture overrideId for closure
+                    const koId = overrideId;
+
                     // Queue the change with callback
                     const changeDesc = `override_${overrideId}_${overrideSlot}`;
                     queue(
                         changeDesc,
                         async () => {
-                            console.log(`Committing override change: Override ${overrideId}, ${overrideSlot} → ${keycodeName}`);
+                            console.log(`Committing override change: Override ${koId}, ${overrideSlot} → ${keycodeName}`);
+                            try {
+                                await vialService.updateKeyoverride(updatedKeyboard, koId);
+                                await vialService.saveViable();
+                            } catch (err) {
+                                console.error("Failed to update key override:", err);
+                            }
                         },
                         {
                             type: "override",
@@ -384,14 +436,105 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
                     break;
                 }
+
+                case "altrepeat": {
+                    const { altRepeatId, altRepeatSlot } = currentTarget;
+                    if (altRepeatId === undefined || altRepeatSlot === undefined) break;
+
+                    const altRepeatKeys = updatedKeyboard.alt_repeat_keys;
+                    if (!altRepeatKeys || !altRepeatKeys[altRepeatId]) break;
+
+                    const previousValue = altRepeatKeys[altRepeatId][altRepeatSlot];
+                    const keycodeName = typeof keycode === "string" ? keycode : `KC_${keycode}`;
+                    altRepeatKeys[altRepeatId][altRepeatSlot] = keycodeName;
+
+                    // Capture values for closure
+                    const arkId = altRepeatId;
+
+                    // Queue the change with callback
+                    const changeDesc = `altrepeat_${altRepeatId}_${altRepeatSlot}`;
+                    queue(
+                        changeDesc,
+                        async () => {
+                            console.log(`Committing alt-repeat change: AltRepeat ${arkId}, ${altRepeatSlot} → ${keycodeName}`);
+                            try {
+                                await vialService.updateAltRepeatKey(updatedKeyboard, arkId);
+                                await vialService.saveViable(); // Persist to EEPROM
+                            } catch (err) {
+                                console.error("Failed to update alt-repeat key:", err);
+                            }
+                        },
+                        {
+                            type: "altrepeat" as any,
+                            altRepeatId,
+                            altRepeatSlot,
+                            keycode: keycodeValue,
+                            previousValue,
+                        } as any
+                    );
+
+                    break;
+                }
+
+                case "leaders": {
+                    const { leaderId, leaderSlot, leaderSeqIndex } = currentTarget;
+                    if (leaderId === undefined || leaderSlot === undefined) break;
+
+                    const leaders = updatedKeyboard.leaders;
+                    if (!leaders || !leaders[leaderId]) break;
+
+                    const keycodeName = typeof keycode === "string" ? keycode : keyService.stringify(keycode);
+
+                    if (leaderSlot === "sequence" && leaderSeqIndex !== undefined) {
+                        // Ensure sequence array exists and has 5 slots
+                        if (!leaders[leaderId].sequence) {
+                            leaders[leaderId].sequence = ["KC_NO", "KC_NO", "KC_NO", "KC_NO", "KC_NO"];
+                        }
+                        while (leaders[leaderId].sequence.length < 5) {
+                            leaders[leaderId].sequence.push("KC_NO");
+                        }
+                        leaders[leaderId].sequence[leaderSeqIndex] = keycodeName;
+                    } else if (leaderSlot === "output") {
+                        leaders[leaderId].output = keycodeName;
+                    }
+
+                    // Capture values for closure
+                    const ldrId = leaderId;
+
+                    // Queue the change with callback
+                    const changeDesc = `leader_${leaderId}_${leaderSlot}${leaderSeqIndex !== undefined ? `_${leaderSeqIndex}` : ""}`;
+                    queue(
+                        changeDesc,
+                        async () => {
+                            console.log(`Committing leader change: Leader ${ldrId}, ${leaderSlot} → ${keycodeName}`);
+                            try {
+                                await vialService.updateLeader(updatedKeyboard, ldrId);
+                                await vialService.saveViable();
+                            } catch (err) {
+                                console.error("Failed to update leader:", err);
+                            }
+                        },
+                        {
+                            type: "leaders" as any,
+                            leaderId,
+                            leaderSlot,
+                            leaderSeqIndex,
+                            keycode: keycodeValue,
+                        } as any
+                    );
+
+                    break;
+                }
             }
             setKeyboard(updatedKeyboard);
-            clearSelection();
+            if (currentTarget.type === 'keyboard') {
+                selectNextKey();
+            } else {
+                clearSelection();
+            }
         },
-        [keyboard, setKeyboard, clearSelection, queue]
+        [keyboard, setKeyboard, clearSelection, selectNextKey, queue]
     );
-
-    const { getSetting } = useSettings();
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -425,6 +568,8 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         selectTapdanceKey,
         selectMacroKey,
         selectOverrideKey,
+        selectAltRepeatKey,
+        selectLeaderKey,
         assignKeycode,
         clearSelection,
         isBinding,

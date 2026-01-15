@@ -1,29 +1,38 @@
 import type { KeyboardInfo } from "../types/vial.types";
 import { keyService } from "./key.service";
-import { VialUSB } from "./usb.service";
+import { ViableUSB } from "./usb.service";
 
 export class TapdanceService {
-    constructor(private usb: VialUSB) { }
+    constructor(private usb: ViableUSB) { }
 
     async get(kbinfo: KeyboardInfo): Promise<void> {
         const tapdance_count = kbinfo.tapdance_count || 0;
-        const all_entries = (await this.usb.getDynamicEntries(
-            VialUSB.DYNAMIC_VIAL_TAP_DANCE_GET,
-            tapdance_count,
-            { unpack: "HHHHB" }
-        )) as any[][];
+        if (tapdance_count === 0) return;
 
         kbinfo.tapdances = [];
-        all_entries.forEach((raw: any[], idx: number) => {
-            kbinfo.tapdances!.push({
-                idx: idx,
-                tap: keyService.stringify(raw[0]),
-                hold: keyService.stringify(raw[1]),
-                doubletap: keyService.stringify(raw[2]),
-                taphold: keyService.stringify(raw[3]),
-                tapping_term: raw[4],
+
+        // Use Viable protocol: direct tap dance get command
+        for (let i = 0; i < tapdance_count; i++) {
+            const data = await this.usb.sendViable(
+                ViableUSB.CMD_VIABLE_TAP_DANCE_GET,
+                [i],
+                { uint8: true }
+            ) as Uint8Array;
+
+            // Response: [cmd_echo][index][tap:2][hold:2][doubletap:2][taphold:2][tapping_term:2]
+            // tapping_term is 2 bytes: bit 15 = enabled flag (ignored), bits 0-14 = timing in ms
+            // Keybard always treats tap dances as enabled
+            const dv = new DataView(data.buffer);
+            const termRaw = dv.getUint16(10, true);
+            kbinfo.tapdances.push({
+                idx: i,
+                tap: keyService.stringify(dv.getUint16(2, true)),
+                hold: keyService.stringify(dv.getUint16(4, true)),
+                doubletap: keyService.stringify(dv.getUint16(6, true)),
+                taphold: keyService.stringify(dv.getUint16(8, true)),
+                tapping_term: termRaw & 0x7FFF,
             });
-        });
+        }
     }
 
     async push(kbinfo: KeyboardInfo, tdid?: number): Promise<void> {
@@ -34,15 +43,18 @@ export class TapdanceService {
             : kbinfo.tapdances;
 
         for (const td of toPush) {
-            await this.usb.sendVial(VialUSB.CMD_VIAL_DYNAMIC_ENTRY_OP, [
-                VialUSB.DYNAMIC_VIAL_TAP_DANCE_SET,
+            // Use Viable protocol: direct tap dance set command
+            // tapping_term is 2 bytes: bit 15 = enabled flag, bits 0-14 = timing in ms
+            // Keybard always enables tap dances (the disabled feature is pointless)
+            const termWithEnabled = ((td.tapping_term || 200) & 0x7FFF) | 0x8000;
+            await this.usb.sendViable(ViableUSB.CMD_VIABLE_TAP_DANCE_SET, [
                 td.idx,
                 ...this.LE16(keyService.parse(td.tap)),
                 ...this.LE16(keyService.parse(td.hold)),
                 ...this.LE16(keyService.parse(td.doubletap)),
                 ...this.LE16(keyService.parse(td.taphold)),
-                td.tapping_term,
-            ]);
+                ...this.LE16(termWithEnabled),
+            ], {});
         }
     }
 

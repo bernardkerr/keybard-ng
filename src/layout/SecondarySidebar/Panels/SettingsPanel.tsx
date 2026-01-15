@@ -13,23 +13,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { useChanges } from "@/contexts/ChangesContext";
+import { usePanels } from "@/contexts/PanelsContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
 import { fileService } from "@/services/file.service";
+import { printService } from "@/services/print.service";
 import { useRef, useState } from "react";
 
 const SettingsPanel = () => {
     const { getSetting, updateSetting, settingsDefinitions, settingsCategories } = useSettings();
     const [activeCategory, setActiveCategory] = useState<string>("general");
     const { keyboard, setKeyboard, isConnected } = useVial();
+    const { setActivePanel } = usePanels();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Export Dialog State
     const [isExportOpen, setIsExportOpen] = useState(false);
-    const [exportFormat, setExportFormat] = useState<"vil" | "kbi">("vil");
+    const [exportFormat, setExportFormat] = useState<"viable" | "vil">("viable");
     const [includeMacros, setIncludeMacros] = useState(true);
+
+    // Print Dialog State
+    const [isPrintOpen, setIsPrintOpen] = useState(false);
 
     const { queue } = useChanges();
 
@@ -40,16 +46,51 @@ const SettingsPanel = () => {
                 const newKbInfo = await fileService.uploadFile(file);
                     if (newKbInfo) {
                         // Start sync if connected
-                        if (keyboard && isConnected) { 
+                        if (keyboard && isConnected) {
                              const { importService } = await import('@/services/import.service');
                              const { vialService } = await import('@/services/vial.service');
-                             
+
                              await importService.syncWithKeyboard(
-                                 newKbInfo, 
-                                 keyboard, 
-                                 queue, 
+                                 newKbInfo,
+                                 keyboard,
+                                 queue,
                                  { vialService }
                              );
+
+                             // Merge fragment definitions and state from connected keyboard
+                             if (keyboard.fragments) {
+                                 newKbInfo.fragments = keyboard.fragments;
+                             }
+                             if (keyboard.composition) {
+                                 newKbInfo.composition = keyboard.composition;
+                             }
+                             // Merge hardware detection/EEPROM from connected keyboard with user selections from file
+                             // Ensure Maps are actual Maps (they may have been serialized to plain objects)
+                             const ensureMap = <K, V>(obj: Map<K, V> | Record<string, V> | undefined): Map<K, V> => {
+                                 if (!obj) return new Map();
+                                 if (obj instanceof Map) return obj;
+                                 // Convert plain object to Map
+                                 return new Map(Object.entries(obj)) as unknown as Map<K, V>;
+                             };
+
+                             if (keyboard.fragmentState) {
+                                 const importedUserSelections = ensureMap<string, string>(newKbInfo.fragmentState?.userSelections);
+                                 newKbInfo.fragmentState = {
+                                     hwDetection: ensureMap<number, number>(keyboard.fragmentState.hwDetection),
+                                     eepromSelections: ensureMap<number, number>(keyboard.fragmentState.eepromSelections),
+                                     userSelections: importedUserSelections,
+                                 };
+                             }
+
+                             // Recompose layout with fragment selections
+                             const fragmentComposer = vialService.getFragmentComposer();
+                             if (fragmentComposer.hasFragments(newKbInfo)) {
+                                 const composedLayout = fragmentComposer.composeLayout(newKbInfo);
+                                 if (Object.keys(composedLayout).length > 0) {
+                                     newKbInfo.keylayout = composedLayout;
+                                     console.log("Fragment layout recomposed after import:", Object.keys(composedLayout).length, "keys");
+                                 }
+                             }
                         }
 
                      setKeyboard(newKbInfo);
@@ -74,15 +115,35 @@ const SettingsPanel = () => {
         }
 
         try {
-            if (exportFormat === "vil") {
-                await fileService.downloadVIL(keyboard, includeMacros);
+            if (exportFormat === "viable") {
+                await fileService.downloadViable(keyboard, includeMacros);
             } else {
-                await fileService.downloadKBI(keyboard, includeMacros);
+                await fileService.downloadVIL(keyboard, includeMacros);
             }
             setIsExportOpen(false);
         } catch (err) {
              console.error("Export failed", err);
         }
+    };
+
+    const handlePrint = () => {
+        if (!keyboard) {
+            console.error("No keyboard loaded");
+            return;
+        }
+
+        const nonEmptyLayers = printService.getNonEmptyLayers(keyboard);
+        if (nonEmptyLayers.length === 0) {
+            console.warn("No non-empty layers to print");
+            return;
+        }
+
+        // Dispatch a custom event that the PrintableKeymap wrapper will listen for
+        window.dispatchEvent(new CustomEvent('keybard-print', {
+            detail: { keyboard, layers: nonEmptyLayers }
+        }));
+
+        setIsPrintOpen(false);
     };
 
     return (
@@ -92,7 +153,7 @@ const SettingsPanel = () => {
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                accept=".vil,.kbi,.json"
+                accept=".viable,.vil,.json"
                 onChange={handleFileImport}
             />
 
@@ -108,13 +169,13 @@ const SettingsPanel = () => {
                     <div className="flex flex-col gap-4 py-4">
                         <div className="flex flex-col gap-2">
                              <Label>Format</Label>
-                             <Select value={exportFormat} onValueChange={(v: "vil" | "kbi") => setExportFormat(v)}>
+                             <Select value={exportFormat} onValueChange={(v: "viable" | "vil") => setExportFormat(v)}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select format" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="vil">Vial (.vil) - Universal</SelectItem>
-                                    <SelectItem value="kbi">Keybard (.kbi) - Full Backup</SelectItem>
+                                    <SelectItem value="viable">Viable (.viable) - Native Format</SelectItem>
+                                    <SelectItem value="vil">Vial (.vil) - Legacy Compatibility</SelectItem>
                                 </SelectContent>
                              </Select>
                         </div>
@@ -134,6 +195,34 @@ const SettingsPanel = () => {
                         </Button>
                         <Button type="button" onClick={handleExport}>
                             Export
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Print Dialog */}
+            <Dialog open={isPrintOpen} onOpenChange={setIsPrintOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Print Keyboard Layout</DialogTitle>
+                        <DialogDescription>
+                            Print all layers that contain configured keys (excluding empty KC_NO and transparent KC_TRNS only layers).
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-4 py-4">
+                        {keyboard && (
+                            <div className="text-sm text-muted-foreground">
+                                <p><strong>Keyboard:</strong> {keyboard.cosmetic?.name || keyboard.name || 'Unknown'}</p>
+                                <p><strong>Non-empty layers:</strong> {printService.getNonEmptyLayers(keyboard).length} of {keyboard.keymap?.length || 0}</p>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="secondary" onClick={() => setIsPrintOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={handlePrint}>
+                            Print
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -211,6 +300,10 @@ const SettingsPanel = () => {
                                             fileInputRef.current?.click();
                                         } else if (setting.action === "export-settings") {
                                             setIsExportOpen(true);
+                                        } else if (setting.action === "print-keymap") {
+                                            setIsPrintOpen(true);
+                                        } else if (setting.action === "open-qmk-settings") {
+                                            setActivePanel("qmksettings");
                                         }
                                     }}
                                 >

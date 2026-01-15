@@ -28,10 +28,11 @@ vi.mock('../../src/services/qmk.service', () => ({
   },
 }));
 
-vi.mock('../../src/services/usb', () => ({
+vi.mock('../../src/services/usb.service', () => ({
   usbInstance: {
     open: vi.fn(),
     close: vi.fn(),
+    sendViable: vi.fn(),
   },
 }));
 

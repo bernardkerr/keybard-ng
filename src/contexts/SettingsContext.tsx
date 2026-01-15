@@ -77,7 +77,8 @@ export const SETTINGS: SettingDefinition[] = [
     },
     {
         name: "print",
-        label: "Print...",
+        label: "Print Layers...",
+        description: "Print all non-empty keyboard layers to PDF",
         type: "action",
         action: "print-keymap",
     },

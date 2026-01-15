@@ -5,14 +5,18 @@ import { ArrowLeft, X } from "lucide-react";
 
 import BindingEditorContainer from "./components/BindingEditor/BindingEditorContainer";
 import EditorSidePanel, { PickerMode } from "./components/EditorSidePanel";
+import AltRepeatPanel from "./Panels/AltRepeatPanel";
 import BasicKeyboards from "./Panels/BasicKeyboards";
 import CombosPanel from "./Panels/CombosPanel";
+import FragmentsPanel from "./Panels/FragmentsPanel";
+import LeadersPanel from "./Panels/LeadersPanel";
 import LayersPanel from "./Panels/LayersPanel";
 import MacrosPanel from "./Panels/MacrosPanel";
 import SpecialKeysPanel from "./Panels/SpecialKeysPanel/SpecialKeysPanel";
 import OverridesPanel from "./Panels/OverridesPanel";
 import QmkKeyPanel from "./Panels/QmkKeysPanel";
 import MousePanel from "./Panels/MousePanel";
+import QMKSettingsPanel from "./Panels/QMKSettingsPanel";
 import SettingsPanel from "./Panels/SettingsPanel";
 import TapdancePanel from "./Panels/TapdancePanel";
 
@@ -39,6 +43,10 @@ const getPanelTitle = (panel: string | null | undefined): string => {
         mouse: "Mouse",
         combos: "Combos",
         overrides: "Overrides",
+        altrepeat: "Alt-Repeat Keys",
+        leaders: "Leader Sequences",
+        fragments: "Fragment Selections",
+        qmksettings: "QMK Settings",
         settings: "Settings",
         about: "About",
     };
@@ -97,7 +105,7 @@ const SecondarySidebar = () => {
 
     // Check if we should show the key picker overlay
     // We show it if we are editing an item and we are in a panel that supports key picking
-    const showPicker = itemToEdit !== null && ["tapdances", "combos", "macros", "overrides"].includes(activePanel || "");
+    const showPicker = itemToEdit !== null && ["tapdances", "combos", "macros", "overrides", "altrepeat", "leaders"].includes(activePanel || "");
 
     const [pickerMode, setPickerMode] = React.useState<PickerMode>("keyboard");
     const [isClosingEditor, setIsClosingEditor] = React.useState(false);
@@ -130,9 +138,13 @@ const SecondarySidebar = () => {
             case "macros": return <MacrosPanel />;
             case "combos": return <CombosPanel />;
             case "overrides": return <OverridesPanel />;
+            case "altrepeat": return <AltRepeatPanel />;
+            case "leaders": return <LeadersPanel />;
+            case "fragments": return <FragmentsPanel />;
             case "qmk": return <QmkKeyPanel />;
             case "special": return <SpecialKeysPanel />;
             case "mouse": return <MousePanel />;
+            case "qmksettings": return <QMKSettingsPanel />;
             case "settings": return <SettingsPanel />;
             default:
                 return (

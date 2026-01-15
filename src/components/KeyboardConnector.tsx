@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState } from "react";
 
 import { useVial } from "../contexts/VialContext";
 import { Keyboard } from "./Keyboard";
-import { QMKSettings } from "./QMKSettings";
 import { Button } from "./ui/button";
 
 const KeyboardConnector: React.FC = () => {
@@ -120,7 +119,7 @@ const KeyboardConnector: React.FC = () => {
                         <Button onClick={() => fileInputRef.current?.click()} disabled={loading}>
                             {loading ? "Loading..." : "Load File"}
                         </Button>
-                        <input ref={fileInputRef} type="file" accept=".kbi,application/json" style={{ display: "none" }} onChange={handleLoadFile} />
+                        <input ref={fileInputRef} type="file" accept=".viable,.vil,.kbi,.json" style={{ display: "none" }} onChange={handleLoadFile} />
                     </div>
                 </>
             )}
@@ -177,8 +176,6 @@ const KeyboardConnector: React.FC = () => {
                             }}
                         />
                     )}
-
-                    {keyboard.settings && <QMKSettings keyboard={keyboard} />}
                 </div>
             )}
         </div>

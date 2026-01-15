@@ -1,0 +1,298 @@
+/* PrintableKeymap styles - hidden on screen, visible only when printing */
+
+/* Hide the printable container on screen by default */
+.printable-keymap-container {
+  display: none;
+}
+
+/* When printing class is active, show the content and overlay everything */
+.printable-keymap-wrapper.printing {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: white;
+  z-index: 999999;
+  overflow: auto;
+}
+
+.printable-keymap-wrapper.printing .printable-keymap-container {
+  display: block;
+  padding: 20px;
+  background: white;
+  color: black;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Print-specific styles */
+@media print {
+  /* Hide everything except the printable wrapper */
+  body > *:not(.printable-keymap-wrapper) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Ensure the wrapper is visible and properly positioned */
+  .printable-keymap-wrapper {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
+  .printable-keymap-container {
+    display: block !important;
+    padding: 20px;
+    background: white;
+    color: black;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* Header styles */
+  .print-header {
+    text-align: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #333;
+  }
+
+  .print-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    color: #000;
+  }
+
+  .print-subtitle {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
+  }
+
+  /* Layer styles */
+  .print-layer {
+    margin-bottom: 32px;
+    page-break-inside: avoid;
+  }
+
+  .print-layer-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-layer-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: #333;
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+    border-radius: 6px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-layer-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  /* Keyboard layout container */
+  .print-keyboard-layout {
+    position: relative;
+    margin: 0 auto;
+    background: #fafafa;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 8px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Individual key styles */
+  .print-key {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border: 1.5px solid #333;
+    border-radius: 4px;
+    box-sizing: border-box;
+    padding: 2px;
+    overflow: hidden;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-key-empty {
+    background: #f0f0f0;
+    border-color: #ccc;
+    border-style: dashed;
+  }
+
+  .print-key-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-align: center;
+    text-transform: uppercase;
+    line-height: 1.1;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+  }
+
+  .print-key-empty .print-key-label {
+    color: #999;
+  }
+
+  /* Page break helper */
+  .print-page-break {
+    page-break-after: always;
+    height: 0;
+  }
+
+  /* Footer */
+  .print-footer {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+    font-size: 11px;
+    color: #999;
+  }
+
+  .print-footer p {
+    margin: 0;
+  }
+
+  /* Page setup */
+  @page {
+    size: landscape;
+    margin: 0.5in;
+  }
+}
+
+/* Screen styles for printing class (preview before print) */
+.printable-keymap-wrapper.printing .print-header {
+  text-align: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #333;
+}
+
+.printable-keymap-wrapper.printing .print-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #000;
+}
+
+.printable-keymap-wrapper.printing .print-subtitle {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.printable-keymap-wrapper.printing .print-layer {
+  margin-bottom: 32px;
+}
+
+.printable-keymap-wrapper.printing .print-layer-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+}
+
+.printable-keymap-wrapper.printing .print-layer-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: #333;
+  color: white;
+  font-weight: 700;
+  font-size: 14px;
+  border-radius: 6px;
+}
+
+.printable-keymap-wrapper.printing .print-layer-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.printable-keymap-wrapper.printing .print-keyboard-layout {
+  position: relative;
+  margin: 0 auto;
+  background: #fafafa;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.printable-keymap-wrapper.printing .print-key {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1.5px solid #333;
+  border-radius: 4px;
+  box-sizing: border-box;
+  padding: 2px;
+  overflow: hidden;
+}
+
+.printable-keymap-wrapper.printing .print-key-empty {
+  background: #f0f0f0;
+  border-color: #ccc;
+  border-style: dashed;
+}
+
+.printable-keymap-wrapper.printing .print-key-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+  line-height: 1.1;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+.printable-keymap-wrapper.printing .print-key-empty .print-key-label {
+  color: #999;
+}
+
+.printable-keymap-wrapper.printing .print-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #ddd;
+  text-align: center;
+  font-size: 11px;
+  color: #999;
+}
+
+.printable-keymap-wrapper.printing .print-footer p {
+  margin: 0;
+}

@@ -6,8 +6,8 @@ import { fileService } from "../services/file.service";
 import { keyService } from "../services/key.service";
 import { qmkService } from "../services/qmk.service";
 import { usbInstance } from "../services/usb.service";
+import { getClosestPresetColor } from "../utils/color-conversion";
 import type { KeyboardInfo } from "../types/vial.types";
-import { storage } from "../utils/storage";
 
 interface VialContextType {
     keyboard: KeyboardInfo | null;
@@ -39,8 +39,9 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const connect = useCallback(async (filters?: HIDDeviceFilter[]) => {
         try {
             const defaultFilters = [
-                { usagePage: 0xff60, usage: 0x61 },
-                { usagePage: 0xff60, usage: 0x62 },
+                { usagePage: 0xff61, usage: 0x62 },  // Viable keyboards
+                { usagePage: 0xff60, usage: 0x61 },  // Vial keyboards (legacy)
+                { usagePage: 0xff60, usage: 0x62 },  // Vial RawHID (legacy)
             ];
             const success = await usbInstance.open(filters || defaultFilters);
             if (success) {
@@ -62,6 +63,7 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             await usbInstance.close();
             setIsConnected(false);
+            setLoadedFrom(null);
         } catch (error) {
             console.error("Failed to disconnect:", error);
         }
@@ -82,10 +84,41 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const loadedInfo = await vialService.load(kbinfo);
 
             // Load QMK settings
+            console.log("[VialContext] About to load QMK settings...");
             try {
                 await qmkService.get(loadedInfo);
+                console.log("[VialContext] QMK settings loaded:", loadedInfo.settings);
             } catch (error) {
                 console.warn("Failed to load QMK settings:", error);
+            }
+
+            // Load layer colors from keyboard using VIA custom values
+            console.log("[VialContext] Loading layer colors from keyboard...");
+            try {
+                const layerColors = await usbInstance.getAllLayerColors();
+                // Convert to format with val (brightness) - default to max
+                loadedInfo.layer_colors = layerColors.map(c => ({
+                    hue: c.hue,
+                    sat: c.sat,
+                    val: 255
+                }));
+                console.log("[VialContext] Layer colors loaded:", loadedInfo.layer_colors);
+
+                // Also update cosmetic.layer_colors with the closest preset color names
+                // This is needed for the keyboard display to show correct colors
+                if (!loadedInfo.cosmetic) {
+                    loadedInfo.cosmetic = { layer: {}, layer_colors: {} };
+                }
+                if (!loadedInfo.cosmetic.layer_colors) {
+                    loadedInfo.cosmetic.layer_colors = {};
+                }
+                layerColors.forEach((c, idx) => {
+                    const presetName = getClosestPresetColor(c.hue, c.sat, 255);
+                    loadedInfo.cosmetic!.layer_colors![idx.toString()] = presetName;
+                });
+                console.log("[VialContext] Cosmetic layer colors:", loadedInfo.cosmetic.layer_colors);
+            } catch (error) {
+                console.warn("Failed to load layer colors:", error);
             }
 
             setKeyboard(loadedInfo);
@@ -115,36 +148,16 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setKeyboard(kbinfo);
             const filePath = file.name;
             setLoadedFrom(filePath);
-            storage.setLastFilePath(filePath);
             setIsConnected(false);
-            await storage.saveFile(kbinfo).catch((err) => {
-                console.error("Failed to save file:", err);
-            });
         } catch (error) {
             console.error("Failed to load file:", error);
             throw error;
         }
     }, []);
 
-    useEffect(() => {
-        // On mount, try to load last saved file from localStorage
-        const loadSavedFile = async () => {
-            try {
-                const savedContent = localStorage.getItem("keybard_saved_file");
-                if (savedContent) {
-                    const kbinfo = JSON.parse(savedContent) as KeyboardInfo;
-                    svalService.setupCosmeticLayerNames(kbinfo);
-                    keyService.generateAllKeycodes(kbinfo);
-                    setKeyboard(kbinfo);
-                    setLoadedFrom("Last Saved File");
-                    setIsConnected(false);
-                }
-            } catch (error) {
-                console.error("Failed to load saved file from storage:", error);
-            }
-        };
-        loadSavedFile();
-    }, []);
+    // Note: Auto-restore from localStorage was removed to ensure users always
+    // see the "Connect or Load a File" page on refresh. Users should explicitly
+    // connect to a device or load a file each session.
 
     const updateKey = useCallback(
         async (layer: number, row: number, col: number, keymask: number) => {

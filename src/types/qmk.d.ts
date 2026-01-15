@@ -12,7 +12,7 @@ type QMKSettingsBooleanField = {
     title: string;
     qsid: number;
     width?: number;
-    bit: number;
+    bit?: number;  // Optional: if not provided, uses the whole value as boolean
 };
 
 type QMKSettingsIntegerField = {

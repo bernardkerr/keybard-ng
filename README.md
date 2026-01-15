@@ -63,13 +63,13 @@ Click "Connect Keyboard" to connect to a Vial-compatible keyboard via WebHID.
 
 ### 2. Load Configuration File
 
-Click "Load File" to load a `.kbi` (Keyboard Info) configuration file.
+Click "Load File" to load a `.viable` or `.vil` configuration file.
 
-**Supported format**: JSON files conforming to the KeyboardInfo interface
+**Supported formats**:
+- `.viable` - Native Viable format (recommended)
+- `.vil` - Vial-compatible format
+
 **File size limit**: 1MB maximum
-**Required fields**: `rows`, `cols`
-
-Sample configuration files are available in the `sample-boards/` directory.
 
 ### Switching Between Sources
 
@@ -111,7 +111,7 @@ function MyComponent() {
 ✅ KEY utilities (keycode parsing, CODEMAP, KEYMAP, KEYALIASES)
 ✅ React Context provider
 ✅ Basic connection UI
-✅ File loading (.kbi configuration files)
+✅ File loading (.viable and .vil configuration files)
 
 ## What's Next
 

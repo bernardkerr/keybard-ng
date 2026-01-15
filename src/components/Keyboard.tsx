@@ -1,7 +1,7 @@
 import "./Keyboard.css";
 
 import { getKeyLabel, getKeycodeName } from "@/utils/layers";
-import React from "react";
+import React, { useMemo } from "react";
 import { MATRIX_COLS, SVALBOARD_LAYOUT, UNIT_SIZE } from "../constants/svalboard-layout";
 
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -12,6 +12,7 @@ import { getLabelForKeycode } from "./Keyboards/layouts";
 import { headerClasses, hoverHeaderClasses, hoverBackgroundClasses, hoverBorderClasses } from "@/utils/colors";
 import { InfoIcon } from "./icons/InfoIcon";
 import { usePanels } from "@/contexts/PanelsContext";
+import { useChanges } from "@/hooks/useChanges";
 
 interface KeyboardProps {
     keyboard: KeyboardInfo;
@@ -24,7 +25,21 @@ interface KeyboardProps {
 export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) => {
     const { selectKeyboardKey, selectedTarget, clearSelection, hoveredKey, assignKeycode } = useKeyBinding();
     const { activePanel, itemToEdit } = usePanels();
+    const { hasPendingChangeForKey } = useChanges();
     const [showInfoPanel, setShowInfoPanel] = React.useState(false);
+
+    // Use dynamic keylayout from fragments if available, otherwise fallback to hardcoded layout
+    const keyboardLayout = useMemo(() => {
+        // Priority 1: Use composed keylayout if available (from fragment composition)
+        if (keyboard.keylayout && Object.keys(keyboard.keylayout).length > 0) {
+            return keyboard.keylayout as Record<number, { x: number; y: number; w: number; h: number; row?: number; col?: number }>;
+        }
+        // Priority 2: Fallback to hardcoded layout for backward compatibility
+        return SVALBOARD_LAYOUT;
+    }, [keyboard.keylayout]);
+
+    // Use keyboard's cols if available, otherwise fallback to constant
+    const matrixCols = keyboard.cols || MATRIX_COLS;
 
     const isTransmitting = itemToEdit !== null && ["tapdances", "combos", "macros", "overrides"].includes(activePanel || "");
 
@@ -75,7 +90,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
     const handleKeyClick = (row: number, col: number) => {
         // If in transmitting mode, send the key's value to the selected target
         if (isTransmitting) {
-            const pos = row * MATRIX_COLS + col;
+            const pos = row * matrixCols + col;
             const keycode = layerKeymap[pos] || 0;
             const keycodeName = getKeycodeName(keycode);
             assignKeycode(keycodeName);
@@ -109,7 +124,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
         let maxX = 0;
         let maxY = 0;
 
-        Object.values(SVALBOARD_LAYOUT).forEach((key) => {
+        Object.values(keyboardLayout).forEach((key) => {
             maxX = Math.max(maxX, key.x + key.w);
             maxY = Math.max(maxY, key.y + key.h);
         });
@@ -125,10 +140,11 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
     return (
         <div className="flex flex-col items-center justify-center p-4">
             <div className="keyboard-layout" style={{ width: `${width}px`, height: `${height}px` }}>
-                {Object.entries(SVALBOARD_LAYOUT).map(([matrixPos, layout]) => {
+                {Object.entries(keyboardLayout).map(([matrixPos, layout]) => {
                     const pos = Number(matrixPos);
-                    const row = Math.floor(pos / MATRIX_COLS);
-                    const col = pos % MATRIX_COLS;
+                    // Use row/col from layout if available (from fragments), otherwise calculate from position
+                    const row = typeof layout.row === 'number' ? layout.row : Math.floor(pos / matrixCols);
+                    const col = typeof layout.col === 'number' ? layout.col : pos % matrixCols;
 
                     // Get the keycode for this position in the current layer
                     const keycode = layerKeymap[pos] || 0;
@@ -176,6 +192,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                             hoverBorderColor={keyHoverBorder}
                             hoverLayerColor={keyHoverLayerColor}
                             variant={keyVariant}
+                            hasPendingChange={hasPendingChangeForKey(selectedLayer, row, col)}
                         />
                     );
                 })}
@@ -207,12 +224,12 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                             let displayRow = target?.row ?? "?";
                             let displayCol = target?.col ?? "?";
                             let displayMatrix = (typeof target?.row === 'number' && typeof target?.col === 'number')
-                                ? (target.row * MATRIX_COLS + target.col)
+                                ? (target.row * matrixCols + target.col)
                                 : "?";
 
                             let displayKeycode = target?.keycode;
                             if (!displayKeycode && target?.type === 'keyboard' && typeof target?.row === 'number' && typeof target?.col === 'number') {
-                                displayKeycode = getKeycodeName(layerKeymap[(target.row * MATRIX_COLS) + target.col] || 0);
+                                displayKeycode = getKeycodeName(layerKeymap[(target.row * matrixCols) + target.col] || 0);
                             }
                             return (
                                 <div className="text-sm space-y-1">

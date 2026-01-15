@@ -1,5 +1,5 @@
-import { ChevronsRight, HelpCircle, Keyboard, LucideIcon, Piano, Settings, SquareDot, Unplug, Zap } from "lucide-react";
-import { useCallback } from "react";
+import { ArrowUpDown, HelpCircle, Keyboard, LayoutGrid, ListOrdered, LucideIcon, Piano, Repeat, Settings, SquareDot, Unplug, Zap } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 
 import ComboIcon from "@/components/ComboIcon";
 import GamepadDirectional from "@/components/icons/GamepadDirectional";
@@ -10,6 +10,17 @@ import MouseIcon from "@/components/icons/Mouse";
 import OverridesIcon from "@/components/icons/Overrides";
 import TapdanceIcon from "@/components/icons/Tapdance";
 import Logo from "@/components/Logo";
+import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
     Sidebar,
     SidebarContent,
@@ -20,8 +31,11 @@ import {
     SidebarMenuItem,
     useSidebar
 } from "@/components/ui/sidebar";
+import { Switch } from "@/components/ui/switch";
+import { useChanges } from "@/contexts/ChangesContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
+import { fileService } from "@/services/file.service";
 import { cn } from "@/lib/utils";
 
 // --- Constants ---
@@ -49,9 +63,17 @@ export const primarySidebarItems: SidebarItem[] = [
     { title: "Macros", url: "macros", icon: MacrosIcon },
 ];
 
+// Alt-Repeat - enabled for testing
+const SHOW_ALT_REPEAT = true;
+// Leaders - enable when ready to test
+const SHOW_LEADERS = true;
+
 const featureSidebarItems: SidebarItem[] = [
     { title: "Combos", url: "combos", icon: ComboIcon },
     { title: "Overrides", url: "overrides", icon: OverridesIcon },
+    ...(SHOW_ALT_REPEAT ? [{ title: "Alt-Repeat", url: "altrepeat", icon: Repeat }] : []),
+    ...(SHOW_LEADERS ? [{ title: "Leaders", url: "leaders", icon: ListOrdered }] : []),
+    { title: "Fragments", url: "fragments", icon: LayoutGrid },
 ];
 
 const footerItems: SidebarItem[] = [
@@ -128,7 +150,97 @@ const AppSidebar = () => {
         setOpen,
     } = usePanels();
 
-    const { connect, isConnected } = useVial();
+    const { connect, isConnected, keyboard, setKeyboard } = useVial();
+    const { queue } = useChanges();
+
+    // Import/Export state
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isExportOpen, setIsExportOpen] = useState(false);
+    const [exportFormat, setExportFormat] = useState<"viable" | "vil">("viable");
+    const [includeMacros, setIncludeMacros] = useState(true);
+
+    const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            try {
+                const newKbInfo = await fileService.uploadFile(file);
+                if (newKbInfo) {
+                    // Start sync if connected
+                    if (keyboard && isConnected) {
+                        const { importService } = await import('@/services/import.service');
+                        const { vialService } = await import('@/services/vial.service');
+
+                        await importService.syncWithKeyboard(
+                            newKbInfo,
+                            keyboard,
+                            queue,
+                            { vialService }
+                        );
+
+                        // Merge fragment definitions and state from connected keyboard
+                        if (keyboard.fragments) {
+                            newKbInfo.fragments = keyboard.fragments;
+                        }
+                        if (keyboard.composition) {
+                            newKbInfo.composition = keyboard.composition;
+                        }
+                        // Merge hardware detection/EEPROM from connected keyboard with user selections from file
+                        const ensureMap = <K, V>(obj: Map<K, V> | Record<string, V> | undefined): Map<K, V> => {
+                            if (!obj) return new Map();
+                            if (obj instanceof Map) return obj;
+                            return new Map(Object.entries(obj)) as unknown as Map<K, V>;
+                        };
+
+                        if (keyboard.fragmentState) {
+                            const importedUserSelections = ensureMap<string, string>(newKbInfo.fragmentState?.userSelections);
+                            newKbInfo.fragmentState = {
+                                hwDetection: ensureMap<number, number>(keyboard.fragmentState.hwDetection),
+                                eepromSelections: ensureMap<number, number>(keyboard.fragmentState.eepromSelections),
+                                userSelections: importedUserSelections,
+                            };
+                        }
+
+                        // Recompose layout with fragment selections
+                        const fragmentComposer = vialService.getFragmentComposer();
+                        if (fragmentComposer.hasFragments(newKbInfo)) {
+                            const composedLayout = fragmentComposer.composeLayout(newKbInfo);
+                            if (Object.keys(composedLayout).length > 0) {
+                                newKbInfo.keylayout = composedLayout;
+                                console.log("Fragment layout recomposed after import:", Object.keys(composedLayout).length, "keys");
+                            }
+                        }
+                    }
+
+                    setKeyboard(newKbInfo);
+                    console.log("Import successful", newKbInfo);
+                }
+            } catch (err) {
+                console.error("Upload failed", err);
+            }
+        }
+        // Reset input so same file can be selected again
+        if (event.target) {
+            event.target.value = '';
+        }
+    };
+
+    const handleExport = async () => {
+        if (!keyboard) {
+            console.error("No keyboard loaded");
+            return;
+        }
+
+        try {
+            if (exportFormat === "viable") {
+                await fileService.downloadViable(keyboard, includeMacros);
+            } else {
+                await fileService.downloadVIL(keyboard, includeMacros);
+            }
+            setIsExportOpen(false);
+        } catch (err) {
+            console.error("Export failed", err);
+        }
+    };
 
     const handleItemSelect = useCallback(
         (item: SidebarItem) => {
@@ -178,6 +290,54 @@ const AppSidebar = () => {
     );
 
     return (
+        <>
+        {/* Hidden file input for import */}
+        <input
+            ref={fileInputRef}
+            type="file"
+            accept=".viable,.vil,.json"
+            className="hidden"
+            onChange={handleFileImport}
+        />
+
+        {/* Export dialog */}
+        <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Export Keyboard Configuration</DialogTitle>
+                    <DialogDescription>
+                        Choose the format and options for exporting your keyboard configuration.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="format" className="text-right">Format</Label>
+                        <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as "viable" | "vil")}>
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select format" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="viable">.viable (Recommended)</SelectItem>
+                                <SelectItem value="vil">.vil (Vial compatible)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="macros" className="text-right">Include Macros</Label>
+                        <Switch
+                            id="macros"
+                            checked={includeMacros}
+                            onCheckedChange={setIncludeMacros}
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsExportOpen(false)}>Cancel</Button>
+                    <Button onClick={handleExport}>Export</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
         <Sidebar rounded name="primary-nav" defaultOpen={false} collapsible="icon" hideGap className={sidebarClasses} onClick={handleBackgroundClick}>
             <SidebarHeader className="p-0 py-4">
                 <SidebarMenu>
@@ -223,12 +383,18 @@ const AppSidebar = () => {
                     </SidebarMenuItem>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild size="nav" className="text-slate-600 transition-colors">
-                            <button type="button" onClick={(e) => { e.stopPropagation(); toggleSidebar(); }} className="flex w-full items-center justify-start">
+                            <div className="flex w-full items-center justify-start">
                                 <div className={cn(ICON_GUTTER_WIDTH, "h-4 flex items-center justify-start shrink-0", BASE_ICON_PADDING)}>
-                                    <ChevronsRight className={cn("h-4 w-4 shrink-0 transition-transform", !isCollapsed ? "rotate-180" : "")} />
+                                    <ArrowUpDown className="h-4 w-4 shrink-0" />
                                 </div>
-                                <span className="text-md font-medium truncate group-data-[state=collapsed]:hidden">Hide Menu</span>
-                            </button>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="text-sm font-medium hover:text-slate-900 group-data-[state=collapsed]:hidden">
+                                    Import
+                                </button>
+                                <span className="text-slate-300 mx-1.5 group-data-[state=collapsed]:hidden">|</span>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }} className="text-sm font-medium hover:text-slate-900 disabled:opacity-50 group-data-[state=collapsed]:hidden" disabled={!keyboard}>
+                                    Export
+                                </button>
+                            </div>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
@@ -275,8 +441,15 @@ const AppSidebar = () => {
                         />
                     ))}
                 </SidebarMenu>
+                {/* Branch indicator for dev environment */}
+                {import.meta.env.DEV && (
+                    <div className="px-3 pt-2 pb-1 text-[10px] text-slate-400 font-mono truncate group-data-[state=collapsed]:hidden" title={__GIT_BRANCH__}>
+                        {__GIT_BRANCH__}
+                    </div>
+                )}
             </SidebarFooter>
         </Sidebar>
+        </>
     );
 };
 

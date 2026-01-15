@@ -1,9 +1,12 @@
-// Type definitions for Vial keyboard configuration system
+// Type definitions for Viable keyboard configuration system
+// (Migrated from Vial protocol to Viable protocol)
 
 export interface KeyboardInfo {
     via_proto?: number;
-    vial_proto?: number;
+    viable_proto?: number;  // Viable protocol version
+    vial_proto?: number;    // Legacy, kept for compatibility
     kbid?: string;
+    name?: string;          // Keyboard name from definition
     payload?: KeyboardPayload;
     rows: number;
     cols: number;
@@ -16,16 +19,28 @@ export interface KeyboardInfo {
     combos?: ComboEntry[];
     tapdances?: TapdanceEntry[];
     key_overrides?: KeyOverrideEntry[];
+    alt_repeat_keys?: AltRepeatKeyEntry[];  // NEW: Viable feature
+    leaders?: LeaderEntry[];                 // NEW: Viable feature
+    one_shot?: OneShotSettings;              // NEW: Viable feature
     settings?: Record<number, number>;
     tapdance_count?: number;
     combo_count?: number;
     key_override_count?: number;
+    alt_repeat_key_count?: number;           // NEW
+    leader_count?: number;                   // NEW
+    feature_flags?: number;                  // NEW: Viable feature flags
+
+    // Fragment composition (modular layouts)
+    fragments?: Record<string, FragmentDefinition>;  // Fragment definitions
+    composition?: FragmentComposition;               // Layout composition
+    fragmentState?: FragmentState;                   // Current fragment selections
 
     // Svalboard-specific
     sval_proto?: number;
     sval_firmware?: string;
     layer_colors?: Array<{ hue: number; sat: number; val: number }>;
     cosmetic?: {
+        name?: string;
         layer?: Record<string, string>;
         layer_colors?: Record<string, string>;
         macros?: Record<string, string>;
@@ -101,6 +116,7 @@ export interface TapdanceEntry {
     doubletap: string;
     taphold: string;
     tapping_term: number;
+    enabled?: boolean; // Stored in bit 15 of tapping_term in protocol
 }
 
 export interface KeyOverrideEntry {
@@ -127,6 +143,7 @@ export interface USBSendOptions {
     bigendian?: boolean;
     slice?: number;
     bytes?: number;
+    skipBytes?: number;  // Skip N bytes from start of payload before parsing (e.g., skip cmd echo)
     validateInput?: (data: Uint8Array) => boolean;
 }
 
@@ -150,4 +167,150 @@ export interface KeyContent {
     modids?: number;
     mods?: string;
     [key: string]: any; // Allow other properties for now until fully typed
+}
+
+// ============================================================================
+// Viable Protocol Types (new features not in Vial)
+// ============================================================================
+
+/**
+ * Alt Repeat Key entry (6 bytes in firmware)
+ * Allows remapping the repeat key to alternate keycodes
+ */
+export interface AltRepeatKeyEntry {
+    arkid: number;              // Index
+    keycode: string;            // Original keycode to match
+    alt_keycode: string;        // Alternate keycode to send on repeat
+    allowed_mods: number;       // Modifier mask for matching
+    options: number;            // Option flags (bit 3 = enabled)
+}
+
+// Alt repeat key option bits
+export const AltRepeatKeyOptions = {
+    DEFAULT_TO_ALT: 1 << 0,
+    BIDIRECTIONAL: 1 << 1,
+    IGNORE_MOD_HANDEDNESS: 1 << 2,
+    ENABLED: 1 << 3,
+} as const;
+
+/**
+ * Leader key sequence entry (14 bytes in firmware)
+ */
+export interface LeaderEntry {
+    ldrid: number;              // Index
+    sequence: string[];         // Up to 5 keys in order
+    output: string;             // Output keycode
+    options: number;            // bit 15 = enabled
+}
+
+// Leader option bits
+export const LeaderOptions = {
+    ENABLED: 1 << 15,
+} as const;
+
+/**
+ * One-shot key settings (3 bytes in firmware)
+ */
+export interface OneShotSettings {
+    timeout: number;            // Timeout in ms (0 = disabled)
+    tap_toggle: number;         // Number of taps to toggle (0 = disabled)
+}
+
+/**
+ * Viable protocol info response
+ */
+export interface ViableProtocolInfo {
+    protocol_version: number;   // 32-bit protocol version
+    keyboard_uid: Uint8Array;   // 8-byte UID
+    feature_flags: number;      // 8-bit feature flags
+}
+
+// Viable feature flags
+export const ViableFeatureFlags = {
+    CAPS_WORD: 1 << 0,
+    LAYER_LOCK: 1 << 1,
+    ONESHOT: 1 << 2,
+    LEADER: 1 << 3,
+} as const;
+
+/**
+ * Viable API interface (extends VialAPI for new features)
+ */
+export interface ViableAPI extends VialAPI {
+    updateAltRepeatKey(kbinfo: KeyboardInfo, arkid: number): Promise<void>;
+    updateLeader(kbinfo: KeyboardInfo, ldrid: number): Promise<void>;
+    updateOneShot(kbinfo: KeyboardInfo): Promise<void>;
+    saveViable(): Promise<void>;
+    resetViable(): Promise<void>;
+}
+
+// ============================================================================
+// Fragment Types (for modular keyboard layouts)
+// ============================================================================
+
+/**
+ * Fragment definition from keyboard definition JSON
+ * Defines a visual layout template that can be instantiated at positions
+ */
+export interface FragmentDefinition {
+    id: number;                 // Numeric fragment ID (0-254), used in protocol
+    description?: string;       // Human-readable name (e.g., "5-key finger cluster")
+    kle: unknown[];            // KLE layout data for visual rendering
+}
+
+/**
+ * Fragment option for a selectable instance position
+ */
+export interface FragmentOption {
+    fragment: string;           // Reference to fragment name in fragments section
+    placement: {                // Visual positioning offset
+        x: number;
+        y: number;
+    };
+    matrix_map: [number, number][];  // Array of [row, col] pairs for matrix positions
+    encoder_offset?: number;    // Offset for encoder indices
+    default?: boolean;          // True if this is the default option
+    allow_override?: boolean;   // Whether user can override hardware detection
+}
+
+/**
+ * Instance in the composition - either fixed or selectable
+ */
+export interface FragmentInstance {
+    id: string;                 // String ID (e.g., "left_pinky"), used in keymap files
+    // Fixed instance (no user choice):
+    fragment?: string;          // Direct fragment reference
+    placement?: {               // Visual positioning
+        x: number;
+        y: number;
+    };
+    matrix_map?: [number, number][];  // Matrix positions
+    encoder_offset?: number;    // Encoder index offset
+    // Selectable instance (user can choose):
+    fragment_options?: FragmentOption[];  // Available fragments for this position
+    allow_override?: boolean;   // Whether user can override hardware detection (default: true)
+}
+
+/**
+ * Fragment composition from keyboard definition JSON
+ */
+export interface FragmentComposition {
+    instances: FragmentInstance[];
+}
+
+/**
+ * Current fragment selections state
+ */
+export interface FragmentState {
+    // Hardware detection results from device (0x18 response)
+    // Maps instance array index -> fragment ID (0-254, or 0xFF for no detection)
+    hwDetection: Map<number, number>;
+
+    // EEPROM selections from device (0x19 response)
+    // Maps instance array index -> option index (0-254, or 0xFF for no selection)
+    eepromSelections: Map<number, number>;
+
+    // User selections in current session (from keymap file or UI)
+    // Maps instance string ID -> fragment name
+    userSelections: Map<string, string>;
 }

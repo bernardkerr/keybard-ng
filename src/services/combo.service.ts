@@ -1,31 +1,37 @@
 import type { KeyboardInfo } from "../types/vial.types";
 import { keyService } from "./key.service";
-import { VialUSB } from "./usb.service";
+import { ViableUSB } from "./usb.service";
 
 export class ComboService {
-    constructor(private usb: VialUSB) { }
+    constructor(private usb: ViableUSB) { }
 
     async get(kbinfo: KeyboardInfo): Promise<void> {
         const combo_count = kbinfo.combo_count || 0;
-        const all_entries = await this.usb.getDynamicEntries(
-            VialUSB.DYNAMIC_VIAL_COMBO_GET,
-            combo_count,
-            { unpack: '<BHHHHH' }
-        );
+        if (combo_count === 0) return;
 
         kbinfo.combos = [];
-        all_entries.forEach((raw: any[]) => {
-            kbinfo.combos!.push({
-                cmbid: raw[0],
+
+        // Use Viable protocol: direct combo get command
+        for (let i = 0; i < combo_count; i++) {
+            const data = await this.usb.sendViable(
+                ViableUSB.CMD_VIABLE_COMBO_GET,
+                [i],
+                { uint8: true }
+            ) as Uint8Array;
+
+            // Response: [cmd_echo][index][key0:2][key1:2][key2:2][key3:2][output:2]
+            const dv = new DataView(data.buffer);
+            kbinfo.combos.push({
+                cmbid: i,
                 keys: [
-                    keyService.stringify(raw[1]),
-                    keyService.stringify(raw[2]),
-                    keyService.stringify(raw[3]),
-                    keyService.stringify(raw[4]),
-                ].map(k => k === "KC_NO" ? "KC_NO" : k), // Keep all 4 slots
-                output: keyService.stringify(raw[5]),
+                    keyService.stringify(dv.getUint16(2, true)),
+                    keyService.stringify(dv.getUint16(4, true)),
+                    keyService.stringify(dv.getUint16(6, true)),
+                    keyService.stringify(dv.getUint16(8, true)),
+                ].map(k => k === "KC_NO" ? "KC_NO" : k),
+                output: keyService.stringify(dv.getUint16(10, true)),
             });
-        });
+        }
     }
 
     async push(kbinfo: KeyboardInfo, cmbid: number): Promise<void> {
@@ -36,15 +42,15 @@ export class ComboService {
         const keys = [...combo.keys];
         while (keys.length < 4) keys.push("KC_NO");
 
-        await this.usb.sendVial(VialUSB.CMD_VIAL_DYNAMIC_ENTRY_OP, [
-            VialUSB.DYNAMIC_VIAL_COMBO_SET,
+        // Use Viable protocol: direct combo set command
+        await this.usb.sendViable(ViableUSB.CMD_VIABLE_COMBO_SET, [
             cmbid,
             ...this.LE16(keyService.parse(keys[0])),
             ...this.LE16(keyService.parse(keys[1])),
             ...this.LE16(keyService.parse(keys[2])),
             ...this.LE16(keyService.parse(keys[3])),
             ...this.LE16(keyService.parse(combo.output)),
-        ]);
+        ], {});
     }
 
     private LE16(val: number): [number, number] {
