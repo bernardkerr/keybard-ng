@@ -15,6 +15,7 @@ import LayersPanel from "./Panels/LayersPanel";
 import MacrosPanel from "./Panels/MacrosPanel";
 import SpecialKeysPanel from "./Panels/SpecialKeysPanel/SpecialKeysPanel";
 import OverridesPanel from "./Panels/OverridesPanel";
+import PointingPanel from "./Panels/PointingPanel";
 import QmkKeyPanel from "./Panels/QmkKeysPanel";
 import MousePanel from "./Panels/MousePanel";
 import QMKSettingsPanel from "./Panels/QMKSettingsPanel";
@@ -47,7 +48,8 @@ const getPanelTitle = (panel: string | null | undefined): string => {
         altrepeat: "Alt-Repeat Keys",
         leaders: "Leader Sequences",
         fragments: "Fragment Selections",
-        explore: "Explore Layouts",
+        explore: "Layer Library",
+        pointing: "Pointing Devices",
         qmksettings: "QMK Settings",
         settings: "Settings",
         about: "About",
@@ -144,6 +146,7 @@ const SecondarySidebar = () => {
             case "leaders": return <LeadersPanel />;
             case "fragments": return <FragmentsPanel />;
             case "explore": return <ExploreLayoutsPanel />;
+            case "pointing": return <PointingPanel />;
             case "qmk": return <QmkKeyPanel />;
             case "special": return <SpecialKeysPanel />;
             case "mouse": return <MousePanel />;
