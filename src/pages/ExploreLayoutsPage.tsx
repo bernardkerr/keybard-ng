@@ -147,15 +147,18 @@ const ExploreLayoutsPage: FC<ExploreLayoutsPageProps> = ({ onBack }) => {
                         </div>
                     )}
 
-                    {/* Refresh Button */}
+                    {/* Local Storage Notice */}
                     <div className="mt-auto pt-4 border-t border-gray-200">
+                        <p className="text-xs text-gray-400 text-center mb-3">
+                            Layers are stored locally on this PC.
+                        </p>
                         <button
                             onClick={refreshLayers}
                             disabled={isLoading}
                             className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-2 w-full justify-center"
                         >
                             <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
-                            Refresh Layers
+                            Refresh
                         </button>
                     </div>
                 </aside>

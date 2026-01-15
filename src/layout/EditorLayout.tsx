@@ -189,7 +189,7 @@ const EditorLayoutInner = () => {
                         <div className="flex items-center gap-3 animate-in fade-in zoom-in duration-300">
                             <button
                                 className={cn(
-                                    "h-9 rounded-full px-4 text-sm font-medium transition-all shadow-sm flex items-center gap-2",
+                                    "h-9 rounded-full px-4 text-sm font-medium transition-all shadow-sm flex items-center gap-2 whitespace-nowrap",
                                     hasChanges && isConnected
                                         ? "bg-black text-white hover:bg-black/90 cursor-pointer"
                                         : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
