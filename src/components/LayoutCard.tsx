@@ -1,27 +1,54 @@
 /**
- * LayoutCard - A card component for displaying layout metadata in the library
+ * LayerCard - A card component for displaying individual layers in the library
+ * Focused on copy/paste workflow for individual layers
  */
 
 import type { FC } from "react";
-import { Clock, Copy, Tag, User } from "lucide-react";
+import { Check, Clock, Copy, Loader2, Tag, User, Keyboard } from "lucide-react";
+import { useState } from "react";
 
-import type { LayoutMetadata } from "@/types/layout-library";
+import type { LayerEntry } from "@/types/layer-library";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { colorClasses } from "@/utils/colors";
 
-interface LayoutCardProps {
-    layout: LayoutMetadata;
-    onPreview: (layout: LayoutMetadata) => void;
-    onApply?: (layout: LayoutMetadata) => void;
+interface LayerCardProps {
+    layer: LayerEntry;
+    onCopy: (layer: LayerEntry) => void | Promise<void>;
+    onClick?: (layer: LayerEntry) => void;
     className?: string;
 }
 
-export const LayoutCard: FC<LayoutCardProps> = ({
-    layout,
-    onPreview,
-    onApply,
+export const LayerCard: FC<LayerCardProps> = ({
+    layer,
+    onCopy,
+    onClick,
     className,
 }) => {
+    const [justCopied, setJustCopied] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleCopy = async (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent opening preview
+        setIsLoading(true);
+        setError(null);
+        try {
+            await onCopy(layer);
+            setJustCopied(true);
+            setTimeout(() => setJustCopied(false), 2000);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'Failed to copy');
+            setTimeout(() => setError(null), 3000);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleClick = () => {
+        onClick?.(layer);
+    };
+
     // Format date relative to now
     const formatDate = (dateStr: string): string => {
         const date = new Date(dateStr);
@@ -37,25 +64,18 @@ export const LayoutCard: FC<LayoutCardProps> = ({
         return date.toLocaleDateString();
     };
 
-    // Format clone count
-    const formatClones = (count?: number): string => {
-        if (!count) return '0';
-        if (count >= 1000) {
-            return `${(count / 1000).toFixed(1)}k`;
-        }
-        return count.toString();
-    };
-
-    // Category badge style
-    const categoryStyle = layout.category === 'blessed'
-        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-        : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+    // Get layer color class
+    const layerColorClass = layer.layerColor
+        ? colorClasses[layer.layerColor] || "bg-kb-primary"
+        : "bg-kb-primary";
 
     return (
         <div
+            onClick={handleClick}
             className={cn(
                 "border rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow",
                 "border-gray-200 dark:border-gray-700",
+                onClick && "cursor-pointer",
                 className
             )}
         >
@@ -63,21 +83,25 @@ export const LayoutCard: FC<LayoutCardProps> = ({
             <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                        {layout.category === 'blessed' && (
-                            <span className="text-yellow-500" title="Official Layout">
-                                *
-                            </span>
-                        )}
+                        {/* Layer color indicator */}
+                        <div
+                            className={cn(
+                                "w-3 h-3 rounded-full flex-shrink-0",
+                                layerColorClass
+                            )}
+                        />
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">
-                            {layout.name}
+                            {layer.name}
                         </h3>
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                        {layout.description}
+                        {layer.description || "No description"}
                     </p>
                 </div>
-                <span className={cn("text-xs px-2 py-1 rounded-full font-medium", categoryStyle)}>
-                    {layout.category === 'blessed' ? 'Official' : 'Community'}
+                {/* Key count badge */}
+                <span className="text-xs px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 flex items-center gap-1">
+                    <Keyboard className="w-3 h-3" />
+                    {layer.keyCount}
                 </span>
             </div>
 
@@ -85,24 +109,18 @@ export const LayoutCard: FC<LayoutCardProps> = ({
             <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 dark:text-gray-400 mb-3">
                 <span className="flex items-center gap-1">
                     <User className="w-3 h-3" />
-                    {layout.author}
+                    {layer.author || "Anonymous"}
                 </span>
                 <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    {formatDate(layout.updatedAt)}
+                    {formatDate(layer.updatedAt)}
                 </span>
-                {layout.cloneCount !== undefined && layout.cloneCount > 0 && (
-                    <span className="flex items-center gap-1">
-                        <Copy className="w-3 h-3" />
-                        {formatClones(layout.cloneCount)} clones
-                    </span>
-                )}
             </div>
 
             {/* Tags */}
-            {layout.tags.length > 0 && (
+            {layer.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-3">
-                    {layout.tags.slice(0, 4).map(tag => (
+                    {layer.tags.slice(0, 4).map(tag => (
                         <span
                             key={tag}
                             className="inline-flex items-center gap-1 text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded"
@@ -111,37 +129,50 @@ export const LayoutCard: FC<LayoutCardProps> = ({
                             {tag}
                         </span>
                     ))}
-                    {layout.tags.length > 4 && (
+                    {layer.tags.length > 4 && (
                         <span className="text-xs text-gray-500">
-                            +{layout.tags.length - 4}
+                            +{layer.tags.length - 4}
                         </span>
                     )}
                 </div>
             )}
 
             {/* Actions */}
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
                 <Button
-                    variant="outline"
+                    variant={justCopied ? "default" : error ? "destructive" : "outline"}
                     size="sm"
                     className="flex-1"
-                    onClick={() => onPreview(layout)}
+                    onClick={handleCopy}
+                    disabled={isLoading}
                 >
-                    Preview
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                            Loading...
+                        </>
+                    ) : justCopied ? (
+                        <>
+                            <Check className="w-4 h-4 mr-1" />
+                            Copied!
+                        </>
+                    ) : error ? (
+                        <>
+                            {error}
+                        </>
+                    ) : (
+                        <>
+                            <Copy className="w-4 h-4 mr-1" />
+                            Copy Layer
+                        </>
+                    )}
                 </Button>
-                {onApply && (
-                    <Button
-                        variant="default"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => onApply(layout)}
-                    >
-                        Apply
-                    </Button>
-                )}
             </div>
         </div>
     );
 };
 
-export default LayoutCard;
+// Keep old name for backwards compatibility
+export const LayoutCard = LayerCard;
+
+export default LayerCard;

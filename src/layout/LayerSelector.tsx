@@ -1,6 +1,6 @@
 import LayersActiveIcon from "@/components/icons/LayersActive";
 import LayersDefaultIcon from "@/components/icons/LayersDefault";
-import { Ellipsis, Unplug, Zap } from "lucide-react";
+import { Ellipsis, Unplug, Upload, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { KEYMAP } from "@/constants/keygen";
 import { usePanels } from "@/contexts/PanelsContext";
+import { PublishLayerDialog } from "@/components/PublishLayerDialog";
 
 
 interface LayerSelectorProps {
@@ -40,6 +41,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
     const [isEditing, setIsEditing] = useState(false);
     const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
     const [editValue, setEditValue] = useState("");
+    const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const pickerRef = useRef<HTMLDivElement>(null);
 
@@ -395,8 +397,20 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                         <DropdownMenuItem onSelect={handleChangeDisabledToTransparent}>
                             Switch Blank to Transparent
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => setIsPublishDialogOpen(true)}>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Publish Layer...
+                        </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
+
+                {/* Publish Layer Dialog */}
+                <PublishLayerDialog
+                    isOpen={isPublishDialogOpen}
+                    onClose={() => setIsPublishDialogOpen(false)}
+                    layerIndex={selectedLayer}
+                />
             </div>
         </div>
     );

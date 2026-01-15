@@ -1,40 +1,34 @@
 /**
- * ExploreLayoutsPanel - Browse and import layouts from the library
+ * ExploreLayoutsPanel - Browse and copy individual layers from the layer library
  */
 
 import type { FC } from "react";
-import { RefreshCw, Search, Upload, X } from "lucide-react";
+import { RefreshCw, Search, X } from "lucide-react";
 
-import { useLayoutLibrary } from "@/contexts/LayoutLibraryContext";
-import { Button } from "@/components/ui/button";
+import { useLayerLibrary } from "@/contexts/LayoutLibraryContext";
+import { LayerCard } from "@/components/LayoutCard";
+import { LayerPreviewModal } from "@/components/LayerPreviewModal";
 import { Input } from "@/components/ui/input";
-import { LayoutCard } from "@/components/LayoutCard";
-import type { LayoutCategory, LayoutMetadata } from "@/types/layout-library";
+import type { LayerEntry } from "@/types/layer-library";
 import { cn } from "@/lib/utils";
 
 const ExploreLayoutsPanel: FC = () => {
     const {
-        activeCategory,
-        setActiveCategory,
-        layouts,
+        layers,
         isLoading,
         error,
-        hasMore,
         searchQuery,
         setSearchQuery,
         selectedTags,
         setSelectedTags,
         availableTags,
-        loadMoreLayouts,
-        refreshLayouts,
+        refreshLayers,
+        copyLayer,
+        previewLayer,
+        isPreviewOpen,
         openPreview,
-    } = useLayoutLibrary();
-
-    // Category tabs
-    const categories: { id: LayoutCategory; label: string; icon: string }[] = [
-        { id: 'blessed', label: 'Official', icon: '*' },
-        { id: 'community', label: 'Community', icon: '' },
-    ];
+        closePreview,
+    } = useLayerLibrary();
 
     // Handle tag toggle
     const toggleTag = (tag: string) => {
@@ -45,15 +39,13 @@ const ExploreLayoutsPanel: FC = () => {
         }
     };
 
-    // Handle preview
-    const handlePreview = (layout: LayoutMetadata) => {
-        openPreview(layout);
-    };
+    // Handle copy - copies layer keymap to system clipboard and context
+    const handleCopy = async (layer: LayerEntry) => {
+        // Copy keymap to system clipboard (for Ctrl+V paste in editor)
+        await navigator.clipboard.writeText(JSON.stringify(layer.keymap));
 
-    // Handle apply (direct apply without preview)
-    const handleApply = (layout: LayoutMetadata) => {
-        // For now, just open preview. Full apply will come later.
-        openPreview(layout);
+        // Also copy to context for the paste dialog
+        copyLayer(layer);
     };
 
     return (
@@ -64,7 +56,7 @@ const ExploreLayoutsPanel: FC = () => {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <Input
                         type="text"
-                        placeholder="Search layouts..."
+                        placeholder="Search layers..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-9 pr-8"
@@ -77,27 +69,6 @@ const ExploreLayoutsPanel: FC = () => {
                             <X className="w-4 h-4" />
                         </button>
                     )}
-                </div>
-            </div>
-
-            {/* Category Tabs */}
-            <div className="px-3">
-                <div className="flex gap-2">
-                    {categories.map(cat => (
-                        <button
-                            key={cat.id}
-                            onClick={() => setActiveCategory(cat.id)}
-                            className={cn(
-                                "flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors",
-                                activeCategory === cat.id
-                                    ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                            )}
-                        >
-                            {cat.icon && <span className="mr-1">{cat.icon}</span>}
-                            {cat.label}
-                        </button>
-                    ))}
                 </div>
             </div>
 
@@ -134,7 +105,7 @@ const ExploreLayoutsPanel: FC = () => {
             {/* Refresh Button */}
             <div className="px-3 flex justify-end">
                 <button
-                    onClick={refreshLayouts}
+                    onClick={refreshLayers}
                     disabled={isLoading}
                     className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex items-center gap-1"
                 >
@@ -152,31 +123,33 @@ const ExploreLayoutsPanel: FC = () => {
                 </div>
             )}
 
-            {/* Layout List */}
+            {/* Layer List */}
             <div className="flex-1 overflow-auto px-3 pb-3 space-y-3 scrollbar-thin">
-                {layouts.map(layout => (
-                    <LayoutCard
-                        key={layout.id}
-                        layout={layout}
-                        onPreview={handlePreview}
-                        onApply={handleApply}
+                {layers.map(layer => (
+                    <LayerCard
+                        key={layer.id}
+                        layer={layer}
+                        onCopy={handleCopy}
+                        onClick={openPreview}
                     />
                 ))}
 
                 {/* Empty State */}
-                {!isLoading && layouts.length === 0 && !error && (
+                {!isLoading && layers.length === 0 && !error && (
                     <div className="text-center text-gray-500 mt-10">
-                        <p className="mb-2">No layouts found.</p>
+                        <p className="mb-2">No layers found.</p>
                         {searchQuery || selectedTags.length > 0 ? (
                             <p className="text-sm">Try adjusting your search or filters.</p>
                         ) : (
-                            <p className="text-sm">Be the first to publish a layout!</p>
+                            <p className="text-sm">
+                                Publish a layer from the layer dropdown to add it here!
+                            </p>
                         )}
                     </div>
                 )}
 
                 {/* Loading State */}
-                {isLoading && layouts.length === 0 && (
+                {isLoading && layers.length === 0 && (
                     <div className="space-y-3">
                         {[1, 2, 3].map(i => (
                             <div
@@ -187,41 +160,20 @@ const ExploreLayoutsPanel: FC = () => {
                                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full mb-3" />
                                 <div className="flex gap-2">
                                     <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded flex-1" />
-                                    <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded flex-1" />
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
-
-                {/* Load More */}
-                {hasMore && !isLoading && (
-                    <div className="pt-2">
-                        <Button
-                            variant="outline"
-                            className="w-full"
-                            onClick={loadMoreLayouts}
-                        >
-                            Load More
-                        </Button>
-                    </div>
-                )}
             </div>
 
-            {/* Publish Button */}
-            <div className="px-3 pb-3 border-t border-gray-200 dark:border-gray-700 pt-3">
-                <Button
-                    variant="default"
-                    className="w-full"
-                    onClick={() => {
-                        // TODO: Open publish dialog
-                        console.log('Publish clicked');
-                    }}
-                >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Publish Current Layout
-                </Button>
-            </div>
+            {/* Layer Preview Modal */}
+            <LayerPreviewModal
+                layer={previewLayer}
+                isOpen={isPreviewOpen}
+                onClose={closePreview}
+                onCopy={handleCopy}
+            />
         </section>
     );
 };

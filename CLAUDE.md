@@ -2,6 +2,53 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+## IMPORTANT: This is a Git Worktree
+
+**This directory is a git worktree**, not the main repository.
+
+| Property | Value |
+|----------|-------|
+| **Branch** | `feature/explore-layouts` |
+| **Dev Server Port** | 5172 |
+| **URL** | http://localhost:5172/keybard-ng/ |
+| **Main Repo** | `../keybard-ng/` (branch: `main`) |
+| **Viable Repo** | `../keybard-ng-viable/` (branch: `viable-protocol-migration`) |
+
+### Quick Start
+
+```bash
+npm run dev    # Starts on port 5172 automatically
+```
+
+### Branch Indicator
+
+In dev mode, "feature/explore-layouts" appears in the sidebar footer (bottom left, small gray text).
+
+### Feature Being Developed: Explore Layouts
+
+This branch implements a layout library/browser feature:
+- Browse pre-made keyboard layouts
+- Preview layouts before importing
+- Selectively import layers or full layouts
+
+**Key Files for this feature:**
+- `src/contexts/LayoutLibraryContext.tsx` - State management
+- `src/components/LayoutCard.tsx` - Layout preview card
+- `src/components/LayoutPreviewModal.tsx` - Full preview modal
+- `src/layout/SecondarySidebar/Panels/ExploreLayoutsPanel.tsx` - Main panel
+- `src/services/layout-library.service.ts` - Backend service
+- `src/types/layout-library.d.ts` - TypeScript types
+
+### Removing This Worktree
+
+```bash
+cd ../keybard-ng && git worktree remove ../keybard-ng-explore
+```
+
+---
+
 ## Related Repositories
 
 | Repository | Branch | Purpose |

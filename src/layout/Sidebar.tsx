@@ -1,4 +1,5 @@
 import { ArrowUpDown, Compass, HelpCircle, Keyboard, LayoutGrid, ListOrdered, LucideIcon, Piano, Repeat, Settings, SquareDot, Unplug, Zap } from "lucide-react";
+import { useNavigation } from "@/App";
 import { useCallback, useRef, useState } from "react";
 
 import ComboIcon from "@/components/ComboIcon";
@@ -74,7 +75,6 @@ const featureSidebarItems: SidebarItem[] = [
     ...(SHOW_ALT_REPEAT ? [{ title: "Alt-Repeat", url: "altrepeat", icon: Repeat }] : []),
     ...(SHOW_LEADERS ? [{ title: "Leaders", url: "leaders", icon: ListOrdered }] : []),
     { title: "Fragments", url: "fragments", icon: LayoutGrid },
-    { title: "Explore", url: "explore", icon: Compass },
 ];
 
 const footerItems: SidebarItem[] = [
@@ -153,6 +153,7 @@ const AppSidebar = () => {
 
     const { connect, isConnected, keyboard, setKeyboard } = useVial();
     const { queue } = useChanges();
+    const { navigateTo } = useNavigation();
 
     // Import/Export state
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -398,6 +399,22 @@ const AppSidebar = () => {
                             </div>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild size="nav" className="text-slate-600 transition-colors">
+                            <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); navigateTo("explore"); }}
+                                className="flex w-full items-center justify-start"
+                            >
+                                <div className={cn(ICON_GUTTER_WIDTH, "h-4 flex items-center justify-start shrink-0", BASE_ICON_PADDING)}>
+                                    <Compass className="h-4 w-4 shrink-0" />
+                                </div>
+                                <span className="text-sm font-medium hover:text-slate-900 group-data-[state=collapsed]:hidden">
+                                    Explore Layouts
+                                </span>
+                            </button>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>
 
@@ -442,6 +459,12 @@ const AppSidebar = () => {
                         />
                     ))}
                 </SidebarMenu>
+                {/* Branch indicator for dev environment */}
+                {import.meta.env.DEV && (
+                    <div className="px-3 pt-2 pb-1 text-[10px] text-slate-400 font-mono truncate group-data-[state=collapsed]:hidden" title={__GIT_BRANCH__}>
+                        {__GIT_BRANCH__}
+                    </div>
+                )}
             </SidebarFooter>
         </Sidebar>
         </>
