@@ -1,5 +1,5 @@
 import { SettingDefinition, SettingsCategory, SettingsContextType, SettingsState } from "@/types/settings.types";
-import { Ellipsis, SettingsIcon } from "lucide-react";
+import { SettingsIcon } from "lucide-react";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { SettingsService } from "@/services/settings.service";
@@ -156,12 +156,6 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
         label: "General",
         icon: SettingsIcon,
         settings: ["typing-binds-key", "serial-assignment", "international-keyboards", "qmk-settings"],
-    },
-    {
-        name: "other",
-        icon: Ellipsis,
-        label: "Other",
-        settings: [],
     },
 ];
 
