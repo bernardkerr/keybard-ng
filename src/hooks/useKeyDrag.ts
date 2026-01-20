@@ -31,7 +31,7 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
     } = props;
 
     const { startDrag, dragSourceId, isDragging, draggedItem, markDropConsumed } = useDrag();
-    const { assignKeycode, selectKeyboardKey, swapKeys, setHoveredKey } = useKeyBinding();
+    const { assignKeycode, selectKeyboardKey, swapKeys, setHoveredKey, clearSelection } = useKeyBinding();
 
     const startPosRef = useRef<{ x: number; y: number } | null>(null);
     const [isDragHover, setIsDragHover] = useState(false);
@@ -60,12 +60,13 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
     const handleMouseLeave = useCallback(() => {
         if (canDrop) {
             setIsDragHover(false);
+            clearSelection();
         }
 
         if (!disableHover) {
             setHoveredKey(null);
         }
-    }, [canDrop, disableHover, setHoveredKey]);
+    }, [canDrop, disableHover, setHoveredKey, clearSelection]);
 
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
         if (e.button !== 0) return;
@@ -80,6 +81,9 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
             const dy = moveEvent.clientY - start.y;
 
             if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                // Clear keyboard selection when drag starts
+                clearSelection();
+
                 const dragPayload: DragItem = {
                     keycode,
                     label: label || keycode,
