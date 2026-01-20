@@ -1,6 +1,5 @@
 import React, { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { showModMask } from "@/utils/keys";
 import { colorClasses, hoverContainerTextClasses } from "@/utils/colors";
 import { KeyContent } from "@/types/vial.types";
 import { getHeaderIcons, getCenterContent, getTypeIcon } from "@/utils/key-icons";
@@ -62,15 +61,20 @@ export const Key: React.FC<KeyProps> = (props) => {
         let topLabel: React.ReactNode = "";
 
         if (keyContents?.type === "modmask") {
-            const show = showModMask(keyContents.modids);
+            // Modifier+key combo (e.g., LGUI(TAB))
+            // Show key in center, modifier on BOTTOM
             const keysArr = keyContents.str?.split("\n") || [];
             const keyStr = keysArr[0] || "";
 
-            if (!label || label === keycode) {
-                const modStr = keyContents.top || "";
-                displayLabel = modStr + (keyStr === "" || keyStr === "KC_NO" ? " (kc)" : ` ${keyStr}`);
+            // Show the key in center
+            if (keyStr === "" || keyStr === "KC_NO") {
+                displayLabel = "(kc)";
+            } else {
+                displayLabel = keyStr;
             }
-            bottomStr = show;
+            // Show modifier on bottom (e.g., "LGUI" from "LGUI(TAB)")
+            const modMatch = keycode.match(/^([A-Z]+)\(/);
+            bottomStr = modMatch ? modMatch[1] : (keyContents.top || "MOD");
         } else if (keyContents?.type === "modtap") {
             // Modifier-tap key (e.g., LGUI_T(KC_TAB))
             // Show key in center, modifier_T in top header
