@@ -24,8 +24,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
     Sidebar,
     SidebarContent,
-    SidebarFooter,
-    SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
@@ -340,7 +338,8 @@ const AppSidebar = () => {
         </Dialog>
 
         <Sidebar rounded name="primary-nav" defaultOpen={false} collapsible="icon" hideGap className={sidebarClasses} onClick={handleBackgroundClick}>
-            <SidebarHeader className="p-0 py-4">
+            <SidebarContent className="py-4 overflow-y-auto overflow-x-hidden flex flex-col">
+                {/* Header section - Logo, Connect, Import/Export */}
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild size="nav" className="transition-colors">
@@ -399,56 +398,58 @@ const AppSidebar = () => {
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
-            </SidebarHeader>
 
-            <SidebarContent className="py-2 !overflow-visible flex flex-col justify-center">
-                <SidebarMenu className="relative">
-                    {indicatorY !== -1 && <SlidingIndicator y={indicatorY} />}
-                    {primarySidebarItems.map((item) => (
-                        <SidebarNavItem
-                            key={item.url}
-                            item={item}
-                            isActive={activePanel === item.url}
-                            isPreviousPanel={panelToGoBack === item.url}
-                            alternativeHeader={alternativeHeader}
-                            onClick={handleItemSelect}
-                        />
-                    ))}
+                {/* Main navigation - vertically centered in available space */}
+                <div className="flex-1 flex flex-col justify-center py-2">
+                    <SidebarMenu className="relative">
+                        {indicatorY !== -1 && <SlidingIndicator y={indicatorY} />}
+                        {primarySidebarItems.map((item) => (
+                            <SidebarNavItem
+                                key={item.url}
+                                item={item}
+                                isActive={activePanel === item.url}
+                                isPreviousPanel={panelToGoBack === item.url}
+                                alternativeHeader={alternativeHeader}
+                                onClick={handleItemSelect}
+                            />
+                        ))}
 
-                    <div className="mx-4 my-2 h-[1px] bg-slate-200" />
+                        <div className="mx-4 my-2 h-[1px] bg-slate-200" />
 
-                    {featureSidebarItems.map((item) => (
-                        <SidebarNavItem
-                            key={item.url}
-                            item={item}
-                            isActive={activePanel === item.url}
-                            isPreviousPanel={panelToGoBack === item.url}
-                            alternativeHeader={alternativeHeader}
-                            onClick={handleItemSelect}
-                        />
-                    ))}
-                </SidebarMenu>
+                        {featureSidebarItems.map((item) => (
+                            <SidebarNavItem
+                                key={item.url}
+                                item={item}
+                                isActive={activePanel === item.url}
+                                isPreviousPanel={panelToGoBack === item.url}
+                                alternativeHeader={alternativeHeader}
+                                onClick={handleItemSelect}
+                            />
+                        ))}
+                    </SidebarMenu>
+                </div>
+
+                {/* Footer section - About, Matrix Tester, Settings */}
+                <div className="py-2 mb-3">
+                    <SidebarMenu className="relative">
+                        {activeFooterIndex !== -1 && <SlidingIndicator y={activeFooterIndex * MENU_ITEM_GAP_PX} />}
+                        {footerItems.map((item) => (
+                            <SidebarNavItem
+                                key={item.url}
+                                item={item}
+                                isActive={activePanel === item.url}
+                                onClick={handleItemSelect}
+                            />
+                        ))}
+                    </SidebarMenu>
+                    {/* Branch indicator for dev environment */}
+                    {import.meta.env.DEV && (
+                        <div className="px-3 pt-2 pb-1 text-[10px] text-slate-400 font-mono truncate group-data-[state=collapsed]:hidden" title={__GIT_BRANCH__}>
+                            {__GIT_BRANCH__}
+                        </div>
+                    )}
+                </div>
             </SidebarContent>
-
-            <SidebarFooter className="p-0 py-2 !overflow-visible mb-3">
-                <SidebarMenu className="relative">
-                    {activeFooterIndex !== -1 && <SlidingIndicator y={activeFooterIndex * MENU_ITEM_GAP_PX} />}
-                    {footerItems.map((item) => (
-                        <SidebarNavItem
-                            key={item.url}
-                            item={item}
-                            isActive={activePanel === item.url}
-                            onClick={handleItemSelect}
-                        />
-                    ))}
-                </SidebarMenu>
-                {/* Branch indicator for dev environment */}
-                {import.meta.env.DEV && (
-                    <div className="px-3 pt-2 pb-1 text-[10px] text-slate-400 font-mono truncate group-data-[state=collapsed]:hidden" title={__GIT_BRANCH__}>
-                        {__GIT_BRANCH__}
-                    </div>
-                )}
-            </SidebarFooter>
         </Sidebar>
         </>
     );

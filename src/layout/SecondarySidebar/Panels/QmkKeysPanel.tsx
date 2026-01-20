@@ -1,6 +1,7 @@
 import { getKeyContents } from "@/utils/keys";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useVial } from "@/contexts/VialContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { Key } from "@/components/Key";
@@ -13,6 +14,7 @@ const QmkKeyPanel = ({ isPicker }: Props) => {
     const { assignKeycode } = useKeyBinding();
     const { keyboard } = useVial();
     const { selectedLayer } = useLayer();
+    const { keyVariant } = useLayoutSettings();
 
     const layerColorName = keyboard?.cosmetic?.layer_colors?.[selectedLayer] || "primary";
     const hoverBorderColor = hoverBorderClasses[layerColorName] || hoverBorderClasses["primary"];
@@ -22,6 +24,8 @@ const QmkKeyPanel = ({ isPicker }: Props) => {
     const handleKeyClick = (keycode: string) => {
         assignKeycode(keycode);
     };
+
+    const keySizeClass = keyVariant === 'small' ? 'h-[30px] w-[30px]' : keyVariant === 'medium' ? 'h-[45px] w-[45px]' : 'h-[60px] w-[60px]';
 
     const renderKey = (keycode: string, label: string) => {
         return (
@@ -34,7 +38,8 @@ const QmkKeyPanel = ({ isPicker }: Props) => {
                 layerColor="sidebar"
                 headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
                 isRelative
-                className="h-[60px] w-[60px]"
+                variant={keyVariant}
+                className={keySizeClass}
                 onClick={() => handleKeyClick(keycode)}
                 hoverBorderColor={hoverBorderColor}
                 hoverBackgroundColor={hoverBackgroundColor}

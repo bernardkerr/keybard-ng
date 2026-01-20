@@ -4,6 +4,7 @@ import QwertyKeyboard from "@/components/Keyboards/QwertyKeyboard";
 import { Button } from "@/components/ui/button";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useVial } from "@/contexts/VialContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { cn } from "@/lib/utils";
@@ -69,6 +70,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
     const { assignKeycode, isBinding } = useKeyBinding();
     const { keyboard } = useVial();
     const { selectedLayer } = useLayer();
+    const { keyVariant } = useLayoutSettings();
 
     useEffect(() => {
         setActiveModifiers([]);
@@ -132,11 +134,15 @@ const BasicKeyboards = ({ isPicker }: Props) => {
         { keycode: "QK_LEADER", label: "Leader" },
     ];
 
+    // Size for blank placeholder keys based on variant
+    const blankKeySize = keyVariant === 'small' ? 'w-[30px] h-[30px]' : keyVariant === 'medium' ? 'w-[45px] h-[45px]' : 'w-[60px] h-[60px]';
+    const numpadGridCols = keyVariant === 'small' ? 'grid-cols-[repeat(7,30px)]' : keyVariant === 'medium' ? 'grid-cols-[repeat(7,45px)]' : 'grid-cols-[repeat(7,60px)]';
+
     const renderKeyGrid = (keys: { keycode: string, label: string }[], gridCols?: string) => (
         <div className={cn("gap-1", gridCols ? `grid ${gridCols}` : "flex flex-wrap")}>
             {keys.map((k, i) => {
                 if (k.keycode === "BLANK") {
-                    return <div key={`blank-${i}`} className="w-[45px] h-[45px]" />;
+                    return <div key={`blank-${i}`} className={blankKeySize} />;
                 }
                 const keyContents = keyboard ? getKeyContents(keyboard, k.keycode) : undefined;
                 const displayLabel = keyService.define(k.keycode)?.str || k.label || k.keycode;
@@ -152,7 +158,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                         layerColor="sidebar"
                         headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
                         isRelative
-                        variant="medium"
+                        variant={keyVariant}
                         className={cn(
                             isDoubleHeight ? "row-span-2" : ""
                         )}
@@ -218,7 +224,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                 </div>
                 <div className="flex flex-col gap-2">
                     <span className="font-semibold text-lg text-slate-700">Numpad</span>
-                    {renderKeyGrid(numpadKeys, "grid-cols-[repeat(7,45px)]")}
+                    {renderKeyGrid(numpadKeys, numpadGridCols)}
                 </div>
                 <div className="flex flex-col gap-2">
                     <span className="font-semibold text-lg text-slate-700">Others</span>

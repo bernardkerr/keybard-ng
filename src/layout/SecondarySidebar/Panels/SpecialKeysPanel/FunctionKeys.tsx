@@ -1,6 +1,7 @@
 import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useVial } from "@/contexts/VialContext";
 import { keyService } from "@/services/key.service";
 
@@ -10,6 +11,7 @@ const FunctionKeys = () => {
     const { assignKeycode } = useKeyBinding();
     const { keyboard } = useVial();
     const { selectedLayer } = useLayer();
+    const { keyVariant } = useLayoutSettings();
 
     const layerColorName = keyboard?.cosmetic?.layer_colors?.[selectedLayer] || "primary";
     const hoverBorderColor = hoverBorderClasses[layerColorName] || hoverBorderClasses["primary"];
@@ -42,7 +44,7 @@ const FunctionKeys = () => {
                         layerColor="sidebar"
                         headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
                         isRelative
-                        variant="medium"
+                        variant={keyVariant}
                         hoverBorderColor={hoverBorderColor}
                         hoverBackgroundColor={hoverBackgroundColor}
                         hoverLayerColor={layerColorName}

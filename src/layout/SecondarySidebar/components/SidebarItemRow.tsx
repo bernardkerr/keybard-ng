@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { KeyboardInfo, KeyContent } from "@/types/vial.types";
 import { colorClasses, layerColors } from "@/utils/colors";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 
 interface SidebarItemRowProps {
     index: number;
@@ -64,8 +65,12 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
         const [editValue, setEditValue] = React.useState("");
         const pickerRef = React.useRef<HTMLDivElement>(null);
         const inputRef = React.useRef<HTMLInputElement>(null);
+        const { keyVariant } = useLayoutSettings();
 
         const displayLabel = label ?? index.toString();
+
+        // Dynamic key size based on variant
+        const keySizeClass = keyVariant === 'small' ? 'h-[30px] w-[30px]' : keyVariant === 'medium' ? 'h-[45px] w-[45px]' : 'h-[60px] w-[60px]';
 
         // Close picker when clicking outside
         React.useEffect(() => {
@@ -242,7 +247,8 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                             layerColor="sidebar"
                             headerClassName={hoverHeaderClass ? `bg-kb-sidebar-dark ${hoverHeaderClass}` : "bg-kb-sidebar-dark group-hover:bg-black/30"}
                             isRelative
-                            className={cn("h-[60px] w-[60px]", !onAssignKeycode && "cursor-default")}
+                            variant={keyVariant}
+                            className={cn(keySizeClass, !onAssignKeycode && "cursor-default")}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={hoverLayerColor}

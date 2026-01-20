@@ -1,6 +1,7 @@
 import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useVial } from "@/contexts/VialContext";
 import { keyService } from "@/services/key.service";
 
@@ -10,11 +11,13 @@ const MediaKeys = () => {
     const { assignKeycode } = useKeyBinding();
     const { keyboard } = useVial();
     const { selectedLayer } = useLayer();
+    const { keyVariant } = useLayoutSettings();
 
     const layerColorName = keyboard?.cosmetic?.layer_colors?.[selectedLayer] || "primary";
     const hoverBorderColor = hoverBorderClasses[layerColorName] || hoverBorderClasses["primary"];
     const hoverBackgroundColor = hoverBackgroundClasses[layerColorName] || hoverBackgroundClasses["primary"];
     const hoverHeaderClass = hoverHeaderClasses[layerColorName] || hoverHeaderClasses["primary"];
+    const keySizeClass = keyVariant === 'small' ? 'h-[30px] w-[30px]' : keyVariant === 'medium' ? 'h-[45px] w-[45px]' : 'h-[60px] w-[60px]';
 
     const keys = [
         { keycode: "KC_AGIN", label: "Again" },
@@ -79,7 +82,8 @@ const MediaKeys = () => {
                             layerColor="sidebar"
                             headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
                             isRelative
-                            className="h-[60px] w-[60px]"
+                            variant={keyVariant}
+                            className={keySizeClass}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}
