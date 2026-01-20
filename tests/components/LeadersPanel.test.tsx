@@ -8,6 +8,7 @@ import { SettingsProvider } from '../../src/contexts/SettingsContext';
 import { LayerProvider } from '../../src/contexts/LayerContext';
 import { PanelsProvider } from '../../src/contexts/PanelsContext';
 import { SidebarProvider } from '../../src/components/ui/sidebar';
+import { DragProvider } from '../../src/contexts/DragContext';
 import type { KeyboardInfo, LeaderEntry } from '../../src/types/vial.types';
 import { LeaderOptions } from '../../src/types/vial.types';
 
@@ -126,9 +127,11 @@ const TestWrapper = ({ keyboard, children }: { keyboard: KeyboardInfo | null, ch
                         <SidebarProvider>
                             <PanelsProvider>
                                 <KeyBindingProvider>
-                                    <KeyboardSetter keyboard={keyboard}>
-                                        {children}
-                                    </KeyboardSetter>
+                                    <DragProvider>
+                                        <KeyboardSetter keyboard={keyboard}>
+                                            {children}
+                                        </KeyboardSetter>
+                                    </DragProvider>
                                 </KeyBindingProvider>
                             </PanelsProvider>
                         </SidebarProvider>

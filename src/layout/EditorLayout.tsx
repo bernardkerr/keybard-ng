@@ -2,6 +2,8 @@ import * as React from "react";
 
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { PanelsProvider, usePanels } from "@/contexts/PanelsContext";
+import { DragProvider } from "@/contexts/DragContext";
+import { DragOverlay } from "@/components/DragOverlay";
 import SecondarySidebar, { DETAIL_SIDEBAR_WIDTH } from "./SecondarySidebar/SecondarySidebar";
 
 import { Keyboard } from "@/components/Keyboard";
@@ -22,12 +24,29 @@ import { MatrixTester } from "@/components/MatrixTester";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
 
 const EditorLayout = () => {
+    const { assignKeycodeTo } = useKeyBinding();
+
+    const handleUnhandledDrop = React.useCallback((item: any) => {
+        if (item.row !== undefined && item.col !== undefined && item.layer !== undefined) {
+            console.log("Unhandled drop for keyboard key, assigning KC_NO", item);
+            assignKeycodeTo({
+                type: "keyboard",
+                row: item.row,
+                col: item.col,
+                layer: item.layer
+            }, "KC_NO");
+        }
+    }, [assignKeycodeTo]);
+
     return (
         <SidebarProvider defaultOpen={false}>
             <PanelsProvider>
                 <LayoutSettingsProvider>
                     <LayerProvider>
-                        <EditorLayoutInner />
+                        <DragProvider onUnhandledDrop={handleUnhandledDrop}>
+                            <EditorLayoutInner />
+                            <DragOverlay />
+                        </DragProvider>
                     </LayerProvider>
                 </LayoutSettingsProvider>
             </PanelsProvider>

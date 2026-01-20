@@ -8,6 +8,7 @@ import { SettingsProvider } from '../../src/contexts/SettingsContext';
 import { LayerProvider } from '../../src/contexts/LayerContext';
 import { PanelsProvider, usePanels } from '../../src/contexts/PanelsContext';
 import { SidebarProvider } from '../../src/components/ui/sidebar';
+import { DragProvider } from '../../src/contexts/DragContext';
 import type { KeyboardInfo, LeaderEntry } from '../../src/types/vial.types';
 import { LeaderOptions } from '../../src/types/vial.types';
 import React from 'react';
@@ -138,9 +139,11 @@ const TestWrapper = ({
                         <SidebarProvider>
                             <PanelsProvider>
                                 <KeyBindingProvider>
-                                    <TestSetup keyboard={keyboard} itemToEdit={itemToEdit}>
-                                        {children}
-                                    </TestSetup>
+                                    <DragProvider>
+                                        <TestSetup keyboard={keyboard} itemToEdit={itemToEdit}>
+                                            {children}
+                                        </TestSetup>
+                                    </DragProvider>
                                 </KeyBindingProvider>
                             </PanelsProvider>
                         </SidebarProvider>
