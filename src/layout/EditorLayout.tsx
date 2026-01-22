@@ -5,6 +5,8 @@ import { PanelsProvider, usePanels } from "@/contexts/PanelsContext";
 import { DragProvider } from "@/contexts/DragContext";
 import { DragOverlay } from "@/components/DragOverlay";
 import SecondarySidebar, { DETAIL_SIDEBAR_WIDTH } from "./SecondarySidebar/SecondarySidebar";
+import { BottomPanel, BOTTOM_PANEL_HEIGHT } from "./BottomPanel";
+import BindingEditorContainer from "./SecondarySidebar/components/BindingEditor/BindingEditorContainer";
 
 import { Keyboard } from "@/components/Keyboard";
 import { useVial } from "@/contexts/VialContext";
@@ -19,9 +21,10 @@ import { LayoutSettingsProvider, useLayoutSettings } from "@/contexts/LayoutSett
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useChanges } from "@/hooks/useChanges";
-import { Zap } from "lucide-react";
+import { Zap, PanelBottom, PanelRight, X } from "lucide-react";
 import { MatrixTester } from "@/components/MatrixTester";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
+import EditorSidePanel, { PickerMode } from "./SecondarySidebar/components/EditorSidePanel";
 
 const EditorLayout = () => {
     const { assignKeycodeTo } = useKeyBinding();
@@ -58,7 +61,7 @@ const EditorLayoutInner = () => {
     const { keyboard, isConnected, setKeyboard } = useVial();
     const { selectedLayer, setSelectedLayer } = useLayer();
     const { clearSelection } = useKeyBinding();
-    const { keyVariant, setKeyVariant } = useLayoutSettings();
+    const { keyVariant, setKeyVariant, layoutMode, setLayoutMode, isAutoLayoutMode, setIsAutoLayoutMode, isAutoKeySize, setIsAutoKeySize, setSecondarySidebarOpen, setPrimarySidebarExpanded, registerPrimarySidebarControl } = useLayoutSettings();
 
     const { getSetting, updateSetting } = useSettings();
     const { getPendingCount, commit, setInstant, clearAll, getPendingChanges } = useChanges();
@@ -101,42 +104,286 @@ const EditorLayoutInner = () => {
     }, [keyboard, setKeyboard, getPendingCount, getPendingChanges, clearAll]);
 
     const primarySidebar = useSidebar("primary-nav", { defaultOpen: false });
-    const { isMobile, state, activePanel } = usePanels();
+    const { isMobile, state, activePanel, itemToEdit, setItemToEdit, handleCloseEditor } = usePanels();
+
+    // Editor overlay state for bottom bar mode
+    const [pickerMode, setPickerMode] = React.useState<PickerMode>("keyboard");
+    const [isClosingEditor, setIsClosingEditor] = React.useState(false);
+
+    // Check if we should show the editor overlay in bottom bar mode
+    const showEditorOverlay = layoutMode === "bottombar" && itemToEdit !== null &&
+        ["tapdances", "combos", "macros", "overrides", "altrepeat", "leaders"].includes(activePanel || "");
+
+    // Reset picker mode when editor closes
+    React.useEffect(() => {
+        if (!showEditorOverlay) {
+            const timeout = setTimeout(() => setPickerMode("keyboard"), 500);
+            return () => clearTimeout(timeout);
+        }
+    }, [showEditorOverlay]);
+
+    React.useEffect(() => {
+        if (itemToEdit === null) setIsClosingEditor(false);
+    }, [itemToEdit]);
+
+    // Layout mode determines whether we use sidebar or bottom panel
+    const useSidebarLayout = layoutMode === "sidebar";
+    const useBottomLayout = layoutMode === "bottombar";
 
     const primaryOffset = primarySidebar.isMobile ? undefined : primarySidebar.state === "collapsed" ? "var(--sidebar-width-icon)" : "var(--sidebar-width-base)";
-    const showDetailsSidebar = !isMobile && state === "expanded";
+
+    // In sidebar mode: show detail sidebar on right
+    // In bottom bar mode: no detail sidebar, use bottom panel instead
+    const showDetailsSidebar = useSidebarLayout && !isMobile && state === "expanded";
+    const showBottomPanel = useBottomLayout && state === "expanded";
+
+    // Notify context when a panel is selected (wants to be shown)
+    // This is independent of layout mode - used to calculate if sidebar mode CAN work
+    React.useEffect(() => {
+        // A panel is "open" if user has selected one, regardless of current layout mode
+        const panelIsSelected = state === "expanded";
+        setSecondarySidebarOpen(panelIsSelected);
+    }, [state, setSecondarySidebarOpen]);
+
+    React.useEffect(() => {
+        if (primarySidebar?.state) {
+            setPrimarySidebarExpanded(primarySidebar.state === "expanded");
+        }
+    }, [primarySidebar?.state, setPrimarySidebarExpanded]);
+
+    // Register callback for auto-layout to collapse the sidebar
+    // Use a ref to avoid recreating the callback
+    const collapseSidebarRef = React.useRef(() => primarySidebar.setOpen(false));
+    collapseSidebarRef.current = () => primarySidebar.setOpen(false);
+
+    React.useEffect(() => {
+        registerPrimarySidebarControl(() => collapseSidebarRef.current());
+    }, [registerPrimarySidebarControl]);
+
     const contentOffset = showDetailsSidebar ? `calc(${primaryOffset ?? "0px"} + ${DETAIL_SIDEBAR_WIDTH})` : primaryOffset ?? undefined;
     const contentStyle = React.useMemo<React.CSSProperties>(
         () => ({
             marginLeft: contentOffset,
-            transition: "margin-left 320ms cubic-bezier(0.22, 1, 0.36, 1)",
-            willChange: "margin-left",
+            transition: "margin-left 320ms cubic-bezier(0.22, 1, 0.36, 1), padding-bottom 300ms ease-in-out",
+            willChange: "margin-left, padding-bottom",
+            // Add bottom padding when bottom panel is shown
+            paddingBottom: showBottomPanel ? BOTTOM_PANEL_HEIGHT : 0,
         }),
-        [contentOffset]
+        [contentOffset, showBottomPanel]
     );
 
     return (
         <div className={cn("flex h-screen max-w-screen p-0", showDetailsSidebar && "bg-white")}>
             <AppSidebar />
-            <SecondarySidebar />
+            {/* Render SecondarySidebar only in sidebar mode */}
+            {useSidebarLayout && <SecondarySidebar />}
             <div
                 className="relative flex-1 px-4 h-screen max-h-screen flex flex-col max-w-full w-full overflow-hidden bg-kb-gray border-none"
                 style={contentStyle}
                 onClick={() => clearSelection()}
             >
                 <LayerSelector selectedLayer={selectedLayer} setSelectedLayer={setSelectedLayer} />
-                <div className="flex-1 overflow-auto flex items-center overflow-x-auto max-w-full">
-                    <div className={cn(showDetailsSidebar && "pr-[450px]")}>
-                        {activePanel === "matrixtester" ? (
-                            <MatrixTester />
-                        ) : (
-                            <Keyboard keyboard={keyboard!} selectedLayer={selectedLayer} setSelectedLayer={setSelectedLayer} />
-                        )}
-                    </div>
+
+                <div className="flex-1 overflow-hidden flex items-center justify-center max-w-full relative">
+                    {activePanel === "matrixtester" ? (
+                        <MatrixTester />
+                    ) : (
+                        <Keyboard keyboard={keyboard!} selectedLayer={selectedLayer} setSelectedLayer={setSelectedLayer} />
+                    )}
+
+                    {/* Editor overlay for bottom bar mode - picker tabs + editor */}
+                    {useBottomLayout && (
+                        <div
+                            className={cn(
+                                "absolute inset-0 z-30 transition-all duration-300 ease-in-out flex items-stretch justify-center gap-0",
+                                showEditorOverlay ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+                            )}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Picker selector tabs - vertical on the left */}
+                            <div className="flex-shrink-0 bg-white border-r border-gray-200 shadow-lg">
+                                <EditorSidePanel
+                                    activeTab={pickerMode}
+                                    onTabChange={setPickerMode}
+                                    showMacros={activePanel !== "macros"}
+                                />
+                            </div>
+
+                            {/* Editor Panel */}
+                            <div className={cn(
+                                "bg-kb-gray-medium flex-shrink-0 shadow-[8px_0_24px_rgba(0,0,0,0.15),-2px_0_8px_rgba(0,0,0,0.1)]",
+                                activePanel === "overrides" ? "w-[700px]" : "w-[500px]"
+                            )}>
+                                {itemToEdit !== null && (
+                                    <div className="relative h-full">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsClosingEditor(true);
+                                                setTimeout(() => {
+                                                    handleCloseEditor();
+                                                    setItemToEdit(null);
+                                                }, 100);
+                                            }}
+                                            className="absolute top-4 right-4 p-1 rounded hover:bg-black/10 transition-colors z-10"
+                                        >
+                                            <X className="h-5 w-5 text-gray-500" />
+                                        </button>
+                                        <BindingEditorContainer shouldClose={isClosingEditor} inline />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Controls - bottom left corner for bottom bar mode (same style as sidebar mode) */}
+                    {useBottomLayout && !showEditorOverlay && (
+                        <div className="absolute bottom-4 left-4 flex items-center gap-6 z-10">
+                            {liveUpdating ? (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        updateSetting("live-updating", false);
+                                    }}
+                                    className={cn(
+                                        "flex items-center gap-2 text-sm font-medium cursor-pointer transition-opacity hover:opacity-70",
+                                        !isConnected && "opacity-30 cursor-not-allowed"
+                                    )}
+                                    disabled={!isConnected}
+                                    title="Click to switch to Push mode"
+                                >
+                                    <Zap className="h-4 w-4 fill-black text-black" />
+                                    <span>Live Updating</span>
+                                </button>
+                            ) : (
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        className={cn(
+                                            "h-9 rounded-full px-4 text-sm font-medium transition-all shadow-sm flex items-center gap-2",
+                                            hasChanges && isConnected
+                                                ? "bg-black text-white hover:bg-black/90 cursor-pointer"
+                                                : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
+                                        )}
+                                        disabled={!hasChanges || !isConnected}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            commit();
+                                        }}
+                                    >
+                                        Push Changes{hasChanges && ` (${getPendingCount()})`}
+                                    </button>
+                                    {hasChanges && (
+                                        <button
+                                            className="h-9 rounded-full px-4 text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-all"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                revert();
+                                            }}
+                                            title="Revert"
+                                        >
+                                            Revert
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            updateSetting("live-updating", true);
+                                        }}
+                                        className="p-2 rounded-full hover:bg-gray-200 transition-colors"
+                                        title="Live mode"
+                                    >
+                                        <Zap className="h-4 w-4 text-gray-400" />
+                                    </button>
+                                </div>
+                            )}
+                            <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50 w-fit">
+                                {(['default', 'medium', 'small'] as const).map((variant) => (
+                                    <button
+                                        key={variant}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setKeyVariant(variant);
+                                        }}
+                                        className={cn(
+                                            "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[4px] transition-all font-semibold border",
+                                            keyVariant === variant && !isAutoKeySize
+                                                ? "bg-black text-white shadow-sm border-black"
+                                                : keyVariant === variant && isAutoKeySize
+                                                ? "bg-gray-400 text-white border-gray-400"
+                                                : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
+                                        )}
+                                        title={`Set key size to ${variant}`}
+                                    >
+                                        {variant === 'default' ? 'Normal' : variant}
+                                    </button>
+                                ))}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsAutoKeySize(true);
+                                    }}
+                                    className={cn(
+                                        "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[4px] transition-all font-semibold border",
+                                        isAutoKeySize
+                                            ? "bg-black text-white shadow-sm border-black"
+                                            : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
+                                    )}
+                                    title="Auto size based on window"
+                                >
+                                    Auto
+                                </button>
+                            </div>
+                            <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50 w-fit">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsAutoLayoutMode(false);
+                                        setLayoutMode("sidebar");
+                                    }}
+                                    className="p-1 rounded-[4px] transition-all text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50 border"
+                                    title="Sidebar layout"
+                                >
+                                    <PanelRight className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsAutoLayoutMode(false);
+                                        setLayoutMode("bottombar");
+                                    }}
+                                    className={cn(
+                                        "p-1 rounded-[4px] transition-all border",
+                                        !isAutoLayoutMode
+                                            ? "bg-black text-white shadow-sm border-black"
+                                            : "bg-gray-400 text-white border-gray-400"
+                                    )}
+                                    title="Bottom bar layout"
+                                >
+                                    <PanelBottom className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsAutoLayoutMode(true);
+                                    }}
+                                    className={cn(
+                                        "px-1.5 py-0.5 text-[10px] uppercase tracking-wide rounded-[4px] transition-all font-semibold border",
+                                        isAutoLayoutMode
+                                            ? "bg-black text-white shadow-sm border-black"
+                                            : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
+                                    )}
+                                    title="Auto-switch layout based on window size"
+                                >
+                                    Auto
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-
-                <div className="absolute bottom-9 left-[37px] flex items-center gap-6">
+                {/* Controls - bottom left in sidebar mode only */}
+                {!useBottomLayout && (
+                    <div className="absolute bottom-9 left-[37px] flex items-center gap-6">
                     {liveUpdating ? (
                         // Live mode - clickable indicator to switch to Push mode
                         <button
@@ -209,8 +456,10 @@ const EditorLayoutInner = () => {
                                 }}
                                 className={cn(
                                     "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[4px] transition-all font-semibold border",
-                                    keyVariant === variant
+                                    keyVariant === variant && !isAutoKeySize
                                         ? "bg-black text-white shadow-sm border-black"
+                                        : keyVariant === variant && isAutoKeySize
+                                        ? "bg-gray-400 text-white border-gray-400"
                                         : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
                                 )}
                                 title={`Set key size to ${variant}`}
@@ -218,9 +467,78 @@ const EditorLayoutInner = () => {
                                 {variant === 'default' ? 'Normal' : variant}
                             </button>
                         ))}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsAutoKeySize(true);
+                            }}
+                            className={cn(
+                                "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[4px] transition-all font-semibold border",
+                                isAutoKeySize
+                                    ? "bg-black text-white shadow-sm border-black"
+                                    : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
+                            )}
+                            title="Auto size based on window"
+                        >
+                            Auto
+                        </button>
+                    </div>
+
+                    {/* Layout mode toggle */}
+                    <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50 w-fit">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsAutoLayoutMode(false);
+                                setLayoutMode("sidebar");
+                            }}
+                            className={cn(
+                                "p-1 rounded-[4px] transition-all border",
+                                // In sidebar mode, this button is active
+                                !isAutoLayoutMode
+                                    ? "bg-black text-white shadow-sm border-black"
+                                    : "bg-gray-400 text-white border-gray-400"
+                            )}
+                            title="Sidebar layout (panel on right)"
+                        >
+                            <PanelRight className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsAutoLayoutMode(false);
+                                setLayoutMode("bottombar");
+                            }}
+                            className={cn(
+                                "p-1 rounded-[4px] transition-all border",
+                                // In sidebar mode, bottombar button is never active
+                                "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
+                            )}
+                            title="Bottom bar layout (panel on bottom)"
+                        >
+                            <PanelBottom className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsAutoLayoutMode(true);
+                            }}
+                            className={cn(
+                                "px-1.5 py-0.5 text-[10px] uppercase tracking-wide rounded-[4px] transition-all font-semibold border",
+                                isAutoLayoutMode
+                                    ? "bg-black text-white shadow-sm border-black"
+                                    : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
+                            )}
+                            title="Auto-switch layout based on window size"
+                        >
+                            Auto
+                        </button>
                     </div>
                 </div>
+                )}
             </div>
+            {/* Render BottomPanel at root level so it spans full width */}
+            {useBottomLayout && <BottomPanel leftOffset={primaryOffset} pickerMode={pickerMode} />}
         </div>
     );
 };

@@ -7,7 +7,11 @@ import { keyService } from "@/services/key.service";
 
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 
-const AudioKeys = () => {
+interface Props {
+    compact?: boolean;
+}
+
+const AudioKeys = ({ compact }: Props) => {
     const { assignKeycode } = useKeyBinding();
     const { keyboard } = useVial();
     const { selectedLayer } = useLayer();
@@ -55,11 +59,16 @@ const AudioKeys = () => {
         { keycode: "CMB_TOG", label: "Combo Toggle" },
     ];
 
+    // Compact mode shows all keys with smaller styling
+    const displayKeys = keys;
+
     return (
-        <div className="flex flex-col gap-2">
-            <span className="font-semibold text-lg text-slate-700">Audio and Haptic Keys</span>
-            <div className="flex flex-wrap gap-2">
-                {keys
+        <div className="flex flex-col gap-1">
+            <span className={compact ? "text-[9px] font-bold text-slate-500 uppercase" : "font-semibold text-lg text-slate-700"}>
+                {compact ? "Audio" : "Audio and Haptic Keys"}
+            </span>
+            <div className="flex flex-wrap gap-1">
+                {displayKeys
                     .map((k) => ({ ...k, displayLabel: keyService.define(k.keycode)?.str || k.label }))
                     .sort((a, b) => a.displayLabel.localeCompare(b.displayLabel))
                     .map((k) => (
@@ -76,8 +85,8 @@ const AudioKeys = () => {
                             layerColor="sidebar"
                             headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
                             isRelative
-                            variant={keyVariant}
-                            className={keySizeClass}
+                            variant={compact ? "small" : keyVariant}
+                            className={compact ? "h-[30px] w-[30px]" : keySizeClass}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}

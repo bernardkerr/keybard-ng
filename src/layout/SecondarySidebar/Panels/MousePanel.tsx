@@ -1,8 +1,10 @@
 import React, { useMemo } from "react";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
+import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useVial } from "@/contexts/VialContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
@@ -81,6 +83,9 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
     const { keyboard } = useVial();
     const { assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
+    const { layoutMode } = useLayoutSettings();
+
+    const isHorizontal = layoutMode === "bottombar";
 
     // Memoize hover colors based on selected layer
     const hoverStyles = useMemo(() => {
@@ -98,6 +103,55 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
 
     if (!keyboard || !hoverStyles) {
         return null;
+    }
+
+    // Group mouse keys by category
+    const mouseButtons = MOUSE_KEYS.filter(k => k.keycode.startsWith("KC_BTN"));
+    const mouseMovement = MOUSE_KEYS.filter(k => k.keycode.startsWith("KC_MS_"));
+    const mouseWheel = MOUSE_KEYS.filter(k => k.keycode.startsWith("KC_WH_"));
+    const mouseAccel = MOUSE_KEYS.filter(k => k.keycode.startsWith("KC_ACL"));
+    const svalKeys = MOUSE_KEYS.filter(k => k.keycode.startsWith("SV_"));
+
+    // Horizontal layout for bottom panel
+    if (isHorizontal) {
+        const renderKeyGroup = (keys: readonly MouseKeyDefinition[], label: string) => (
+            <div className="flex flex-col gap-1">
+                <span className="text-[9px] font-bold text-slate-500 uppercase">{label}</span>
+                <div className="flex flex-row gap-1 flex-wrap">
+                    {keys.map((mouseKey) => {
+                        const keyContents = getKeyContents(keyboard, mouseKey.keycode) as KeyContent;
+                        const displayLabel = keyService.define(mouseKey.keycode)?.str || mouseKey.label;
+                        return (
+                            <Key
+                                key={mouseKey.keycode}
+                                x={0} y={0} w={1} h={1} row={-1} col={-1}
+                                keycode={mouseKey.keycode}
+                                label={displayLabel}
+                                keyContents={keyContents}
+                                layerColor="sidebar"
+                                headerClassName={`bg-kb-sidebar-dark ${hoverStyles.hoverHeaderClass}`}
+                                isRelative
+                                variant="small"
+                                hoverBorderColor={hoverStyles.hoverBorderColor}
+                                hoverBackgroundColor={hoverStyles.hoverBackgroundColor}
+                                hoverLayerColor={hoverStyles.layerColorName}
+                                onClick={() => assignKeycode(mouseKey.keycode)}
+                            />
+                        );
+                    })}
+                </div>
+            </div>
+        );
+
+        return (
+            <div className="flex flex-row gap-3 h-full items-start flex-wrap content-start">
+                {renderKeyGroup(mouseButtons, "Buttons")}
+                {renderKeyGroup(mouseMovement, "Move")}
+                {renderKeyGroup(mouseWheel, "Wheel")}
+                {renderKeyGroup(mouseAccel, "Accel")}
+                {svalKeys.length > 0 && renderKeyGroup(svalKeys, "Svalboard")}
+            </div>
+        );
     }
 
     return (

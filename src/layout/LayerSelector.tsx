@@ -5,6 +5,7 @@ import { Ellipsis, Settings, Unplug, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
 import { svalService } from "@/services/sval.service";
@@ -20,6 +21,13 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    ContextMenu,
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuSeparator,
+    ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { KEYMAP } from "@/constants/keygen";
 import { usePanels } from "@/contexts/PanelsContext";
 
@@ -36,7 +44,9 @@ interface LayerSelectorProps {
 const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer }) => {
     const { keyboard, setKeyboard } = useVial();
     const { clearSelection } = useKeyBinding();
+    const { layoutMode } = useLayoutSettings();
 
+    const isCompact = layoutMode === "bottombar";
 
     // UI state
     const [showAllLayers, setShowAllLayers] = useState(true);
@@ -44,6 +54,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
     const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
     const [isCustomColorOpen, setIsCustomColorOpen] = useState(false);
     const [editValue, setEditValue] = useState("");
+    const [isHovered, setIsHovered] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const pickerRef = useRef<HTMLDivElement>(null);
 
@@ -318,10 +329,185 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
         )
     }
 
+    // Render a layer tab with context menu for right-click actions
+    const renderLayerTab = (i: number) => {
+        const layerData = keyboard.keymap?.[i];
+        const isEmpty = layerData ? vialService.isLayerEmpty(layerData) : true;
+
+        // Filter out empty layers if filter is active
+        if (!showAllLayers && isEmpty && i !== selectedLayer) {
+            return null;
+        }
+
+        const layerShortName = svalService.getLayerNameNoLabel(keyboard, i);
+        const isActive = selectedLayer === i;
+
+        return (
+            <ContextMenu key={`layer-tab-${i}`}>
+                <ContextMenuTrigger asChild>
+                    <button
+                        onClick={handleSelectLayer(i)}
+                        onDoubleClick={handleStartEditing}
+                        className={cn(
+                            "px-4 py-1 rounded-full transition-all text-sm font-medium cursor-pointer border-none outline-none whitespace-nowrap",
+                            isActive
+                                ? "bg-gray-800 text-white shadow-md scale-105"
+                                : "bg-transparent text-gray-600 hover:bg-gray-200"
+                        )}
+                    >
+                        <span>{layerShortName}</span>
+                    </button>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-56">
+                    <ContextMenuItem onSelect={handleStartEditing}>
+                        Rename Layer
+                    </ContextMenuItem>
+                    <ContextMenuItem onSelect={() => setIsColorPickerOpen(true)}>
+                        Change Color
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem onSelect={handleCopyLayer}>
+                        Copy Layer
+                    </ContextMenuItem>
+                    <ContextMenuItem onSelect={handlePasteLayer}>
+                        Paste Layer
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem onSelect={handleWipeDisable}>
+                        Make All Blank
+                    </ContextMenuItem>
+                    <ContextMenuItem onSelect={handleWipeTransparent}>
+                        Make All Transparent
+                    </ContextMenuItem>
+                    <ContextMenuItem onSelect={handleChangeDisabledToTransparent}>
+                        Switch Blank to Transparent
+                    </ContextMenuItem>
+                </ContextMenuContent>
+            </ContextMenu>
+        );
+    };
+
+    // In compact mode, show a thin hint bar that expands as an absolute overlay on hover
+    if (isCompact) {
+        const showExpanded = isHovered || isColorPickerOpen || isEditing;
+
+        return (
+            <div
+                className="w-full h-1 relative"
+                onClick={(e) => e.stopPropagation()}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+            >
+                {/* Thin hint bar - always visible as hover target */}
+                <div className={cn(
+                    "absolute top-0 left-0 right-0 h-2 bg-gradient-to-b from-gray-300/30 to-transparent cursor-pointer z-30 transition-opacity duration-200",
+                    showExpanded ? "opacity-0" : "opacity-100"
+                )} />
+
+                {/* Expanded overlay - absolute positioned, doesn't push content */}
+                <div className={cn(
+                    "absolute top-0 left-0 right-0 z-40 transition-all duration-200 bg-white/98 backdrop-blur-sm shadow-md border-b border-gray-200",
+                    showExpanded ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none -translate-y-1"
+                )}>
+                    <div className="flex items-center justify-between px-3 py-1.5">
+                        {/* Layer tabs */}
+                        <div className="flex flex-row items-center gap-1 overflow-x-auto">
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={toggleShowLayers}
+                                        className="hover:bg-gray-200 p-1 rounded-md transition-colors text-black flex items-center justify-center flex-shrink-0"
+                                        aria-label={showAllLayers ? "Hide Blank Layers" : "Show All Layers"}
+                                    >
+                                        {showAllLayers ? <LayersDefaultIcon className="h-4 w-4" /> : <LayersActiveIcon className="h-4 w-4" />}
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                    {showAllLayers ? "Hide Blank Layers" : "Show All Layers"}
+                                </TooltipContent>
+                            </Tooltip>
+
+                            <div className="flex flex-row gap-1">
+                                {Array.from({ length: keyboard.layers || 16 }, (_, i) => renderLayerTab(i))}
+                            </div>
+                        </div>
+
+                        {/* Color picker and layer name */}
+                        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                            <div className="relative" ref={pickerRef}>
+                                <div
+                                    className={cn(
+                                        "w-4 h-4 rounded-full shadow-sm cursor-pointer transition-transform hover:scale-110 border",
+                                        isColorPickerOpen ? "border-black" : "border-transparent"
+                                    )}
+                                    style={{ backgroundColor: currentColorHex }}
+                                    onClick={() => setIsColorPickerOpen(!isColorPickerOpen)}
+                                />
+                                {isColorPickerOpen && (
+                                    <div className="absolute top-[calc(100%+4px)] right-0 z-50 bg-[#EEEEEE] rounded-2xl p-1.5 flex flex-row items-center gap-1 shadow-xl border border-gray-200">
+                                        {allColors.map((color) => (
+                                            <button
+                                                key={color.name}
+                                                className={cn(
+                                                    "w-4 h-4 rounded-full transition-all hover:scale-110 border",
+                                                    currentLayerColorName === color.name ? "border-black" : "border-transparent"
+                                                )}
+                                                style={{ backgroundColor: color.hex }}
+                                                onClick={() => handleSetColor(color.name)}
+                                                title={color.name}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {isEditing ? (
+                                <Input
+                                    ref={inputRef}
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    onBlur={handleSave}
+                                    onKeyDown={handleKeyDown}
+                                    className="h-6 py-0 px-2 text-xs font-bold border border-black rounded w-24"
+                                    autoFocus
+                                />
+                            ) : (
+                                <span
+                                    className="text-xs font-semibold text-gray-700 cursor-pointer hover:text-black"
+                                    onClick={handleStartEditing}
+                                    title="Click to rename"
+                                >
+                                    {svalService.getLayerName(keyboard, selectedLayer)}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Custom Color Dialog */}
+                <CustomColorDialog
+                    open={isCustomColorOpen}
+                    onOpenChange={setIsCustomColorOpen}
+                    initialHue={keyboard.layer_colors?.[selectedLayer]?.hue ?? 85}
+                    initialSat={keyboard.layer_colors?.[selectedLayer]?.sat ?? 255}
+                    initialVal={keyboard.layer_colors?.[selectedLayer]?.val ?? 200}
+                    onApply={handleSetCustomColor}
+                    layerName={svalService.getLayerName(keyboard, selectedLayer)}
+                />
+            </div>
+        );
+    }
+
+    // Standard layout for sidebar mode
     return (
-        <div className="w-full flex flex-col pt-4" onClick={(e) => e.stopPropagation()}>
+        <div
+            className="w-full flex flex-col pt-4"
+            onClick={(e) => e.stopPropagation()}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
             {/* Top Toolbar: Filter toggle and Layer Tabs */}
-            <div className="py-3 overflow-hidden flex-shrink-0 flex items-center justify-start text-gray-500 gap-1 pl-4 w-full">
+            <div className="overflow-hidden flex-shrink-0 flex items-center justify-start text-gray-500 gap-1 pl-4 w-full py-3">
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <button
@@ -337,45 +523,18 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                     </TooltipContent>
                 </Tooltip>
 
-                <div className="max-w-full flex flex-row overflow-visible flex-grow-0 gap-2 p-1">
-                    {Array.from({ length: keyboard.layers || 16 }, (_, i) => {
-                        const layerData = keyboard.keymap?.[i];
-                        const isEmpty = layerData ? vialService.isLayerEmpty(layerData) : true;
-
-                        // Filter out empty layers if filter is active
-                        if (!showAllLayers && isEmpty && i !== selectedLayer) {
-                            return null;
-                        }
-
-                        const layerShortName = svalService.getLayerNameNoLabel(keyboard, i);
-                        const isActive = selectedLayer === i;
-
-                        return (
-                            <button
-                                key={`layer-tab-${i}`}
-                                onClick={handleSelectLayer(i)}
-                                onDoubleClick={handleStartEditing}
-                                className={cn(
-                                    "px-5 py-1 rounded-full transition-all text-sm font-medium cursor-pointer border-none outline-none whitespace-nowrap",
-                                    isActive
-                                        ? "bg-gray-800 text-white shadow-md scale-105"
-                                        : "bg-transparent text-gray-600 hover:bg-gray-200"
-                                )}
-                            >
-                                <span>{layerShortName}</span>
-                            </button>
-                        );
-                    })}
+                <div className="max-w-full flex flex-row overflow-visible flex-grow-0 gap-1 p-1">
+                    {Array.from({ length: keyboard.layers || 16 }, (_, i) => renderLayerTab(i))}
                 </div>
             </div>
 
             {/* Bottom Status: Current Layer Name and Edit Trigger */}
-            <div className="mt-2 flex justify-start items-center px-5 py-2 relative">
+            <div className="flex justify-start items-center px-5 py-2 relative mt-2">
                 {/* Color Dot with Picker */}
                 <div className="relative mr-3 left-px" ref={pickerRef}>
                     <div
                         className={cn(
-                            "w-6 h-6 rounded-full shadow-sm cursor-pointer transition-transform hover:scale-110 border-2",
+                            "w-5 h-5 rounded-full shadow-sm cursor-pointer transition-transform hover:scale-110 border-2",
                             isColorPickerOpen ? "border-black" : "border-transparent"
                         )}
                         style={{ backgroundColor: currentColorHex }}
@@ -388,7 +547,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                                 <button
                                     key={color.name}
                                     className={cn(
-                                        "w-6 h-6 rounded-full transition-all hover:scale-110 border-2",
+                                        "w-5 h-5 rounded-full transition-all hover:scale-110 border-2",
                                         currentLayerColorName === color.name
                                             ? "border-black border-3"
                                             : "border-transparent"
@@ -401,21 +560,21 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                             {/* Custom color button - only show when connected to keyboard */}
                             {isConnected ? (
                                 <button
-                                    className="w-6 h-6 rounded-full transition-all hover:scale-110 border-2 border-transparent bg-gray-200 flex items-center justify-center"
+                                    className="w-5 h-5 rounded-full transition-all hover:scale-110 border-2 border-transparent bg-gray-200 flex items-center justify-center"
                                     onClick={() => {
                                         setIsColorPickerOpen(false);
                                         setIsCustomColorOpen(true);
                                     }}
                                     title="Custom color"
                                 >
-                                    <Settings className="w-3.5 h-3.5 text-gray-600" />
+                                    <Settings className="w-3 h-3 text-gray-600" />
                                 </button>
                             ) : null}
                         </div>
                     )}
                 </div>
 
-                <div className="flex flex-col gap-1 ml-2">
+                <div className="flex flex-col gap-1 ml-1">
                     {isEditing ? (
                         <div className="flex items-center gap-2 bg-white rounded-md px-1 py-0.5 border border-black shadow-sm">
                             <Input
@@ -424,13 +583,13 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                                 onChange={(e) => setEditValue(e.target.value)}
                                 onBlur={handleSave}
                                 onKeyDown={handleKeyDown}
-                                className="h-auto py-1 px-2 text-lg font-bold border-none focus-visible:ring-0 w-auto min-w-[200px]"
+                                className="h-auto py-1 px-2 text-base font-bold border-none focus-visible:ring-0 w-auto min-w-[150px]"
                                 autoFocus
                             />
                         </div>
                     ) : (
                         <div
-                            className="text-lg flex justify-start items-center cursor-pointer group hover:bg-black/5 rounded-md px-2 py-1 transition-colors"
+                            className="text-sm flex justify-start items-center cursor-pointer group hover:bg-black/5 rounded-md px-2 py-0.5 transition-colors"
                             onClick={handleStartEditing}
                             title="Click to rename"
                         >
@@ -439,38 +598,39 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                             </span>
                         </div>
                     )}
-
-
                 </div>
 
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <button className="ml-2 hover:bg-black/5 p-1 rounded-full transition-colors flex items-center justify-center text-black outline-none">
-                            <Ellipsis size={18} strokeWidth={1.5} />
-                        </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-64">
-                        <DropdownMenuItem disabled>
-                            Apply
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={handleCopyLayer}>
-                            Copy
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={handlePasteLayer}>
-                            Paste
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={handleWipeDisable}>
-                            Make All Blank
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={handleWipeTransparent}>
-                            Make All Transparent
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={handleChangeDisabledToTransparent}>
-                            Switch Blank to Transparent
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                {/* Only show ellipsis in non-compact mode */}
+                {!isCompact && (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button className="ml-2 hover:bg-black/5 p-1 rounded-full transition-colors flex items-center justify-center text-black outline-none">
+                                <Ellipsis size={18} strokeWidth={1.5} />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-64">
+                            <DropdownMenuItem disabled>
+                                Apply
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handleCopyLayer}>
+                                Copy
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handlePasteLayer}>
+                                Paste
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onSelect={handleWipeDisable}>
+                                Make All Blank
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handleWipeTransparent}>
+                                Make All Transparent
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={handleChangeDisabledToTransparent}>
+                                Switch Blank to Transparent
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
             </div>
 
             {/* Custom Color Dialog */}

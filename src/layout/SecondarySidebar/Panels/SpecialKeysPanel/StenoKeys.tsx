@@ -7,7 +7,11 @@ import { keyService } from "@/services/key.service";
 
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 
-const StenoKeys = () => {
+interface Props {
+    compact?: boolean;
+}
+
+const StenoKeys = ({ compact }: Props) => {
     const { assignKeycode } = useKeyBinding();
     const { keyboard } = useVial();
     const { selectedLayer } = useLayer();
@@ -17,7 +21,10 @@ const StenoKeys = () => {
     const hoverBorderColor = hoverBorderClasses[layerColorName] || hoverBorderClasses["primary"];
     const hoverBackgroundColor = hoverBackgroundClasses[layerColorName] || hoverBackgroundClasses["primary"];
     const hoverHeaderClass = hoverHeaderClasses[layerColorName] || hoverHeaderClasses["primary"];
-    const keySizeClass = keyVariant === 'small' ? 'h-[30px] w-[30px]' : keyVariant === 'medium' ? 'h-[45px] w-[45px]' : 'h-[60px] w-[60px]';
+
+    // Use small size in compact mode, otherwise use keyVariant
+    const effectiveVariant = compact ? 'small' : keyVariant;
+    const keySizeClass = effectiveVariant === 'small' ? 'h-[30px] w-[30px]' : effectiveVariant === 'medium' ? 'h-[45px] w-[45px]' : 'h-[60px] w-[60px]';
 
     const group1Keys = [
         { keycode: "STN_N1", label: "#₁" },
@@ -76,6 +83,38 @@ const StenoKeys = () => {
         ...group2Keys
     ];
 
+    if (compact) {
+        return (
+            <div className="flex flex-col gap-1">
+                <span className="text-[9px] font-bold text-slate-500 uppercase">Steno</span>
+                <div className="flex flex-row gap-1 flex-wrap">
+                    {keys.map((k) => (
+                        <Key
+                            key={k.keycode}
+                            x={0}
+                            y={0}
+                            w={1}
+                            h={1}
+                            row={0}
+                            col={0}
+                            keycode={k.keycode}
+                            label={keyService.define(k.keycode)?.str || k.label}
+                            layerColor="sidebar"
+                            headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
+                            isRelative
+                            variant="small"
+                            className="h-[30px] w-[30px]"
+                            hoverBorderColor={hoverBorderColor}
+                            hoverBackgroundColor={hoverBackgroundColor}
+                            hoverLayerColor={layerColorName}
+                            onClick={() => assignKeycode(k.keycode)}
+                        />
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col gap-2">
             <span className="font-semibold text-lg text-slate-700">Steno Keys</span>
@@ -94,7 +133,7 @@ const StenoKeys = () => {
                         layerColor="sidebar"
                         headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
                         isRelative
-                        variant={keyVariant}
+                        variant={effectiveVariant}
                         className={keySizeClass}
                         hoverBorderColor={hoverBorderColor}
                         hoverBackgroundColor={hoverBackgroundColor}

@@ -8,6 +8,7 @@ import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { qmkService } from "@/services/qmk.service";
 import { useVial } from "@/contexts/VialContext";
 import { useLayer } from "@/contexts/LayerContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
@@ -20,6 +21,7 @@ const LeadersPanel: React.FC = () => {
     const { keyboard, setKeyboard, isConnected } = useVial();
     const { selectLeaderKey, assignKeycode, isBinding } = useKeyBinding();
     const { selectedLayer } = useLayer();
+    const { layoutMode } = useLayoutSettings();
     const {
         setItemToEdit,
         setBindingTypeToEdit,
@@ -28,6 +30,8 @@ const LeadersPanel: React.FC = () => {
     } = usePanels();
     const [savingTimeout, setSavingTimeout] = useState(false);
     const [savingPerKey, setSavingPerKey] = useState(false);
+
+    const isHorizontal = layoutMode === "bottombar";
 
     if (!keyboard) return null;
 
@@ -155,6 +159,72 @@ const LeadersPanel: React.FC = () => {
 
     // Custom key contents for the placeable key with explicit label
     const leaderKeyContents: KeyContent = { str: "Leader", type: "special" };
+
+    // Horizontal layout for bottom panel
+    if (isHorizontal) {
+        return (
+            <div className="flex flex-row gap-3 h-full items-start flex-wrap content-start">
+                {/* Leader key */}
+                <div className="flex flex-col gap-1 flex-shrink-0">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase">Key</span>
+                    <Key
+                        isRelative
+                        x={0} y={0} w={1} h={1} row={-1} col={-1}
+                        keycode="QK_LEADER"
+                        label="Leader"
+                        keyContents={leaderKeyContents}
+                        layerColor="sidebar"
+                        headerClassName="bg-kb-sidebar-dark"
+                        variant="small"
+                        onClick={handleAssignLeaderKey}
+                    />
+                </div>
+
+                {/* Leader entries */}
+                <div className="flex flex-row gap-2 flex-wrap items-start">
+                    {leaders.map((entry, i) => {
+                        const enabled = isEnabled(entry.options);
+                        const hasSequence = entry.sequence.some(k => k !== "KC_NO" && k !== "");
+                        const hasOutput = entry.output !== "KC_NO" && entry.output !== "";
+                        const isDefined = hasSequence || hasOutput;
+
+                        if (!isDefined) return null;
+
+                        return (
+                            <div
+                                key={i}
+                                className={cn(
+                                    "flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors",
+                                    !enabled && "opacity-50"
+                                )}
+                                onClick={() => handleEdit(i)}
+                            >
+                                <span className="text-[9px] font-bold text-slate-600 mb-1">L{i}</span>
+                                <div className="flex flex-row items-center gap-0.5">
+                                    {entry.sequence.slice(0, 5).map((keycode, seqIdx) => {
+                                        if (keycode === "KC_NO" || keycode === "") return null;
+                                        return (
+                                            <React.Fragment key={seqIdx}>
+                                                {seqIdx > 0 && <span className="text-[8px] text-gray-400">→</span>}
+                                                {renderSmallKey(keycode, i, "sequence", seqIdx, false)}
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                    <ArrowRight className="w-2 h-2 text-gray-400 mx-0.5" />
+                                    {renderSmallKey(entry.output, i, "output", undefined, false)}
+                                </div>
+                            </div>
+                        );
+                    })}
+                    {leaders.filter(e => e.sequence.some(k => k !== "KC_NO" && k !== "") || (e.output !== "KC_NO" && e.output !== "")).length === 0 && (
+                        <div className="text-center text-gray-500 py-2 px-4 text-sm">
+                            No leader sequences configured.
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col pt-3">

@@ -2,8 +2,10 @@ import { useState } from "react";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { Button } from "@/components/ui/button";
+import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
 import { svalService } from "@/services/sval.service";
@@ -39,6 +41,9 @@ const LayersPanel = ({ isPicker }: Props) => {
     const { keyboard, setKeyboard } = useVial();
     const { assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
+    const { layoutMode } = useLayoutSettings();
+
+    const isHorizontal = layoutMode === "bottombar";
 
     if (!keyboard) return null;
 
@@ -71,6 +76,60 @@ const LayersPanel = ({ isPicker }: Props) => {
             setKeyboard({ ...keyboard, cosmetic });
         }
     };
+
+    // Horizontal layout for bottom panel
+    if (isHorizontal) {
+        return (
+            <div className="flex flex-row gap-3 h-full items-start flex-wrap content-start">
+                {/* Modifier tabs - compact vertical */}
+                <div className="flex flex-col gap-0.5 flex-shrink-0">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase mb-0.5">Type</span>
+                    {LAYER_MODIFIERS.map((modifier) => {
+                        const isActive = modifier === activeModifier;
+                        return (
+                            <button
+                                key={modifier}
+                                onClick={() => setActiveModifier(modifier)}
+                                className={cn(
+                                    "px-2 py-0.5 text-[10px] font-bold rounded transition-all",
+                                    isActive ? "bg-black text-white" : "text-gray-500 hover:bg-gray-100"
+                                )}
+                            >
+                                {modifier}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* Layer keys grid */}
+                <div className="flex flex-row gap-1 flex-wrap items-start">
+                    {Array.from({ length: keyboard.layers || 16 }, (_, i) => {
+                        const layerName = (svalService.getLayerCosmetic(keyboard, i) || "").trim();
+                        const keycode = activeModifier === "LT" ? `LT${i}(kc)` : `${activeModifier}(${i})`;
+                        const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
+
+                        return (
+                            <Key
+                                key={i}
+                                x={0} y={0} w={1} h={1} row={-1} col={-1}
+                                keycode={keycode}
+                                label={layerName || i.toString()}
+                                keyContents={keyContents}
+                                layerColor="sidebar"
+                                headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
+                                isRelative
+                                variant="small"
+                                hoverBorderColor={hoverBorderColor}
+                                hoverBackgroundColor={hoverBackgroundColor}
+                                hoverLayerColor={layerColorName}
+                                onClick={() => assignKeycode(keycode)}
+                            />
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col">

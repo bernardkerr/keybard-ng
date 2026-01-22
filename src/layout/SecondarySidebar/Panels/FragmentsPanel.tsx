@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useVial } from "@/contexts/VialContext";
 import { vialService } from "@/services/vial.service";
 import type { FragmentInstance } from "@/types/vial.types";
@@ -15,7 +16,9 @@ import type { FragmentInstance } from "@/types/vial.types";
 const FragmentsPanel: React.FC = () => {
     const { keyboard, setKeyboard } = useVial();
     const [updating, setUpdating] = useState<number | null>(null);
+    const { layoutMode } = useLayoutSettings();
 
+    const isHorizontal = layoutMode === "bottombar";
     const fragmentService = vialService.getFragmentService();
 
     // Handle fragment selection change
@@ -79,6 +82,44 @@ const FragmentsPanel: React.FC = () => {
                     No selectable fragment positions available.
                 </div>
             </section>
+        );
+    }
+
+    // Horizontal layout for bottom panel
+    if (isHorizontal) {
+        return (
+            <div className="flex flex-row gap-3 h-full items-start flex-wrap content-start">
+                {selectableInstances.map(({ idx, instance }) => {
+                    const options = fragmentService.getFragmentOptions(instance);
+                    const currentFragment = fragmentService.resolveFragment(keyboard, idx, instance);
+                    const instanceDisplayName = fragmentService.getInstanceDisplayName(instance.id);
+                    const isUpdating = updating === idx;
+
+                    return (
+                        <div key={instance.id} className="flex flex-col gap-1 min-w-[120px]">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase truncate">
+                                {instanceDisplayName}
+                            </span>
+                            <Select
+                                value={currentFragment}
+                                onValueChange={(value) => handleSelectionChange(idx, instance, value)}
+                                disabled={isUpdating}
+                            >
+                                <SelectTrigger className="h-7 text-xs">
+                                    <SelectValue placeholder="Select" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {options.map((fragmentName) => (
+                                        <SelectItem key={fragmentName} value={fragmentName} className="text-xs">
+                                            {fragmentService.getFragmentDisplayName(keyboard, fragmentName)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    );
+                })}
+            </div>
         );
     }
 

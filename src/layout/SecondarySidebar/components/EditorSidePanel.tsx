@@ -48,10 +48,45 @@ interface Props {
     activeTab?: PickerMode;
     onTabChange?: (tab: PickerMode) => void;
     showMacros?: boolean;
+    horizontal?: boolean;
 }
 
-const EditorSidePanel: FC<Props> = ({ className, activeTab, onTabChange, showMacros = true }) => {
+const EditorSidePanel: FC<Props> = ({ className, activeTab, onTabChange, showMacros = true, horizontal = false }) => {
     const visibleIcons = showMacros ? iconsToShow : iconsToShow.filter((i) => i.panel !== "macros");
+
+    if (horizontal) {
+        return (
+            <div className={cn("w-full items-center justify-center flex", className)}>
+                <div className="flex items-center flex-row justify-center gap-1">
+                    {visibleIcons.map((i) => (
+                        <Tooltip key={i.panel}>
+                            <TooltipTrigger asChild>
+                                <button
+                                    className={cn(
+                                        "cursor-pointer transition-colors px-3 py-2 rounded-md flex items-center gap-2",
+                                        activeTab === i.panel
+                                            ? "bg-black text-white"
+                                            : "text-gray-500 hover:text-slate-900 hover:bg-gray-100"
+                                    )}
+                                    onClick={() => {
+                                        if (onTabChange) {
+                                            onTabChange(i.panel);
+                                        }
+                                    }}
+                                >
+                                    {i.icon}
+                                    <span className="text-xs font-medium">{i.title}</span>
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                {i.title}
+                            </TooltipContent>
+                        </Tooltip>
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={cn("h-full items-center justify-start flex", className)}>

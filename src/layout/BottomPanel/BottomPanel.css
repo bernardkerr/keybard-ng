@@ -1,0 +1,57 @@
+/* Bottom Panel Styles */
+
+.bottom-panel {
+    /* Ensure smooth transitions */
+    will-change: transform, opacity;
+}
+
+.bottom-panel-content {
+    /* Allow horizontal scrolling for wide content */
+    scrollbar-width: thin;
+    scrollbar-color: #ccc transparent;
+}
+
+.bottom-panel-content::-webkit-scrollbar {
+    height: 6px;
+}
+
+.bottom-panel-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.bottom-panel-content::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 3px;
+}
+
+.bottom-panel-content::-webkit-scrollbar-thumb:hover {
+    background-color: #aaa;
+}
+
+/* Inner container for horizontal layout */
+.bottom-panel-inner {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1rem;
+    width: 100%;
+}
+
+/* Override panel styles for horizontal layout in bottom panel */
+.bottom-panel .space-y-6 {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.bottom-panel .space-y-6 > * {
+    flex-shrink: 0;
+}
+
+/* Sticky modifiers section should not be sticky in bottom panel */
+.bottom-panel .sticky {
+    position: relative;
+    top: auto;
+}

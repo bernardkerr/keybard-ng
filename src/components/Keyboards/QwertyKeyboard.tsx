@@ -12,14 +12,17 @@ import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 interface IProps {
     onKeyPress?: (button: string) => void;
     activeModifiers?: string[];
+    hideLanguageSelector?: boolean;
 }
 
-const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallback, activeModifiers = [] }) => {
+const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallback, activeModifiers = [], hideLanguageSelector = false }) => {
     const [layoutName, setLayoutName] = useState<"default" | "shift">("default");
-    const { internationalLayout, setInternationalLayout } = useLayoutSettings();
+    const { internationalLayout, setInternationalLayout, layoutMode } = useLayoutSettings();
     const { keyboard } = useVial();
     const { selectedLayer } = useLayer();
     const { isBinding } = useKeyBinding();
+
+    const isCompact = layoutMode === "bottombar";
 
     const layerColorName = keyboard?.cosmetic?.layer_colors?.[selectedLayer] || "primary";
     const hoverBorderColor = hoverBorderClasses[layerColorName] || hoverBorderClasses["primary"];
@@ -122,20 +125,40 @@ const QwertyKeyboard: FunctionComponent<IProps> = ({ onKeyPress: onKeyPressCallb
     };
 
     return (
-        <div className="flex flex-col gap-2 scale-[0.95] origin-top">
-            <div className="flex flex-row items-center gap-2">
-                <select
-                    className="border rounded-md text-lg text-slate-600 py-4 border-none !outline-none focus:border-none focus:outline-none cursor-pointer font-semibold "
-                    value={internationalLayout}
-                    onChange={(e) => setInternationalLayout(e.target.value)}
-                >
-                    {Object.values(LAYOUTS).map((kb) => (
-                        <option key={kb.value} value={kb.value}>
-                            {kb.label}
-                        </option>
-                    ))}
-                </select>
-            </div>
+        <div className={`flex flex-col gap-1 ${isCompact ? '' : 'scale-[0.95]'} origin-top`}>
+            {/* Language selector - hidden when hideLanguageSelector is true */}
+            {!hideLanguageSelector && (
+                isCompact ? (
+                    <div className="flex flex-row items-center justify-end -mb-1">
+                        <select
+                            className="border rounded text-[10px] text-slate-500 py-0.5 px-1 border-gray-200 bg-gray-50 !outline-none focus:border-gray-300 cursor-pointer"
+                            value={internationalLayout}
+                            onChange={(e) => setInternationalLayout(e.target.value)}
+                            title="Keyboard layout"
+                        >
+                            {Object.values(LAYOUTS).map((kb) => (
+                                <option key={kb.value} value={kb.value}>
+                                    {kb.value.toUpperCase()}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                ) : (
+                    <div className="flex flex-row items-center gap-2">
+                        <select
+                            className="border rounded-md text-lg text-slate-600 py-4 border-none !outline-none focus:border-none focus:outline-none cursor-pointer font-semibold"
+                            value={internationalLayout}
+                            onChange={(e) => setInternationalLayout(e.target.value)}
+                        >
+                            {Object.values(LAYOUTS).map((kb) => (
+                                <option key={kb.value} value={kb.value}>
+                                    {kb.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )
+            )}
 
             <div className="flex flex-col gap-1">
                 {currentLayout.default.map((row, i) => (

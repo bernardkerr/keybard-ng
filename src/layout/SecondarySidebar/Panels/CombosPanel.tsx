@@ -5,6 +5,7 @@ import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow"
 import { Input } from "@/components/ui/input";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayer } from "@/contexts/LayerContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { qmkService } from "@/services/qmk.service";
@@ -19,12 +20,15 @@ const CombosPanel: React.FC = () => {
     const { keyboard, setKeyboard, isConnected } = useVial();
     const { assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
+    const { layoutMode } = useLayoutSettings();
     const {
         setItemToEdit,
         setBindingTypeToEdit,
         setAlternativeHeader,
     } = usePanels();
     const [saving, setSaving] = useState(false);
+
+    const isHorizontal = layoutMode === "bottombar";
 
     if (!keyboard) return null;
 
@@ -65,6 +69,85 @@ const CombosPanel: React.FC = () => {
         setAlternativeHeader(true);
     };
 
+    const isKeyAssigned = (content: KeyContent | undefined) => {
+        if (!content) return false;
+        const top = content.top;
+        const str = content.str;
+        return (top && top !== "KC_NO" && top !== "TRNS") || (str && str !== "KC_NO" && str !== "");
+    };
+
+    const renderSmallKey = (content: KeyContent, idx: number, comboIndex: number) => {
+        const hasContent = isKeyAssigned(content);
+        return (
+            <div key={idx} className="relative w-[30px] h-[30px]">
+                <Key
+                    isRelative
+                    x={0} y={0} w={1} h={1} row={-1} col={-1}
+                    keycode={content?.top || "KC_NO"}
+                    label={content?.str || ""}
+                    keyContents={content}
+                    layerColor={hasContent ? "sidebar" : undefined}
+                    className={hasContent ? "border-kb-gray" : "bg-transparent border border-kb-gray-border"}
+                    headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
+                    variant="small"
+                    onClick={() => handleEdit(comboIndex)}
+                />
+            </div>
+        );
+    };
+
+    // Horizontal grid layout for bottom panel
+    if (isHorizontal) {
+        return (
+            <div className="flex flex-row gap-3 h-full items-start pt-2">
+                {combos.map((comboEntry, i) => {
+                    const combo = comboEntry as any as import("@/types/vial.types").ComboEntry;
+
+                    const inputs = [0, 1, 2, 3].map(idx => ({
+                        content: getKeyContents(keyboard, combo.keys[idx] || "KC_NO") as KeyContent,
+                        id: idx
+                    })).filter(k => isKeyAssigned(k.content));
+
+                    const resultKeycode = combo.output;
+                    const result = getKeyContents(keyboard, resultKeycode || "KC_NO") as KeyContent;
+                    const hasAssignment = inputs.length > 0 || isKeyAssigned(result);
+
+                    if (!hasAssignment) return null;
+
+                    return (
+                        <div
+                            key={i}
+                            className="flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors min-w-[100px]"
+                            onClick={() => handleEdit(i)}
+                        >
+                            <span className="text-xs font-bold text-center mb-1 text-slate-600">Combo {i}</span>
+                            <div className="flex flex-row items-center justify-center gap-1 flex-wrap">
+                                {inputs.map((input, idx) => (
+                                    <React.Fragment key={input.id}>
+                                        {idx > 0 && <Plus className="w-2 h-2 text-gray-400" />}
+                                        {renderSmallKey(input.content, input.id, i)}
+                                    </React.Fragment>
+                                ))}
+                                <ArrowRight className="w-3 h-3 text-gray-400 mx-1" />
+                                {renderSmallKey(result, 4, i)}
+                            </div>
+                        </div>
+                    );
+                })}
+                {combos.filter(combo => {
+                    const c = combo as any;
+                    const inputs = [0, 1, 2, 3].map(idx => c.keys?.[idx]).filter(k => k && k !== "KC_NO");
+                    return inputs.length > 0 || (c.output && c.output !== "KC_NO");
+                }).length === 0 && (
+                    <div className="text-center text-gray-500 py-4 px-6">
+                        No combos configured.
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Vertical list layout for sidebar (original)
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
             {/* Combo Timeout Setting */}
@@ -94,60 +177,30 @@ const CombosPanel: React.FC = () => {
             {/* Scrollable Combos List */}
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
                 {combos.map((comboEntry, i) => {
-                    // Cast to unknown first if there are type mismatches, but ideally use ComboEntry
                     const combo = comboEntry as any as import("@/types/vial.types").ComboEntry;
-
-                    const isKeyAssigned = (content: KeyContent | undefined) => {
-                        if (!content) return false;
-                        const top = content.top;
-                        const str = content.str;
-                        return (top && top !== "KC_NO" && top !== "TRNS") || (str && str !== "KC_NO" && str !== "");
-                    };
 
                     const inputs = [0, 1, 2, 3].map(idx => ({
                         content: getKeyContents(keyboard, combo.keys[idx] || "KC_NO") as KeyContent,
                         id: idx
                     })).filter(k => isKeyAssigned(k.content));
 
-                    // Use resultKeycode directly if available, otherwise KC_NO
                     const resultKeycode = combo.output;
                     const result = getKeyContents(keyboard, resultKeycode || "KC_NO") as KeyContent;
                     const hasAssignment = inputs.length > 0 || isKeyAssigned(result);
-
-                    const renderSmallKey = (content: KeyContent, idx: number) => {
-                        const hasContent = (content?.top && content.top !== "KC_NO") || (content?.str && content.str !== "KC_NO" && content.str !== "");
-                        return (
-                            <div key={idx} className="relative w-[30px] h-[30px]">
-                                <Key
-                                    isRelative
-                                    x={0} y={0} w={1} h={1} row={-1} col={-1}
-                                    keycode={content?.top || "KC_NO"}
-                                    label={content?.str || ""}
-                                    keyContents={content}
-                                    layerColor={hasContent ? "sidebar" : undefined}
-                                    className={hasContent ? "border-kb-gray" : "bg-transparent border border-kb-gray-border"}
-                                    headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
-                                    variant="small"
-                                    onClick={() => handleEdit(i)}
-                                />
-                            </div>
-                        );
-                    };
 
                     const rowChildren = hasAssignment ? (
                         <div className="flex flex-row items-center gap-1 ml-4 overflow-hidden">
                             {inputs.map((input, idx) => (
                                 <React.Fragment key={input.id}>
                                     {idx > 0 && <Plus className="w-3 h-3 text-black" />}
-                                    {renderSmallKey(input.content, input.id)}
+                                    {renderSmallKey(input.content, input.id, i)}
                                 </React.Fragment>
                             ))}
                             <ArrowRight className="w-3 h-3 text-black mx-1" />
-                            {renderSmallKey(result, 4)}
+                            {renderSmallKey(result, 4, i)}
                         </div>
                     ) : undefined;
 
-                    // Restore visual style: use "combo" type for icon and index for label
                     const keyContents = { type: "combo" } as KeyContent;
 
                     return (

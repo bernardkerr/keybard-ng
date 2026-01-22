@@ -22,6 +22,7 @@ import { KeyContent } from "@/types/vial.types";
 
 interface Props {
     shouldClose?: boolean;
+    inline?: boolean; // When true, renders inline without absolute positioning (for overlay mode)
 }
 
 const icons = {
@@ -41,7 +42,7 @@ const labels = {
     leaders: "Leader Sequence",
 };
 
-const BindingEditorContainer: FC<Props> = ({ shouldClose }) => {
+const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
     const { itemToEdit, handleCloseEditor, bindingTypeToEdit } = usePanels();
     const [isClosing, setIsClosing] = useState(false);
 
@@ -104,15 +105,26 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose }) => {
         }
     };
 
-    const containerClasses = cn("absolute top-1/2 -translate-y-1/2", bindingTypeToEdit === "overrides" ? "w-[600px] right-[-600px]" : "w-[450px] right-[-450px]");
-    const panelClasses = cn("binding-editor bg-kb-gray-medium rounded-r-2xl p-5 flex flex-col w-full min-h-[500px] shadow-[4px_0_16px_rgba(0,0,0,0.1)]", isClosing ? "binding-editor--exit" : "binding-editor--enter");
+    // In inline mode, render without absolute positioning for overlay use
+    const containerClasses = inline
+        ? cn("h-full flex flex-col", bindingTypeToEdit === "overrides" ? "w-[600px]" : "w-full")
+        : cn("absolute top-1/2 -translate-y-1/2", bindingTypeToEdit === "overrides" ? "w-[600px] right-[-600px]" : "w-[450px] right-[-450px]");
+
+    const panelClasses = inline
+        ? cn("bg-kb-gray-medium p-3 flex flex-col w-full h-full")
+        : cn("binding-editor bg-kb-gray-medium rounded-r-2xl p-5 flex flex-col w-full min-h-[500px] shadow-[4px_0_16px_rgba(0,0,0,0.1)]", isClosing ? "binding-editor--exit" : "binding-editor--enter");
+
+    // Icon sizes: smaller for inline mode
+    const iconSize = inline ? "w-10 h-10" : "w-14 h-14";
+    const iconInnerSize = inline ? "h-4 w-4 mt-2" : "h-5 w-5 mt-3";
+    const iconTextSize = inline ? "text-xs" : "text-sm";
 
     const renderHeaderIcon = () => {
         if (bindingTypeToEdit === "tapdances" && itemToEdit !== null && keyboard) {
             const keycode = `TD(${itemToEdit})`;
             const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
             return (
-                <div className="relative w-14 h-14">
+                <div className={cn("relative", iconSize)}>
                     <Key
                         isRelative
                         x={0}
@@ -125,6 +137,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose }) => {
                         label={itemToEdit.toString()}
                         keyContents={keyContents}
                         layerColor="sidebar"
+                        variant={inline ? "small" : "default"}
                     />
                 </div>
             );
@@ -133,9 +146,9 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose }) => {
         const icon = (icons as any)[bindingTypeToEdit!];
         if (icon) {
             return (
-                <div className="flex flex-col bg-black h-14 w-14 rounded-sm flex-shrink-0 items-center ">
-                    <div className="h-5 w-5 mt-3 text-white">{icon}</div>
-                    <span className="text-sm text-white">{itemToEdit}</span>
+                <div className={cn("flex flex-col bg-black rounded-sm flex-shrink-0 items-center", iconSize)}>
+                    <div className={cn("text-white", iconInnerSize)}>{icon}</div>
+                    <span className={cn("text-white", iconTextSize)}>{itemToEdit}</span>
                 </div>
             );
         }
@@ -145,10 +158,13 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose }) => {
     return (
         <div className={containerClasses}>
             <div className={panelClasses} onAnimationEnd={handleAnimationEnd}>
-                <div className={cn("flex flex-row w-full items-center pr-5 justify-between pt-2 pb-5 pl-[84px]")}>
+                <div className={cn(
+                    "flex flex-row w-full items-center justify-between",
+                    inline ? "pr-3 pt-2 pb-2 pl-4" : "pr-5 pt-2 pb-5 pl-[84px]"
+                )}>
                     <div className="flex flex-row items-center">
                         {renderHeaderIcon()}
-                        <div className="pl-5 text-xl font-normal">
+                        <div className={cn("font-normal", inline ? "pl-3 text-lg" : "pl-5 text-xl")}>
                             {bindingTypeToEdit === "macros" ? (
                                 isEditingTitle ? (
                                     <div className="flex items-center gap-2 bg-white rounded-md px-1 py-0.5 border border-black shadow-sm">
@@ -186,7 +202,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose }) => {
                             )}
                         </div>
                     </div>
-                    {!isEditingTitle && (
+                    {!isEditingTitle && !inline && (
                         <button
                             type="button"
                             onClick={handleAnimatedClose}

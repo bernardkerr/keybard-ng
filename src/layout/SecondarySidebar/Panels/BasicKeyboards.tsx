@@ -13,7 +13,7 @@ import { Key } from "@/components/Key";
 import { getKeyContents } from "@/utils/keys";
 import { keyService } from "@/services/key.service";
 
-import { BUTTON_TO_KEYCODE_MAP } from "@/components/Keyboards/layouts";
+import { BUTTON_TO_KEYCODE_MAP, LAYOUTS } from "@/components/Keyboards/layouts";
 
 const getKeyCodeForButton = (keyboard: KeyboardInfo, button: string): string | undefined => {
     const k = BUTTON_TO_KEYCODE_MAP[button] || BUTTON_TO_KEYCODE_MAP[button.toLowerCase()];
@@ -70,7 +70,9 @@ const BasicKeyboards = ({ isPicker }: Props) => {
     const { assignKeycode, isBinding } = useKeyBinding();
     const { keyboard } = useVial();
     const { selectedLayer } = useLayer();
-    const { keyVariant } = useLayoutSettings();
+    const { keyVariant, layoutMode, internationalLayout, setInternationalLayout } = useLayoutSettings();
+
+    const isHorizontal = layoutMode === "bottombar";
 
     useEffect(() => {
         setActiveModifiers([]);
@@ -172,6 +174,97 @@ const BasicKeyboards = ({ isPicker }: Props) => {
         </div>
     );
 
+    // Compact horizontal layout for bottom panel
+    if (isHorizontal) {
+        return (
+            <div className="flex flex-row gap-3 h-full items-start">
+                {/* Left column: Language selector + Modifiers */}
+                <div className="flex flex-col gap-1 flex-shrink-0">
+                    {/* Language selector at top */}
+                    <select
+                        className="border rounded text-[10px] text-slate-600 py-0.5 px-1 border-gray-200 bg-gray-50 !outline-none focus:border-gray-300 cursor-pointer w-full mb-1"
+                        value={internationalLayout}
+                        onChange={(e) => setInternationalLayout(e.target.value)}
+                        title="Keyboard layout"
+                    >
+                        {Object.values(LAYOUTS).map((kb: any) => (
+                            <option key={kb.value} value={kb.value}>
+                                {kb.value.toUpperCase()}
+                            </option>
+                        ))}
+                    </select>
+
+                    {/* Modifiers */}
+                    <Button
+                        type="button"
+                        variant={activeModifiers.length === 0 ? "default" : "secondary"}
+                        size="sm"
+                        className={cn(
+                            "rounded-md px-2 py-1 h-7 transition-all text-xs font-medium border-none w-full",
+                            activeModifiers.length === 0 ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
+                        )}
+                        onClick={() => setActiveModifiers([])}
+                    >
+                        NONE
+                    </Button>
+                    {modifierOptions.map((modifier) => {
+                        const isActive = activeModifiers.includes(modifier);
+                        const abbrev = modifier === "Shift" ? "⇧" : modifier === "Ctrl" ? "⌃" : modifier === "Alt" ? "⌥" : "⌘";
+                        return (
+                            <Button
+                                key={modifier}
+                                type="button"
+                                variant={isActive ? "default" : "secondary"}
+                                size="sm"
+                                className={cn(
+                                    "rounded-md px-2 py-1 h-7 transition-all text-xs font-medium border-none w-full",
+                                    isActive ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
+                                )}
+                                onClick={() => handleModifierToggle(modifier)}
+                                title={modifier}
+                            >
+                                {abbrev}
+                            </Button>
+                        );
+                    })}
+                </div>
+
+                {/* QWERTY keyboard - main content, no language selector here */}
+                <div className="flex-shrink-0">
+                    <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector />
+                </div>
+
+                {/* Blank/Transparent keys */}
+                <div className="flex flex-col gap-1 flex-shrink-0">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Blank</span>
+                    <div className="flex flex-col gap-1">
+                        {blankKeys.map((k, i) => {
+                            const keyContents = keyboard ? getKeyContents(keyboard, k.keycode) : undefined;
+                            return (
+                                <Key
+                                    key={`${k.keycode}-${i}`}
+                                    x={0} y={0} w={1} h={1} row={0} col={0}
+                                    keycode={k.keycode}
+                                    label={k.label || k.keycode}
+                                    keyContents={keyContents as KeyContent | undefined}
+                                    layerColor="sidebar"
+                                    headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
+                                    isRelative
+                                    variant="small"
+                                    hoverBorderColor={hoverBorderColor}
+                                    hoverBackgroundColor={hoverBackgroundColor}
+                                    hoverLayerColor={layerColorName}
+                                    onClick={() => handleKeyClick(k.keycode)}
+                                />
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Standard vertical layout for sidebar
     return (
         <div className="space-y-6 relative">
             {isPicker && (

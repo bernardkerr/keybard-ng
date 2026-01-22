@@ -5,6 +5,7 @@ import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow"
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useVial } from "@/contexts/VialContext";
 import { useLayer } from "@/contexts/LayerContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
@@ -17,12 +18,15 @@ const AltRepeatPanel: React.FC = () => {
     const { keyboard, setKeyboard } = useVial();
     const { selectAltRepeatKey, assignKeycode, isBinding } = useKeyBinding();
     const { selectedLayer } = useLayer();
+    const { layoutMode } = useLayoutSettings();
     const {
         setItemToEdit,
         setBindingTypeToEdit,
         setAlternativeHeader,
         itemToEdit,
     } = usePanels();
+
+    const isHorizontal = layoutMode === "bottombar";
 
     if (!keyboard) return null;
 
@@ -105,6 +109,64 @@ const AltRepeatPanel: React.FC = () => {
 
     // Custom key contents for the placeable key with explicit label
     const altRepeatKeyContents: KeyContent = { str: "Alt-Repeat", type: "special" };
+
+    // Horizontal layout for bottom panel
+    if (isHorizontal) {
+        return (
+            <div className="flex flex-row gap-3 h-full items-start flex-wrap content-start">
+                {/* Alt-Repeat key */}
+                <div className="flex flex-col gap-1 flex-shrink-0">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase">Key</span>
+                    <Key
+                        isRelative
+                        x={0} y={0} w={1} h={1} row={-1} col={-1}
+                        keycode="QK_ALT_REPEAT_KEY"
+                        label="Alt-Rep"
+                        keyContents={altRepeatKeyContents}
+                        layerColor="sidebar"
+                        headerClassName="bg-kb-sidebar-dark"
+                        variant="small"
+                        onClick={handleAssignAltRepeatKey}
+                    />
+                </div>
+
+                {/* Alt-repeat entries */}
+                <div className="flex flex-row gap-2 flex-wrap items-start">
+                    {altRepeatKeys.map((entry, i) => {
+                        const enabled = isEnabled(entry.options);
+                        const hasKeycode = entry.keycode !== "KC_NO" && entry.keycode !== "";
+                        const hasAltKeycode = entry.alt_keycode !== "KC_NO" && entry.alt_keycode !== "";
+                        const isDefined = hasKeycode || hasAltKeycode;
+
+                        if (!isDefined) return null;
+
+                        return (
+                            <div
+                                key={i}
+                                className={cn(
+                                    "flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors",
+                                    !enabled && "opacity-50"
+                                )}
+                                onClick={() => handleEdit(i)}
+                            >
+                                <span className="text-[9px] font-bold text-slate-600 mb-1">AR {i}</span>
+                                <div className="flex flex-row items-center gap-1">
+                                    {renderSmallKey(entry.keycode, i, "keycode", false)}
+                                    <ArrowRight className="w-2 h-2 text-gray-400" />
+                                    {renderSmallKey(entry.alt_keycode, i, "alt_keycode", false)}
+                                </div>
+                            </div>
+                        );
+                    })}
+                    {altRepeatKeys.filter(e => (e.keycode !== "KC_NO" && e.keycode !== "") || (e.alt_keycode !== "KC_NO" && e.alt_keycode !== "")).length === 0 && (
+                        <div className="text-center text-gray-500 py-2 px-4 text-sm">
+                            No alt-repeat keys configured.
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col pt-3">

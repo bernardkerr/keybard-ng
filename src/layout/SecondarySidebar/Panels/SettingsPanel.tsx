@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { useChanges } from "@/contexts/ChangesContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useVial } from "@/contexts/VialContext";
@@ -26,7 +27,9 @@ const SettingsPanel = () => {
     const [activeCategory, setActiveCategory] = useState<string>("general");
     const { keyboard, setKeyboard, isConnected } = useVial();
     const { setActivePanel } = usePanels();
+    const { layoutMode } = useLayoutSettings();
 
+    const isHorizontal = layoutMode === "bottombar";
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Export Dialog State
@@ -145,6 +148,166 @@ const SettingsPanel = () => {
 
         setIsPrintOpen(false);
     };
+
+    // Key settings to show in horizontal mode
+    const horizontalSettings = ["live-updating", "typing-binds-key", "international-keyboards"];
+
+    // Horizontal layout for bottom panel
+    if (isHorizontal) {
+        return (
+            <div className="flex flex-row gap-3 h-full items-start flex-wrap content-start">
+                {/* Hidden file input for import */}
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept=".viable,.vil,.json"
+                    onChange={handleFileImport}
+                />
+
+                {/* Export Dialog */}
+                <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Export Configuration</DialogTitle>
+                            <DialogDescription>
+                                Choose the format to save your keyboard configuration.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="flex flex-col gap-4 py-4">
+                            <div className="flex flex-col gap-2">
+                                <Label>Format</Label>
+                                <Select value={exportFormat} onValueChange={(v: "viable" | "vil") => setExportFormat(v)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select format" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="viable">Viable (.viable) - Native Format</SelectItem>
+                                        <SelectItem value="vil">Vial (.vil) - Legacy Compatibility</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Switch id="include-macros-h" checked={includeMacros} onCheckedChange={(c: boolean) => setIncludeMacros(c)} />
+                                <label
+                                    htmlFor="include-macros-h"
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                    Include Macros
+                                </label>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="secondary" onClick={() => setIsExportOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button type="button" onClick={handleExport}>
+                                Export
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Print Dialog */}
+                <Dialog open={isPrintOpen} onOpenChange={setIsPrintOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Print Keyboard Layout</DialogTitle>
+                            <DialogDescription>
+                                Print all layers that contain configured keys.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="flex flex-col gap-4 py-4">
+                            {keyboard && (
+                                <div className="text-sm text-muted-foreground">
+                                    <p><strong>Keyboard:</strong> {keyboard.cosmetic?.name || keyboard.name || 'Unknown'}</p>
+                                    <p><strong>Non-empty layers:</strong> {printService.getNonEmptyLayers(keyboard).length} of {keyboard.keymap?.length || 0}</p>
+                                </div>
+                            )}
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="secondary" onClick={() => setIsPrintOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button type="button" onClick={handlePrint}>
+                                Print
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Quick settings */}
+                {horizontalSettings.map((settingName) => {
+                    const setting = settingsDefinitions.find((s) => s.name === settingName);
+                    if (!setting) return null;
+
+                    if (setting.type === "boolean") {
+                        return (
+                            <div key={setting.name} className="flex flex-col gap-1 min-w-[80px]">
+                                <span className="text-[9px] font-bold text-slate-500 uppercase truncate">{setting.label}</span>
+                                <Switch
+                                    checked={getSetting(setting.name, setting.defaultValue) as boolean}
+                                    onCheckedChange={(checked) => updateSetting(setting.name, checked)}
+                                />
+                            </div>
+                        );
+                    }
+
+                    if (setting.type === "select") {
+                        return (
+                            <div key={setting.name} className="flex flex-col gap-1 min-w-[100px]">
+                                <span className="text-[9px] font-bold text-slate-500 uppercase truncate">{setting.label}</span>
+                                <select
+                                    value={getSetting(setting.name, setting.defaultValue) as string}
+                                    onChange={(e) => updateSetting(setting.name, e.target.value)}
+                                    className="h-7 px-2 text-xs rounded-md cursor-pointer border"
+                                >
+                                    {setting.items?.map((item) => (
+                                        <option key={item.value} value={item.value}>
+                                            {item.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        );
+                    }
+
+                    return null;
+                })}
+
+                {/* Quick actions */}
+                <div className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase">Actions</span>
+                    <div className="flex flex-row gap-1">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs px-2"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            Import
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs px-2"
+                            onClick={() => setIsExportOpen(true)}
+                        >
+                            Export
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs px-2"
+                            onClick={() => setIsPrintOpen(true)}
+                        >
+                            Print
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col w-full mx-auto py-4">
