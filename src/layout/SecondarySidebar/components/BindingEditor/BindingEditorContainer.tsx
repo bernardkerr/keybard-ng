@@ -36,7 +36,7 @@ const icons = {
 const labels = {
     tapdances: "Tap Dance Keys",
     macros: "Macro Key",
-    combos: "Combo Keys",
+    combos: "Combo",
     overrides: "Override",
     altrepeat: "Alt-Repeat Key",
     leaders: "Leader Sequence",
@@ -188,7 +188,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                     </div>
                                 )
                             ) : bindingTypeToEdit === "combos" ? (
-                                `Combo Key ${itemToEdit}`
+                                `Combo ${itemToEdit}`
                             ) : bindingTypeToEdit === "tapdances" ? (
                                 `Tap Dance Key ${itemToEdit}`
                             ) : bindingTypeToEdit === "overrides" ? (
