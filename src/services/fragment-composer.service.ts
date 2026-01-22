@@ -10,6 +10,7 @@ import type { KeyboardInfo, FragmentInstance } from "../types/vial.types";
 import { KleService } from "./kle.service";
 import { FragmentService } from "./fragment.service";
 import { SVALBOARD_LAYOUT } from "../constants/svalboard-layout";
+import { FRAGMENT_THUMB_GAP_REDUCTION_U } from "../constants/keyboard-visuals";
 
 /**
  * A composed key layout entry with position and matrix information
@@ -293,16 +294,20 @@ export class FragmentComposerService {
             const isNonStandardThumb = fragmentName !== null && !fragmentName.toLowerCase().includes('thumb');
             const extraYShift = isNonStandardThumb ? 1 : 0;
 
+            // Apply gap reduction to bring thumbs closer to finger clusters
+            // Plus any extra shift for non-standard thumb variants
+            const totalYShift = deltaY + FRAGMENT_THUMB_GAP_REDUCTION_U + extraYShift;
+
             for (const matrixPos of clusterKeys) {
                 const key = correctedLayout[matrixPos];
                 correctedLayout[matrixPos] = {
                     ...key,
                     x: key.x + shiftX,
-                    y: key.y + deltaY + extraYShift,
+                    y: key.y + totalYShift,
                 };
             }
 
-            console.log(`Thumb cluster row ${row} (${fragmentName}): shifted X by ${shiftX.toFixed(2)}, Y by ${(deltaY + extraYShift).toFixed(2)}${extraYShift ? ' (non-standard, +1u Y)' : ''}`);
+            console.log(`Thumb cluster row ${row} (${fragmentName}): shifted X by ${shiftX.toFixed(2)}, Y by ${totalYShift.toFixed(2)} (deltaY=${deltaY.toFixed(2)}, gapReduction=${FRAGMENT_THUMB_GAP_REDUCTION_U}, extraYShift=${extraYShift})`);
         }
 
         console.log(`Midline: ${midline.toFixed(2)}, thumb gap: ${thumbGap.toFixed(2)}`);

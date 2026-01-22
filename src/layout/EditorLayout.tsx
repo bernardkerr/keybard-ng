@@ -99,6 +99,9 @@ const EditorLayoutInner = () => {
         keyVariant === 'small' ? 30 : keyVariant === 'medium' ? 45 : UNIT_SIZE,
     [keyVariant]);
 
+    // Track container height for dynamic spacing
+    const [containerHeight, setContainerHeight] = React.useState(0);
+
 
     // Calculate keyboard widths at each size (for auto-sizing)
     const keyboardWidths = React.useMemo(() => ({
@@ -121,12 +124,15 @@ const EditorLayoutInner = () => {
 
         const measureSpace = () => {
             const containerWidth = container.clientWidth;
-            const containerHeight = container.clientHeight;
+            const height = container.clientHeight;
+
+            // Track container height for dynamic spacing
+            setContainerHeight(height);
 
             // Report measured dimensions to context for auto-sizing
             setMeasuredDimensions({
                 containerWidth,
-                containerHeight,
+                containerHeight: height,
                 keyboardWidths,
                 keyboardHeights,
             });
@@ -338,6 +344,38 @@ const EditorLayoutInner = () => {
         [contentOffset, showBottomPanel]
     );
 
+    // Calculate dynamic top padding for keyboard
+    // Ideal: 1 key height gap between layer selector and keyboard
+    // Squeeze: reduce gap when space is tight, continuous adjustment
+    const dynamicTopPadding = React.useMemo(() => {
+        const idealGap = currentUnitSize; // 1 key height
+        const minGap = 8; // Minimum gap in pixels
+
+        // Estimate heights: layer selector ~40px (compact) or ~80px (standard)
+        const layerSelectorHeight = showEditorOverlay ? 40 : 80;
+        const bottomBarHeight = showBottomPanel ? BOTTOM_PANEL_HEIGHT : 0;
+
+        // Get current keyboard height based on variant
+        const kbHeight = keyVariant === 'small'
+            ? keyboardHeights.small
+            : keyVariant === 'medium'
+                ? keyboardHeights.medium
+                : keyboardHeights.default;
+
+        // Available space = container - layer selector - keyboard - bottom bar
+        const availableSpace = containerHeight - layerSelectorHeight - kbHeight - bottomBarHeight;
+
+        // If plenty of room, use ideal gap (1 key height)
+        // If tight, scale down continuously but keep minimum
+        if (availableSpace >= idealGap) {
+            return idealGap;
+        } else if (availableSpace > minGap) {
+            return availableSpace;
+        } else {
+            return minGap;
+        }
+    }, [currentUnitSize, containerHeight, keyboardHeights, keyVariant, showEditorOverlay, showBottomPanel]);
+
     return (
         <div className={cn("flex flex-1 h-screen max-w-screen min-w-[850px] p-0", showDetailsSidebar && "bg-white")}>
             <AppSidebar />
@@ -352,12 +390,11 @@ const EditorLayoutInner = () => {
                 <LayerSelector
                     selectedLayer={selectedLayer}
                     setSelectedLayer={setSelectedLayer}
-                    forceHide={showEditorOverlay}
                 />
 
                 <div
-                    className="flex-1 overflow-hidden flex items-start justify-center max-w-full relative"
-                    style={{ paddingTop: currentUnitSize }}
+                    className="flex-1 overflow-hidden flex items-start justify-center max-w-full relative transition-[padding] duration-200"
+                    style={{ paddingTop: dynamicTopPadding }}
                 >
                     {activePanel === "matrixtester" ? (
                         <MatrixTester />

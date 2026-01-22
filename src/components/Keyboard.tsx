@@ -19,6 +19,7 @@ import {
 import { InfoIcon } from "./icons/InfoIcon";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useChanges } from "@/hooks/useChanges";
+import { LayerNameBadge } from "./LayerNameBadge";
 
 interface KeyboardProps {
     keyboard: KeyboardInfo;
@@ -166,17 +167,26 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
     const keyboardSize = useMemo(() => {
         let maxX = 0;
         let maxY = 0;
+        let minY = Infinity; // Top edge of keyboard
 
         Object.values(keyboardLayout).forEach((key) => {
             // Only apply THUMB_OFFSET_U for hardcoded layout, not fragment-composed layouts
             const yPos = (!useFragmentLayout && key.y >= 6) ? key.y + THUMB_OFFSET_U : key.y;
             maxX = Math.max(maxX, key.x + key.w);
             maxY = Math.max(maxY, yPos + key.h);
+            minY = Math.min(minY, yPos);
         });
+
+        // Badge position: horizontally centered, aligned with top keys (same Y level)
+        const badgeCenterX = (maxX / 2) * currentUnitSize;
+        // Position at the same Y level as the top keys (center of the top row)
+        const badgeCenterY = (minY + 0.5) * currentUnitSize;
 
         return {
             width: maxX * currentUnitSize,
             height: maxY * currentUnitSize + 20,
+            badgeCenterX,
+            badgeCenterY,
         };
     }, [keyboardLayout, currentUnitSize, useFragmentLayout]);
 
@@ -186,8 +196,12 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                 className="keyboard-layout relative"
                 style={{ width: `${keyboardSize.width}px`, height: `${keyboardSize.height}px` }}
             >
-                {/* Cluster Backgrounds - temporarily hidden until fragment positioning is tuned */}
-                {/* TODO: Re-enable once thumb cluster positions are finalized */}
+                {/* Layer Name Badge - centered between thumb clusters */}
+                <LayerNameBadge
+                    selectedLayer={selectedLayer}
+                    x={keyboardSize.badgeCenterX}
+                    y={keyboardSize.badgeCenterY}
+                />
 
                 {/* Keys */}
                 {Object.entries(keyboardLayout).map(([matrixPos, layout]) => {
