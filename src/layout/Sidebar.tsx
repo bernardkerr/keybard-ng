@@ -1,4 +1,4 @@
-import { ArrowUpDown, HelpCircle, Keyboard, LayoutGrid, ListOrdered, LucideIcon, Piano, Pointer, Repeat, Settings, SquareDot, Unplug, Zap } from "lucide-react";
+import { ArrowUpDown, Download, HelpCircle, Keyboard, LayoutGrid, ListOrdered, LucideIcon, Piano, Pointer, Repeat, Settings, SquareDot, Unplug, Upload, Zap } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 import ComboIcon from "@/components/ComboIcon";
@@ -37,13 +37,16 @@ import { fileService } from "@/services/file.service";
 import { cn } from "@/lib/utils";
 
 // --- Constants ---
-const ICON_GUTTER_WIDTH = "w-[43px]";
-const BASE_ICON_PADDING = "pl-[13px]";
-const LOGO_ICON_PADDING = "pl-[10px]";
 const MENU_ITEM_GAP_PX = 42; // Matches Gap-4 (16px) + Button Height (26px)
 const DIVIDER_HEIGHT_PX = 17; // 1px + 2*8px (my-2)
 const FLEX_GAP_PX = 16; // Gap-4
 const FEATURE_SECTION_OFFSET = DIVIDER_HEIGHT_PX + FLEX_GAP_PX;
+
+// Icon layout helpers - use isCollapsed boolean
+const getIconGutterWidth = (isCollapsed: boolean) => isCollapsed ? "w-full" : "w-[43px]";
+const getIconPadding = (isCollapsed: boolean) => isCollapsed ? "pl-0" : "pl-[13px]";
+const getLogoPadding = (isCollapsed: boolean) => isCollapsed ? "pl-0" : "pl-[10px]";
+const getIconJustify = (isCollapsed: boolean) => isCollapsed ? "justify-center" : "justify-start";
 
 export type SidebarItem = {
     title: string;
@@ -95,6 +98,7 @@ interface SidebarNavItemProps {
     isActive: boolean;
     isPreviousPanel?: boolean;
     alternativeHeader?: boolean;
+    isCollapsed: boolean;
     onClick: (item: SidebarItem) => void;
 }
 
@@ -103,6 +107,7 @@ const SidebarNavItem = ({
     isActive,
     isPreviousPanel,
     alternativeHeader,
+    isCollapsed,
     onClick,
 }: SidebarNavItemProps) => (
     <SidebarMenuItem className="cursor-pointer">
@@ -118,10 +123,10 @@ const SidebarNavItem = ({
             )}
         >
             <button type="button" onClick={(e) => { e.stopPropagation(); onClick(item); }} className="flex w-full items-center justify-start">
-                <div className={cn(ICON_GUTTER_WIDTH, "h-full flex items-center justify-start shrink-0", BASE_ICON_PADDING)}>
+                <div className={cn(getIconGutterWidth(isCollapsed), "h-full flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
                     <item.icon className="h-4 w-4 shrink-0" />
                 </div>
-                <span className="truncate group-data-[state=collapsed]:hidden">
+                <span className={cn("truncate", isCollapsed && "hidden")}>
                     {item.title}
                 </span>
             </button>
@@ -338,7 +343,7 @@ const AppSidebar = () => {
         </Dialog>
 
         <Sidebar rounded name="primary-nav" defaultOpen={false} collapsible="icon" hideGap className={sidebarClasses} onClick={handleBackgroundClick}>
-            <SidebarContent className="py-4 overflow-y-auto overflow-x-hidden flex flex-col">
+            <SidebarContent className={cn("py-4 overflow-y-auto overflow-x-hidden flex flex-col", isCollapsed && "scrollbar-none")}>
                 {/* Header section - Logo, Connect, Import/Export */}
                 <SidebarMenu>
                     <SidebarMenuItem>
@@ -364,39 +369,66 @@ const AppSidebar = () => {
                                     }
                                 }}
                             >
-                                <div className={cn(ICON_GUTTER_WIDTH, "h-4 flex items-center justify-start shrink-0", LOGO_ICON_PADDING)}>
+                                <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getLogoPadding(isCollapsed))}>
                                     <Logo />
                                 </div>
-                                <span className="text-[22px] font-semibold truncate group-data-[state=collapsed]:hidden">keybard</span>
+                                <span className={cn("text-[22px] font-semibold truncate", isCollapsed && "hidden")}>keybard</span>
                             </button>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
                         <SidebarMenuButton asChild size="nav" className="text-slate-600 transition-colors">
                             <button type="button" onClick={(e) => { e.stopPropagation(); connect(); }} className="flex w-full items-center justify-start">
-                                <div className={cn(ICON_GUTTER_WIDTH, "h-4 flex items-center justify-start shrink-0", BASE_ICON_PADDING)}>
+                                <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
                                     {isConnected ? <Zap className="h-4 w-4 shrink-0 fill-black text-black" /> : <Unplug className="h-4 w-4 shrink-0" />}
                                 </div>
-                                <span className="text-md font-medium truncate group-data-[state=collapsed]:hidden">{isConnected ? "Connected" : "Connect"}</span>
+                                <span className={cn("text-md font-medium truncate", isCollapsed && "hidden")}>{isConnected ? "Connected" : "Connect"}</span>
                             </button>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild size="nav" className="text-slate-600 transition-colors">
-                            <div className="flex w-full items-center justify-start">
-                                <div className={cn(ICON_GUTTER_WIDTH, "h-4 flex items-center justify-start shrink-0", BASE_ICON_PADDING)}>
-                                    <ArrowUpDown className="h-4 w-4 shrink-0" />
+                    {/* Import/Export - expanded view */}
+                    {!isCollapsed && (
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild size="nav" className="text-slate-600 transition-colors">
+                                <div className="flex w-full items-center justify-start">
+                                    <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
+                                        <ArrowUpDown className="h-4 w-4 shrink-0" />
+                                    </div>
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="text-sm font-medium hover:text-slate-900">
+                                        Import
+                                    </button>
+                                    <span className="text-slate-300 mx-1.5">|</span>
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }} className="text-sm font-medium hover:text-slate-900 disabled:opacity-50" disabled={!keyboard}>
+                                        Export
+                                    </button>
                                 </div>
-                                <button type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="text-sm font-medium hover:text-slate-900 group-data-[state=collapsed]:hidden">
-                                    Import
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    )}
+                    {/* Import - collapsed view */}
+                    {isCollapsed && (
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild size="nav" tooltip="Import" sidebarName="primary-nav" className="text-slate-600 transition-colors">
+                                <button type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="flex w-full items-center justify-center">
+                                    <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
+                                        <Download className="h-4 w-4 shrink-0" />
+                                    </div>
                                 </button>
-                                <span className="text-slate-300 mx-1.5 group-data-[state=collapsed]:hidden">|</span>
-                                <button type="button" onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }} className="text-sm font-medium hover:text-slate-900 disabled:opacity-50 group-data-[state=collapsed]:hidden" disabled={!keyboard}>
-                                    Export
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    )}
+                    {/* Export - collapsed view */}
+                    {isCollapsed && (
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild size="nav" tooltip="Export" sidebarName="primary-nav" className="text-slate-600 transition-colors">
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }} className="flex w-full items-center justify-center disabled:opacity-50" disabled={!keyboard}>
+                                    <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
+                                        <Upload className="h-4 w-4 shrink-0" />
+                                    </div>
                                 </button>
-                            </div>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    )}
                 </SidebarMenu>
 
                 {/* Main navigation - vertically centered in available space */}
@@ -410,6 +442,7 @@ const AppSidebar = () => {
                                 isActive={activePanel === item.url}
                                 isPreviousPanel={panelToGoBack === item.url}
                                 alternativeHeader={alternativeHeader}
+                                isCollapsed={isCollapsed}
                                 onClick={handleItemSelect}
                             />
                         ))}
@@ -423,6 +456,7 @@ const AppSidebar = () => {
                                 isActive={activePanel === item.url}
                                 isPreviousPanel={panelToGoBack === item.url}
                                 alternativeHeader={alternativeHeader}
+                                isCollapsed={isCollapsed}
                                 onClick={handleItemSelect}
                             />
                         ))}
@@ -438,6 +472,7 @@ const AppSidebar = () => {
                                 key={item.url}
                                 item={item}
                                 isActive={activePanel === item.url}
+                                isCollapsed={isCollapsed}
                                 onClick={handleItemSelect}
                             />
                         ))}

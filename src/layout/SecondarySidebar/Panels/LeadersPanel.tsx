@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Plus, X } from "lucide-react";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { Input } from "@/components/ui/input";
@@ -93,6 +93,44 @@ const LeadersPanel: React.FC = () => {
         setAlternativeHeader(true);
     };
 
+    const clearLeader = async (index: number) => {
+        if (!keyboard.leaders) return;
+        const updatedLeaders = [...keyboard.leaders];
+        updatedLeaders[index] = {
+            ...updatedLeaders[index],
+            sequence: ["KC_NO", "KC_NO", "KC_NO", "KC_NO", "KC_NO"],
+            output: "KC_NO",
+            options: 0
+        };
+        const updatedKeyboard = { ...keyboard, leaders: updatedLeaders };
+        setKeyboard(updatedKeyboard);
+
+        try {
+            await vialService.updateLeader(updatedKeyboard, index);
+            await vialService.saveViable();
+        } catch (err) {
+            console.error("Failed to clear leader:", err);
+        }
+    };
+
+    const findFirstEmptyLeader = (): number => {
+        if (!keyboard.leaders) return 0;
+        for (let i = 0; i < keyboard.leaders.length; i++) {
+            const e = keyboard.leaders[i];
+            const hasSeq = e.sequence.some(k => k !== "KC_NO" && k !== "");
+            const hasOut = e.output !== "KC_NO" && e.output !== "";
+            if (!hasSeq && !hasOut) return i;
+        }
+        return keyboard.leaders.length;
+    };
+
+    const handleAddLeader = () => {
+        const emptyIndex = findFirstEmptyLeader();
+        if (emptyIndex < (keyboard.leaders?.length || 0)) {
+            handleEdit(emptyIndex);
+        }
+    };
+
     const isEnabled = (options: number) => {
         return (options & LeaderOptions.ENABLED) !== 0;
     };
@@ -166,18 +204,19 @@ const LeadersPanel: React.FC = () => {
             <div className="flex flex-row gap-3 h-full items-start flex-wrap content-start">
                 {/* Leader key */}
                 <div className="flex flex-col gap-1 flex-shrink-0">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">Key</span>
-                    <Key
-                        isRelative
-                        x={0} y={0} w={1} h={1} row={-1} col={-1}
-                        keycode="QK_LEADER"
-                        label="Leader"
-                        keyContents={leaderKeyContents}
-                        layerColor="sidebar"
-                        headerClassName="bg-kb-sidebar-dark"
-                        variant="small"
-                        onClick={handleAssignLeaderKey}
-                    />
+                    <div className="w-[45px] h-[45px]">
+                        <Key
+                            isRelative
+                            x={0} y={0} w={1} h={1} row={-1} col={-1}
+                            keycode="QK_LEADER"
+                            label="Leader"
+                            keyContents={leaderKeyContents}
+                            layerColor="sidebar"
+                            headerClassName="bg-kb-sidebar-dark"
+                            variant="medium"
+                            onClick={handleAssignLeaderKey}
+                        />
+                    </div>
                 </div>
 
                 {/* Leader entries */}
@@ -194,11 +233,22 @@ const LeadersPanel: React.FC = () => {
                             <div
                                 key={i}
                                 className={cn(
-                                    "flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors",
+                                    "relative flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors group",
                                     !enabled && "opacity-50"
                                 )}
                                 onClick={() => handleEdit(i)}
                             >
+                                {/* Delete button */}
+                                <button
+                                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        clearLeader(i);
+                                    }}
+                                    title="Clear leader"
+                                >
+                                    <X className="w-3 h-3 text-white" />
+                                </button>
                                 <span className="text-[9px] font-bold text-slate-600 mb-1">L{i}</span>
                                 <div className="flex flex-row items-center gap-0.5">
                                     {entry.sequence.slice(0, 5).map((keycode, seqIdx) => {
@@ -216,6 +266,16 @@ const LeadersPanel: React.FC = () => {
                             </div>
                         );
                     })}
+                    {/* Add new leader button */}
+                    {findFirstEmptyLeader() < (leaders.length || 0) && (
+                        <button
+                            className="flex flex-col items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg p-2 min-w-[60px] h-[60px] transition-colors border-2 border-dashed border-gray-300 hover:border-gray-400"
+                            onClick={handleAddLeader}
+                            title="Add new leader"
+                        >
+                            <Plus className="w-6 h-6 text-gray-400" />
+                        </button>
+                    )}
                     {leaders.filter(e => e.sequence.some(k => k !== "KC_NO" && k !== "") || (e.output !== "KC_NO" && e.output !== "")).length === 0 && (
                         <div className="text-center text-gray-500 py-2 px-4 text-sm">
                             No leader sequences configured.

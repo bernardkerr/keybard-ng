@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git merge-base:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(git checkout:*)",
+      "Bash(git fetch:*)",
+      "Bash(npm test:*)",
+      "Bash(ls:*)",
+      "Bash(npx vitest:*)",
+      "Bash(tasklist:*)",
+      "Bash(gh pr create --base main --title \"Add drag-and-drop key assignment and fragment layout corrections\" --body \"$\\(cat <<''EOF''\n## Summary\n- Add drag-and-drop key assignment from sidebar panels to keyboard keys\n- Fix modmask key display to show key in center, modifier on bottom\n- Add GUI-side thumb cluster placement correction for fragment-based layouts\n- Align thumb clusters symmetrically about index cluster midline\n- Shift non-standard thumb variants \\(5/6 key\\) down by 1u\n\n## Test plan\n- [ ] Test drag-and-drop from Keyboard panel to keys\n- [ ] Test drag-and-drop from Special/Layer/Mouse panels\n- [ ] Verify modmask keys display correctly \\(e.g., LGUI_T shows modifier on bottom\\)\n- [ ] Connect Svalboard and verify thumb cluster alignment with fragments\n- [ ] Test fragment selection changes update layout correctly\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\nEOF\n\\)\")",
+      "Bash(gh pr close:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr view:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(dir /b \"C:\\\\Users\\\\morga\\\\OneDrive\\\\Documents\\\\GitHub\\\\keybard-ng\\\\tests\\\\fixtures\")",
+      "Bash(git log:*)"
+    ]
+  }
+}

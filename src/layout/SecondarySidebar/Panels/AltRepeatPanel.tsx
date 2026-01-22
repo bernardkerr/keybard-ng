@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Plus, X } from "lucide-react";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -41,6 +41,44 @@ const AltRepeatPanel: React.FC = () => {
         setItemToEdit(index);
         setBindingTypeToEdit("altrepeat");
         setAlternativeHeader(true);
+    };
+
+    const clearAltRepeat = async (index: number) => {
+        if (!keyboard.alt_repeat_keys) return;
+        const updatedKeys = [...keyboard.alt_repeat_keys];
+        updatedKeys[index] = {
+            ...updatedKeys[index],
+            keycode: "KC_NO",
+            alt_keycode: "KC_NO",
+            options: 0
+        };
+        const updatedKeyboard = { ...keyboard, alt_repeat_keys: updatedKeys };
+        setKeyboard(updatedKeyboard);
+
+        try {
+            await vialService.updateAltRepeatKey(updatedKeyboard, index);
+            await vialService.saveViable();
+        } catch (err) {
+            console.error("Failed to clear alt-repeat:", err);
+        }
+    };
+
+    const findFirstEmptyAltRepeat = (): number => {
+        if (!keyboard.alt_repeat_keys) return 0;
+        for (let i = 0; i < keyboard.alt_repeat_keys.length; i++) {
+            const e = keyboard.alt_repeat_keys[i];
+            const hasKey = e.keycode !== "KC_NO" && e.keycode !== "";
+            const hasAlt = e.alt_keycode !== "KC_NO" && e.alt_keycode !== "";
+            if (!hasKey && !hasAlt) return i;
+        }
+        return keyboard.alt_repeat_keys.length;
+    };
+
+    const handleAddAltRepeat = () => {
+        const emptyIndex = findFirstEmptyAltRepeat();
+        if (emptyIndex < (keyboard.alt_repeat_keys?.length || 0)) {
+            handleEdit(emptyIndex);
+        }
     };
 
     const isEnabled = (options: number) => {
@@ -116,18 +154,19 @@ const AltRepeatPanel: React.FC = () => {
             <div className="flex flex-row gap-3 h-full items-start flex-wrap content-start">
                 {/* Alt-Repeat key */}
                 <div className="flex flex-col gap-1 flex-shrink-0">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">Key</span>
-                    <Key
-                        isRelative
-                        x={0} y={0} w={1} h={1} row={-1} col={-1}
-                        keycode="QK_ALT_REPEAT_KEY"
-                        label="Alt-Rep"
-                        keyContents={altRepeatKeyContents}
-                        layerColor="sidebar"
-                        headerClassName="bg-kb-sidebar-dark"
-                        variant="small"
-                        onClick={handleAssignAltRepeatKey}
-                    />
+                    <div className="w-[45px] h-[45px]">
+                        <Key
+                            isRelative
+                            x={0} y={0} w={1} h={1} row={-1} col={-1}
+                            keycode="QK_ALT_REPEAT_KEY"
+                            label="Alt-Rep"
+                            keyContents={altRepeatKeyContents}
+                            layerColor="sidebar"
+                            headerClassName="bg-kb-sidebar-dark"
+                            variant="medium"
+                            onClick={handleAssignAltRepeatKey}
+                        />
+                    </div>
                 </div>
 
                 {/* Alt-repeat entries */}
@@ -144,11 +183,22 @@ const AltRepeatPanel: React.FC = () => {
                             <div
                                 key={i}
                                 className={cn(
-                                    "flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors",
+                                    "relative flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors group",
                                     !enabled && "opacity-50"
                                 )}
                                 onClick={() => handleEdit(i)}
                             >
+                                {/* Delete button */}
+                                <button
+                                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        clearAltRepeat(i);
+                                    }}
+                                    title="Clear alt-repeat"
+                                >
+                                    <X className="w-3 h-3 text-white" />
+                                </button>
                                 <span className="text-[9px] font-bold text-slate-600 mb-1">AR {i}</span>
                                 <div className="flex flex-row items-center gap-1">
                                     {renderSmallKey(entry.keycode, i, "keycode", false)}
@@ -158,6 +208,16 @@ const AltRepeatPanel: React.FC = () => {
                             </div>
                         );
                     })}
+                    {/* Add new alt-repeat button */}
+                    {findFirstEmptyAltRepeat() < (altRepeatKeys.length || 0) && (
+                        <button
+                            className="flex flex-col items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg p-2 min-w-[60px] h-[60px] transition-colors border-2 border-dashed border-gray-300 hover:border-gray-400"
+                            onClick={handleAddAltRepeat}
+                            title="Add new alt-repeat"
+                        >
+                            <Plus className="w-6 h-6 text-gray-400" />
+                        </button>
+                    )}
                     {altRepeatKeys.filter(e => (e.keycode !== "KC_NO" && e.keycode !== "") || (e.alt_keycode !== "KC_NO" && e.alt_keycode !== "")).length === 0 && (
                         <div className="text-center text-gray-500 py-2 px-4 text-sm">
                             No alt-repeat keys configured.

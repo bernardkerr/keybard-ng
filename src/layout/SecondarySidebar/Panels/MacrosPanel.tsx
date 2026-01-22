@@ -1,6 +1,7 @@
 import React from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Plus, X } from "lucide-react";
 import { Key } from "@/components/Key";
+import { vialService } from "@/services/vial.service";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -17,7 +18,7 @@ interface Props {
 }
 
 const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
-    const { keyboard } = useVial();
+    const { keyboard, setKeyboard } = useVial();
     const { assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
@@ -31,6 +32,36 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
     const isHorizontal = layoutMode === "bottombar";
 
     if (!keyboard) return null;
+
+    const clearMacro = async (index: number) => {
+        if (!keyboard.macros) return;
+        const updatedMacros = [...keyboard.macros];
+        updatedMacros[index] = { mid: index, actions: [] };
+        const updatedKeyboard = { ...keyboard, macros: updatedMacros };
+        setKeyboard(updatedKeyboard);
+
+        try {
+            await vialService.updateMacros(updatedKeyboard);
+            await vialService.saveViable();
+        } catch (err) {
+            console.error("Failed to clear macro:", err);
+        }
+    };
+
+    const findFirstEmptyMacro = (): number => {
+        if (!keyboard.macros) return 0;
+        for (let i = 0; i < keyboard.macros.length; i++) {
+            if (!keyboard.macros[i]?.actions?.length) return i;
+        }
+        return keyboard.macros.length;
+    };
+
+    const handleAddMacro = () => {
+        const emptyIndex = findFirstEmptyMacro();
+        if (emptyIndex < (keyboard.macros?.length || 0)) {
+            handleEdit(emptyIndex);
+        }
+    };
 
     const layerColorName = keyboard?.cosmetic?.layer_colors?.[selectedLayer] || "primary";
     const hoverBorderColor = hoverBorderClasses[layerColorName] || hoverBorderClasses["primary"];
@@ -107,9 +138,20 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                     return (
                         <div
                             key={i}
-                            className="flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors min-w-[100px] max-w-[180px]"
+                            className="relative flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors min-w-[100px] max-w-[180px] group"
                             onClick={() => handleEdit(i)}
                         >
+                            {/* Delete button */}
+                            <button
+                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    clearMacro(i);
+                                }}
+                                title="Clear macro"
+                            >
+                                <X className="w-3 h-3 text-white" />
+                            </button>
                             {/* Header with draggable macro key and label */}
                             <div className="flex flex-row items-center gap-2 mb-2">
                                 <div className="w-[30px] h-[30px] relative" onClick={(e) => e.stopPropagation()}>
@@ -149,6 +191,16 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                         </div>
                     );
                 })}
+                {/* Add new macro button */}
+                {findFirstEmptyMacro() < (macros.length || 0) && (
+                    <button
+                        className="flex flex-col items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg p-2 min-w-[60px] h-[80px] transition-colors border-2 border-dashed border-gray-300 hover:border-gray-400"
+                        onClick={handleAddMacro}
+                        title="Add new macro"
+                    >
+                        <Plus className="w-6 h-6 text-gray-400" />
+                    </button>
+                )}
                 {macros.filter(m => m?.actions?.length > 0).length === 0 && (
                     <div className="text-center text-gray-500 py-4 px-6">
                         No macros configured.

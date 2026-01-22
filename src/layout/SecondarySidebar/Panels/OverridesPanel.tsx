@@ -1,11 +1,12 @@
 import React from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Plus, X } from "lucide-react";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
+import { vialService } from "@/services/vial.service";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
@@ -39,6 +40,48 @@ const OverridesPanel: React.FC = () => {
         setItemToEdit(index);
         setBindingTypeToEdit("overrides");
         setAlternativeHeader(true);
+    };
+
+    const clearOverride = async (index: number) => {
+        if (!keyboard.key_overrides) return;
+        const updatedOverrides = [...keyboard.key_overrides];
+        updatedOverrides[index] = {
+            ...updatedOverrides[index],
+            trigger: "KC_NO",
+            replacement: "KC_NO",
+            options: 0,
+            layers: 0,
+            negative_mod_mask: 0,
+            suppressed_mods: 0,
+            trigger_mods: 0
+        };
+        const updatedKeyboard = { ...keyboard, key_overrides: updatedOverrides };
+        setKeyboard(updatedKeyboard);
+
+        try {
+            await vialService.updateKeyoverride(updatedKeyboard, index);
+            await vialService.saveViable();
+        } catch (err) {
+            console.error("Failed to clear override:", err);
+        }
+    };
+
+    const findFirstEmptyOverride = (): number => {
+        if (!keyboard.key_overrides) return 0;
+        for (let i = 0; i < keyboard.key_overrides.length; i++) {
+            const o = keyboard.key_overrides[i];
+            const hasTrigger = o.trigger && o.trigger !== "KC_NO";
+            const hasRepl = o.replacement && o.replacement !== "KC_NO";
+            if (!hasTrigger && !hasRepl) return i;
+        }
+        return keyboard.key_overrides.length;
+    };
+
+    const handleAddOverride = () => {
+        const emptyIndex = findFirstEmptyOverride();
+        if (emptyIndex < (keyboard.key_overrides?.length || 0)) {
+            handleEdit(emptyIndex);
+        }
     };
 
     const updateOverrideOption = (index: number, bit: number, checked: boolean) => {
@@ -90,11 +133,22 @@ const OverridesPanel: React.FC = () => {
                         <div
                             key={i}
                             className={cn(
-                                "flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors min-w-[90px]",
+                                "relative flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors min-w-[90px] group",
                                 !isEnabled && "opacity-50"
                             )}
                             onClick={() => handleEdit(i)}
                         >
+                            {/* Delete button */}
+                            <button
+                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    clearOverride(i);
+                                }}
+                                title="Clear override"
+                            >
+                                <X className="w-3 h-3 text-white" />
+                            </button>
                             <div className="flex flex-row items-center justify-between mb-1">
                                 <span className="text-xs font-bold text-slate-600">OR {i}</span>
                                 <div
@@ -133,6 +187,16 @@ const OverridesPanel: React.FC = () => {
                         </div>
                     );
                 })}
+                {/* Add new override button */}
+                {findFirstEmptyOverride() < (overrides.length || 0) && (
+                    <button
+                        className="flex flex-col items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg p-2 min-w-[60px] h-[70px] transition-colors border-2 border-dashed border-gray-300 hover:border-gray-400"
+                        onClick={handleAddOverride}
+                        title="Add new override"
+                    >
+                        <Plus className="w-6 h-6 text-gray-400" />
+                    </button>
+                )}
                 {overrides.filter(o => (o.trigger && o.trigger !== "KC_NO") || (o.replacement && o.replacement !== "KC_NO")).length === 0 && (
                     <div className="text-center text-gray-500 py-4 px-6">
                         No overrides configured.

@@ -181,7 +181,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
     }, [keyboardLayout, currentUnitSize, useFragmentLayout]);
 
     return (
-        <div className="flex flex-col items-center justify-center p-4">
+        <div className="p-4">
             <div
                 className="keyboard-layout relative"
                 style={{ width: `${keyboardSize.width}px`, height: `${keyboardSize.height}px` }}
