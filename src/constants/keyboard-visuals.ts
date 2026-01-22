@@ -19,13 +19,13 @@ export interface ClusterBackground {
 export const THUMB_OFFSET_U = 0.3;
 
 /**
- * Gap reduction for thumb clusters in fragment-composed layouts.
- * Fragments define positions in KLE coordinates which may have more
- * vertical separation. This offset brings thumbs closer to finger clusters.
+ * Gap adjustment for thumb clusters in fragment-composed layouts.
+ * Fragments define positions in KLE coordinates.
  * Negative value = move thumbs UP (closer to fingers).
- * -1.0 = move up by one full key width
+ * Positive value = move thumbs DOWN (more separation).
+ * 0.0 = no adjustment (use fragment-defined positions)
  */
-export const FRAGMENT_THUMB_GAP_REDUCTION_U = -1.0;
+export const FRAGMENT_THUMB_GAP_REDUCTION_U = 0.0;
 
 export const CLUSTER_BACKGROUNDS_DATA: ClusterBackground[] = [
     // Left Cluster

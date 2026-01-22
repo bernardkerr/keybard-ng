@@ -259,13 +259,18 @@ export class FragmentComposerService {
             }
         }
 
-        // Calculate the current thumb cluster midpoint and desired gap
-        const currentThumbMidpoint = (leftThumbRightEdge + rightThumbLeftEdge) / 2;
-        const thumbGap = rightThumbLeftEdge - leftThumbRightEdge;
+        // Get resolved fragment names for thumb clusters to detect non-standard variants
+        const thumbFragmentNames = this.getThumbFragmentNames(kbinfo);
 
-        // Calculate deltas to center thumbs about the index midline
-        // Keep the same gap between thumbs, just shift to center on midline
-        const shiftX = midline - currentThumbMidpoint;
+        // Calculate independent X shifts for each thumb cluster
+        // This handles asymmetric configurations (e.g., 6-key thumb on left, 5-key finger on right)
+        const desiredGap = 0.4; // Gap between thumb clusters (in units)
+
+        // Left thumb: align rightmost edge to be (desiredGap/2) left of midline
+        const leftThumbShiftX = (midline - desiredGap / 2) - leftThumbRightEdge;
+
+        // Right thumb: align leftmost edge to be (desiredGap/2) right of midline
+        const rightThumbShiftX = (midline + desiredGap / 2) - rightThumbLeftEdge;
 
         // Also need Y correction - use SVALBOARD_LAYOUT reference
         let deltaY = 0;
@@ -277,12 +282,9 @@ export class FragmentComposerService {
             }
         }
 
-        // Get resolved fragment names for thumb clusters to detect non-standard variants
-        const thumbFragmentNames = this.getThumbFragmentNames(kbinfo);
-
         const correctedLayout = { ...layout };
 
-        // Apply corrections to both thumb clusters
+        // Apply corrections to both thumb clusters independently
         for (const row of [leftThumbRow, rightThumbRow]) {
             const clusterKeys = keysByRow[row] || [];
             if (clusterKeys.length === 0) continue;
@@ -293,6 +295,9 @@ export class FragmentComposerService {
             const fragmentName = isLeftThumb ? thumbFragmentNames.left : thumbFragmentNames.right;
             const isNonStandardThumb = fragmentName !== null && !fragmentName.toLowerCase().includes('thumb');
             const extraYShift = isNonStandardThumb ? 1 : 0;
+
+            // Use independent X shift for each thumb cluster
+            const shiftX = isLeftThumb ? leftThumbShiftX : rightThumbShiftX;
 
             // Apply gap reduction to bring thumbs closer to finger clusters
             // Plus any extra shift for non-standard thumb variants
@@ -310,7 +315,7 @@ export class FragmentComposerService {
             console.log(`Thumb cluster row ${row} (${fragmentName}): shifted X by ${shiftX.toFixed(2)}, Y by ${totalYShift.toFixed(2)} (deltaY=${deltaY.toFixed(2)}, gapReduction=${FRAGMENT_THUMB_GAP_REDUCTION_U}, extraYShift=${extraYShift})`);
         }
 
-        console.log(`Midline: ${midline.toFixed(2)}, thumb gap: ${thumbGap.toFixed(2)}`);
+        console.log(`Midline: ${midline.toFixed(2)}, leftShiftX: ${leftThumbShiftX.toFixed(2)}, rightShiftX: ${rightThumbShiftX.toFixed(2)}`);
 
         return correctedLayout;
     }

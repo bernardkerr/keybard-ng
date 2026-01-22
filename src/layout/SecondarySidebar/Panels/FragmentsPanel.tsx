@@ -35,26 +35,37 @@ const FragmentsPanel: React.FC = () => {
             // Get option index for the selected fragment
             const optionIdx = fragmentService.getOptionIndex(instance, newFragmentName);
 
-            // Update on device
-            const success = await vialService.updateFragmentSelection(keyboard, instanceIdx, optionIdx);
-
-            if (success) {
-                // Update local state
-                const newKeyboard = { ...keyboard };
-                if (newKeyboard.fragmentState) {
-                    newKeyboard.fragmentState.userSelections.set(instance.id, newFragmentName);
-                }
-
-                // Recompose keyboard layout with new fragment selection
-                const fragmentComposer = vialService.getFragmentComposer();
-                const composedLayout = fragmentComposer.composeLayout(newKeyboard);
-                if (Object.keys(composedLayout).length > 0) {
-                    newKeyboard.keylayout = composedLayout;
-                    console.log("Fragment layout recomposed:", Object.keys(composedLayout).length, "keys");
-                }
-
-                setKeyboard(newKeyboard);
+            // Try to update on device (will fail if not connected, but that's OK)
+            let deviceSuccess = false;
+            try {
+                deviceSuccess = await vialService.updateFragmentSelection(keyboard, instanceIdx, optionIdx);
+            } catch (e) {
+                console.log("Device not connected, updating locally only");
             }
+
+            // Always update local state (works in demo mode and connected mode)
+            const newKeyboard = { ...keyboard };
+
+            // Initialize fragmentState if needed
+            if (!newKeyboard.fragmentState) {
+                newKeyboard.fragmentState = {
+                    hwDetection: new Map(),
+                    eepromSelections: new Map(),
+                    userSelections: new Map(),
+                };
+            }
+            newKeyboard.fragmentState.userSelections.set(instance.id, newFragmentName);
+
+            // Recompose keyboard layout with new fragment selection
+            const fragmentComposer = vialService.getFragmentComposer();
+            const composedLayout = fragmentComposer.composeLayout(newKeyboard);
+            if (Object.keys(composedLayout).length > 0) {
+                // Create a new object reference to ensure React detects the change
+                newKeyboard.keylayout = { ...composedLayout };
+                console.log("Fragment layout recomposed:", Object.keys(composedLayout).length, "keys", deviceSuccess ? "(saved to device)" : "(local only)");
+            }
+
+            setKeyboard(newKeyboard);
         } catch (error) {
             console.error("Failed to update fragment selection:", error);
         } finally {
