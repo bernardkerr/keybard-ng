@@ -325,7 +325,7 @@ const EditorLayoutInner = () => {
     );
 
     return (
-        <div className={cn("flex h-screen max-w-screen p-0", showDetailsSidebar && "bg-white")}>
+        <div className={cn("flex flex-1 h-screen max-w-screen p-0", showDetailsSidebar && "bg-white")}>
             <AppSidebar />
             {/* Render SecondarySidebar only in sidebar mode */}
             {useSidebarLayout && <SecondarySidebar />}
