@@ -15,6 +15,8 @@ import LayerSelector from "./LayerSelector";
 import AppSidebar from "./Sidebar";
 
 import { LayerProvider, useLayer } from "@/contexts/LayerContext";
+import { useLayoutLibrary } from "@/contexts/LayoutLibraryContext";
+import { PasteLayerDialog } from "@/components/PasteLayerDialog";
 
 import { LayoutSettingsProvider, useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 
@@ -60,11 +62,62 @@ const EditorLayout = () => {
 const EditorLayoutInner = () => {
     const { keyboard, isConnected, setKeyboard } = useVial();
     const { selectedLayer, setSelectedLayer } = useLayer();
-    const { clearSelection } = useKeyBinding();
+    const { clearSelection, assignKeycodeTo } = useKeyBinding();
     const { keyVariant, setKeyVariant, layoutMode, setLayoutMode, isAutoLayoutMode, setIsAutoLayoutMode, isAutoKeySize, setIsAutoKeySize, setSecondarySidebarOpen, setPrimarySidebarExpanded, registerPrimarySidebarControl } = useLayoutSettings();
+    const { layerClipboard, openPasteDialog } = useLayoutLibrary();
 
     const { getSetting, updateSetting } = useSettings();
     const { getPendingCount, commit, setInstant, clearAll, getPendingChanges } = useChanges();
+
+    // Ctrl+V handler for pasting layers
+    React.useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Check for Ctrl+V (or Cmd+V on Mac)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                // Only handle if we have a layer in clipboard
+                if (layerClipboard) {
+                    e.preventDefault();
+                    openPasteDialog();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [layerClipboard, openPasteDialog]);
+
+    // Handler for when paste is confirmed
+    const handlePasteConfirm = React.useCallback(() => {
+        if (!keyboard || !layerClipboard || !keyboard.keymap) return;
+
+        const sourceKeymap = layerClipboard.layer.keymap;
+        const targetLayerKeymap = keyboard.keymap[selectedLayer] || [];
+        const cols = keyboard.cols || MATRIX_COLS;
+
+        // Use assignKeycodeTo for each key to properly track changes for push/revert
+        for (let i = 0; i < targetLayerKeymap.length && i < sourceKeymap.length; i++) {
+            const row = Math.floor(i / cols);
+            const col = i % cols;
+            const newValue = sourceKeymap[i];
+            const currentValue = targetLayerKeymap[i];
+
+            // Only queue change if value is different
+            if (newValue !== currentValue) {
+                assignKeycodeTo({
+                    type: "keyboard",
+                    layer: selectedLayer,
+                    row,
+                    col,
+                }, newValue);
+            }
+        }
+    }, [keyboard, layerClipboard, selectedLayer, assignKeycodeTo]);
+
+    // Get current layer name for the paste dialog
+    const currentLayerName = React.useMemo(() => {
+        if (!keyboard?.cosmetic?.layer) return `Layer ${selectedLayer}`;
+        return keyboard.cosmetic.layer[String(selectedLayer)] || `Layer ${selectedLayer}`;
+    }, [keyboard, selectedLayer]);
 
     const liveUpdating = getSetting("live-updating");
 
@@ -406,7 +459,7 @@ const EditorLayoutInner = () => {
                         <div className="flex items-center gap-3 animate-in fade-in zoom-in duration-300">
                             <button
                                 className={cn(
-                                    "h-9 rounded-full px-4 text-sm font-medium transition-all shadow-sm flex items-center gap-2",
+                                    "h-9 rounded-full px-4 text-sm font-medium transition-all shadow-sm flex items-center gap-2 whitespace-nowrap",
                                     hasChanges && isConnected
                                         ? "bg-black text-white hover:bg-black/90 cursor-pointer"
                                         : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
@@ -539,6 +592,12 @@ const EditorLayoutInner = () => {
             </div>
             {/* Render BottomPanel at root level so it spans full width */}
             {useBottomLayout && <BottomPanel leftOffset={primaryOffset} pickerMode={pickerMode} />}
+
+            {/* Paste Layer Dialog */}
+            <PasteLayerDialog
+                currentLayerName={currentLayerName}
+                onConfirm={handlePasteConfirm}
+            />
         </div>
     );
 };

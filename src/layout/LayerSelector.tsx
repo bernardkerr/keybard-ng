@@ -1,8 +1,7 @@
 import LayersActiveIcon from "@/components/icons/LayersActive";
 import LayersDefaultIcon from "@/components/icons/LayersDefault";
 import CustomColorDialog from "@/components/CustomColorDialog";
-import { Ellipsis, Settings, Unplug, Zap } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Ellipsis, Settings, Unplug, Upload, Zap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
@@ -30,6 +29,8 @@ import {
 } from "@/components/ui/context-menu";
 import { KEYMAP } from "@/constants/keygen";
 import { usePanels } from "@/contexts/PanelsContext";
+import { PublishLayerDialog } from "@/components/PublishLayerDialog";
+import { Input } from "@/components/ui/input";
 
 
 interface LayerSelectorProps {
@@ -50,11 +51,12 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
 
     // UI state
     const [showAllLayers, setShowAllLayers] = useState(true);
-    const [isEditing, setIsEditing] = useState(false);
     const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
     const [isCustomColorOpen, setIsCustomColorOpen] = useState(false);
     const [editValue, setEditValue] = useState("");
     const [isHovered, setIsHovered] = useState(false);
+    const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const pickerRef = useRef<HTMLDivElement>(null);
 
@@ -85,26 +87,31 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
         setShowAllLayers((prev) => !prev);
     };
 
+    // Inline editing functions
     const handleStartEditing = () => {
-        setEditValue(svalService.getLayerName(keyboard, selectedLayer));
+        const currentName = svalService.getLayerName(keyboard, selectedLayer);
+        setEditValue(currentName);
         setIsEditing(true);
+        // Focus the input after the state update
+        setTimeout(() => inputRef.current?.focus(), 0);
     };
 
     const handleSave = () => {
-        if (keyboard) {
+        if (editValue.trim() && keyboard) {
             const cosmetic = JSON.parse(JSON.stringify(keyboard.cosmetic || { layer: {}, layer_colors: {} }));
             if (!cosmetic.layer) cosmetic.layer = {};
-
-            // If the input is empty, remove the custom name to revert to default
-            if (editValue.trim() === "") {
-                delete cosmetic.layer[selectedLayer.toString()];
-            } else {
-                cosmetic.layer[selectedLayer.toString()] = editValue;
-            }
-
+            cosmetic.layer[selectedLayer.toString()] = editValue.trim();
             setKeyboard({ ...keyboard, cosmetic });
         }
         setIsEditing(false);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter") {
+            handleSave();
+        } else if (e.key === "Escape") {
+            setIsEditing(false);
+        }
     };
 
     const handleSetColor = async (colorName: string) => {
@@ -160,14 +167,6 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                     console.error("Failed to set hardware layer color:", e);
                 }
             }
-        }
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter") {
-            handleSave();
-        } else if (e.key === "Escape") {
-            setIsEditing(false);
         }
     };
 
@@ -628,9 +627,21 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                             <DropdownMenuItem onSelect={handleChangeDisabledToTransparent}>
                                 Switch Blank to Transparent
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onSelect={() => setIsPublishDialogOpen(true)}>
+                                <Upload className="w-4 h-4 mr-2" />
+                                Publish Layer...
+                            </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 )}
+
+                {/* Publish Layer Dialog */}
+                <PublishLayerDialog
+                    isOpen={isPublishDialogOpen}
+                    onClose={() => setIsPublishDialogOpen(false)}
+                    layerIndex={selectedLayer}
+                />
             </div>
 
             {/* Custom Color Dialog */}
