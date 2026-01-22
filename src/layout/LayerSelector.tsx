@@ -35,22 +35,34 @@ import { PublishLayerDialog } from "@/components/PublishLayerDialog";
 import { Input } from "@/components/ui/input";
 
 
+// Minimum space needed to show the full layer selector (tabs + layer name)
+const LAYER_SELECTOR_MIN_HEIGHT = 100;
+
 interface LayerSelectorProps {
     selectedLayer: number;
     setSelectedLayer: (layer: number) => void;
+    /** Available vertical space above the keyboard (in pixels) */
+    availableSpaceAbove?: number;
+    /** Force hide the layer selector completely (e.g., when editor overlay is shown) */
+    forceHide?: boolean;
 }
 
 /**
  * Component for selecting and managing active layers in the keyboard editor.
  * Provides a quick-access tab bar for all layers and a detailed display of the selected layer.
  */
-const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer }) => {
+const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer, availableSpaceAbove, forceHide }) => {
     const { keyboard, setKeyboard, updateKey } = useVial();
     const { clearSelection } = useKeyBinding();
     const { layoutMode } = useLayoutSettings();
     const { queue } = useChanges();
 
-    const isCompact = layoutMode === "bottombar";
+    // Show compact mode only when there's not enough space above the keyboard
+    // Use layoutMode as a hint, but ultimately decide based on available space
+    // Also force compact when editor overlay is shown to minimize interference
+    const isCompact = forceHide || (availableSpaceAbove !== undefined
+        ? availableSpaceAbove < LAYER_SELECTOR_MIN_HEIGHT
+        : layoutMode === "bottombar");
 
     // UI state
     const [showAllLayers, setShowAllLayers] = useState(true);
@@ -445,15 +457,15 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
-                {/* Thin hint bar - always visible as hover target */}
+                {/* Thin hint bar - always visible as hover target, z-40 to stay above editor overlay (z-30) */}
                 <div className={cn(
-                    "absolute top-0 left-0 right-0 h-2 bg-gradient-to-b from-gray-300/30 to-transparent cursor-pointer z-30 transition-opacity duration-200",
+                    "absolute top-0 left-0 right-0 h-2 bg-gradient-to-b from-gray-300/30 to-transparent cursor-pointer z-40 transition-opacity duration-200",
                     showExpanded ? "opacity-0" : "opacity-100"
                 )} />
 
-                {/* Expanded overlay - absolute positioned, doesn't push content */}
+                {/* Expanded overlay - absolute positioned, only as tall as content, z-50 to stay above editor overlay */}
                 <div className={cn(
-                    "absolute top-0 left-0 right-0 z-40 transition-all duration-200 bg-white/98 backdrop-blur-sm shadow-md border-b border-gray-200",
+                    "absolute top-0 left-0 right-0 h-fit z-50 transition-all duration-200 bg-white/98 backdrop-blur-sm shadow-md border-b border-gray-200",
                     showExpanded ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none -translate-y-1"
                 )}>
                     <div className="flex items-center justify-between px-3 py-1.5">

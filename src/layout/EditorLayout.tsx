@@ -19,6 +19,8 @@ import { useLayoutLibrary } from "@/contexts/LayoutLibraryContext";
 import { PasteLayerDialog } from "@/components/PasteLayerDialog";
 
 import { LayoutSettingsProvider, useLayoutSettings } from "@/contexts/LayoutSettingsContext";
+import { UNIT_SIZE, SVALBOARD_LAYOUT } from "@/constants/svalboard-layout";
+import { THUMB_OFFSET_U } from "@/constants/keyboard-visuals";
 
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -63,8 +65,78 @@ const EditorLayoutInner = () => {
     const { keyboard, isConnected, setKeyboard } = useVial();
     const { selectedLayer, setSelectedLayer } = useLayer();
     const { clearSelection, assignKeycodeTo } = useKeyBinding();
-    const { keyVariant, setKeyVariant, layoutMode, setLayoutMode, isAutoLayoutMode, setIsAutoLayoutMode, isAutoKeySize, setIsAutoKeySize, setSecondarySidebarOpen, setPrimarySidebarExpanded, registerPrimarySidebarControl } = useLayoutSettings();
+    const { keyVariant, setKeyVariant, layoutMode, setLayoutMode, isAutoLayoutMode, setIsAutoLayoutMode, isAutoKeySize, setIsAutoKeySize, setSecondarySidebarOpen, setPrimarySidebarExpanded, registerPrimarySidebarControl, setMeasuredDimensions } = useLayoutSettings();
     const { layerClipboard, openPasteDialog } = useLayoutLibrary();
+
+    // Refs and state for measuring available space above keyboard
+    const contentContainerRef = React.useRef<HTMLDivElement>(null);
+    const [availableSpaceAboveKeyboard, setAvailableSpaceAboveKeyboard] = React.useState<number>(200);
+
+    // Calculate keyboard layout extents (independent of current keyVariant)
+    const keyboardExtents = React.useMemo(() => {
+        if (!keyboard) return { maxX: 20, maxY: 10 }; // default estimate
+
+        // Use dynamic keylayout if available, otherwise fallback to hardcoded layout
+        const keyboardLayout = (keyboard.keylayout && Object.keys(keyboard.keylayout).length > 0)
+            ? keyboard.keylayout as Record<number, { x: number; y: number; w: number; h: number }>
+            : SVALBOARD_LAYOUT;
+        const useFragmentLayout = keyboard.keylayout && Object.keys(keyboard.keylayout).length > 0;
+
+        // Find max X and Y extents
+        let maxX = 0;
+        let maxY = 0;
+        Object.values(keyboardLayout).forEach((key) => {
+            // Only apply THUMB_OFFSET_U for hardcoded layout, not fragment-composed layouts
+            const yPos = (!useFragmentLayout && key.y >= 6) ? key.y + THUMB_OFFSET_U : key.y;
+            maxX = Math.max(maxX, key.x + key.w);
+            maxY = Math.max(maxY, yPos + key.h);
+        });
+
+        return { maxX, maxY };
+    }, [keyboard]);
+
+    // Calculate keyboard height based on current key variant
+    const keyboardHeight = React.useMemo(() => {
+        const currentUnitSize = keyVariant === 'small' ? 30 : keyVariant === 'medium' ? 45 : UNIT_SIZE;
+        return keyboardExtents.maxY * currentUnitSize + 20 + 32; // +20 from Keyboard component, +32 for padding
+    }, [keyboardExtents, keyVariant]);
+
+    // Calculate keyboard widths at each size (for auto-sizing)
+    const keyboardWidths = React.useMemo(() => ({
+        default: keyboardExtents.maxX * UNIT_SIZE + 32, // +32 for padding
+        medium: keyboardExtents.maxX * 45 + 32,
+        small: keyboardExtents.maxX * 30 + 32,
+    }), [keyboardExtents]);
+
+    // Measure available space and report dimensions using ResizeObserver
+    React.useEffect(() => {
+        const container = contentContainerRef.current;
+        if (!container) return;
+
+        const measureSpace = () => {
+            const containerHeight = container.clientHeight;
+            const containerWidth = container.clientWidth;
+
+            // Keyboard is centered, so space above = (container - keyboard) / 2
+            const spaceAbove = Math.max(0, (containerHeight - keyboardHeight) / 2);
+            setAvailableSpaceAboveKeyboard(spaceAbove);
+
+            // Report measured dimensions to context for auto-sizing
+            setMeasuredDimensions({
+                containerWidth,
+                keyboardWidths,
+            });
+        };
+
+        // Initial measurement
+        measureSpace();
+
+        // Set up ResizeObserver for dynamic updates
+        const resizeObserver = new ResizeObserver(measureSpace);
+        resizeObserver.observe(container);
+
+        return () => resizeObserver.disconnect();
+    }, [keyboardHeight, keyboardWidths, setMeasuredDimensions]);
 
     const { getSetting, updateSetting } = useSettings();
     const { getPendingCount, commit, setInstant, clearAll, getPendingChanges } = useChanges();
@@ -231,11 +303,17 @@ const EditorLayoutInner = () => {
             {/* Render SecondarySidebar only in sidebar mode */}
             {useSidebarLayout && <SecondarySidebar />}
             <div
+                ref={contentContainerRef}
                 className="relative flex-1 px-4 h-screen max-h-screen flex flex-col max-w-full w-full overflow-hidden bg-kb-gray border-none"
                 style={contentStyle}
                 onClick={() => clearSelection()}
             >
-                <LayerSelector selectedLayer={selectedLayer} setSelectedLayer={setSelectedLayer} />
+                <LayerSelector
+                    selectedLayer={selectedLayer}
+                    setSelectedLayer={setSelectedLayer}
+                    availableSpaceAbove={availableSpaceAboveKeyboard}
+                    forceHide={showEditorOverlay}
+                />
 
                 <div className="flex-1 overflow-hidden flex items-center justify-center max-w-full relative">
                     {activePanel === "matrixtester" ? (
@@ -248,13 +326,13 @@ const EditorLayoutInner = () => {
                     {useBottomLayout && (
                         <div
                             className={cn(
-                                "absolute inset-0 z-30 transition-all duration-300 ease-in-out flex items-stretch justify-center gap-0",
+                                "absolute inset-x-0 bottom-0 z-30 transition-all duration-300 ease-in-out flex items-end justify-center gap-0 max-h-full",
                                 showEditorOverlay ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
                             )}
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Picker selector tabs - vertical on the left */}
-                            <div className="flex-shrink-0 bg-white border-r border-gray-200 shadow-lg">
+                            <div className="flex-shrink-0 bg-white border-r border-gray-200 shadow-lg self-stretch">
                                 <EditorSidePanel
                                     activeTab={pickerMode}
                                     onTabChange={setPickerMode}
@@ -262,13 +340,13 @@ const EditorLayoutInner = () => {
                                 />
                             </div>
 
-                            {/* Editor Panel */}
+                            {/* Editor Panel - minimum height matches picker, can grow for content */}
                             <div className={cn(
-                                "bg-kb-gray-medium flex-shrink-0 shadow-[8px_0_24px_rgba(0,0,0,0.15),-2px_0_8px_rgba(0,0,0,0.1)]",
+                                "bg-kb-gray-medium flex-shrink-0 shadow-[8px_0_24px_rgba(0,0,0,0.15),-2px_0_8px_rgba(0,0,0,0.1)] min-h-[280px] max-h-full overflow-auto self-stretch",
                                 activePanel === "overrides" ? "w-[700px]" : "w-[500px]"
                             )}>
                                 {itemToEdit !== null && (
-                                    <div className="relative h-full">
+                                    <div className="relative">
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();

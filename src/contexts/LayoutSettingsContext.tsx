@@ -3,12 +3,11 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 export type KeyVariant = "default" | "medium" | "small";
 export type LayoutMode = "sidebar" | "bottombar";
 
-// Approximate keyboard widths at each size (Svalboard layout)
-// Measured from screenshot: medium ~1200px, scale proportionally
-const KEYBOARD_WIDTH = {
-    default: 1400,  // 60px keys (1200 * 60/45 ≈ 1600, but layout gaps don't scale linearly)
-    medium: 1100,   // 45px keys (measured ~1200, slight buffer)
-    small: 750,     // 30px keys (1200 * 30/45 = 800, minus some)
+// Fallback keyboard widths (used when actual measurements aren't available)
+const FALLBACK_KEYBOARD_WIDTH = {
+    default: 1400,
+    medium: 1100,
+    small: 750,
 };
 
 // Sidebar widths (from sidebar.tsx CSS variables)
@@ -16,6 +15,12 @@ const PRIMARY_SIDEBAR_EXPANDED = 188; // 11.75rem
 const PRIMARY_SIDEBAR_COLLAPSED = 48; // 3rem
 const SECONDARY_SIDEBAR_WIDTH = 450;
 const LAYOUT_MARGINS = 40; // Buffer for container padding
+
+// Measured dimensions from EditorLayout
+interface MeasuredDimensions {
+    containerWidth: number;
+    keyboardWidths: { default: number; medium: number; small: number };
+}
 
 interface LayoutSettingsContextType {
     internationalLayout: string;
@@ -32,6 +37,8 @@ interface LayoutSettingsContextType {
     setPrimarySidebarExpanded: (expanded: boolean) => void;
     // Callback for EditorLayout to provide - allows context to request sidebar collapse
     registerPrimarySidebarControl: (collapse: () => void) => void;
+    // Allow EditorLayout to provide actual measured dimensions for more accurate auto-sizing
+    setMeasuredDimensions: (dimensions: MeasuredDimensions) => void;
 }
 
 const LayoutSettingsContext = createContext<LayoutSettingsContextType | undefined>(undefined);
@@ -47,11 +54,18 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     const [secondarySidebarOpen, setSecondarySidebarOpenState] = useState<boolean>(false);
     const [primarySidebarExpanded, setPrimarySidebarExpandedState] = useState<boolean>(true);
     const [collapsePrimarySidebar, setCollapsePrimarySidebar] = useState<(() => void) | null>(null);
+    const [measuredDimensions, setMeasuredDimensionsState] = useState<MeasuredDimensions | null>(null);
 
     // Use refs to track current values without triggering re-renders during calculation
     const secondarySidebarOpenRef = useRef(false);
     const primarySidebarExpandedRef = useRef(true);
     const isUpdatingRef = useRef(false);
+    const measuredDimensionsRef = useRef<MeasuredDimensions | null>(null);
+
+    const setMeasuredDimensions = useCallback((dimensions: MeasuredDimensions) => {
+        measuredDimensionsRef.current = dimensions;
+        setMeasuredDimensionsState(dimensions);
+    }, []);
 
     const setSecondarySidebarOpen = useCallback((open: boolean) => {
         if (secondarySidebarOpenRef.current !== open) {
@@ -83,17 +97,24 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
         return windowWidth - primarySidebar - secondarySidebar - LAYOUT_MARGINS;
     }, []);
 
+    // Get keyboard widths - use measured if available, otherwise fallback
+    const getKeyboardWidths = useCallback(() => {
+        return measuredDimensionsRef.current?.keyboardWidths ?? FALLBACK_KEYBOARD_WIDTH;
+    }, []);
+
     // Determine best key size that fits without occlusion
     const getBestKeySize = useCallback((availableWidth: number): KeyVariant => {
-        if (availableWidth >= KEYBOARD_WIDTH.default) return "default";
-        if (availableWidth >= KEYBOARD_WIDTH.medium) return "medium";
+        const widths = getKeyboardWidths();
+        if (availableWidth >= widths.default) return "default";
+        if (availableWidth >= widths.medium) return "medium";
         return "small";
-    }, []);
+    }, [getKeyboardWidths]);
 
     // Check if keyboard fits at given size
     const keyboardFits = useCallback((availableWidth: number, size: KeyVariant): boolean => {
-        return availableWidth >= KEYBOARD_WIDTH[size];
-    }, []);
+        const widths = getKeyboardWidths();
+        return availableWidth >= widths[size];
+    }, [getKeyboardWidths]);
 
     // Handle auto-switching based on available space
     const updateAutoLayout = useCallback(() => {
@@ -104,64 +125,77 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
         isUpdatingRef.current = true;
 
         try {
-            const windowWidth = window.innerWidth;
+            const measured = measuredDimensionsRef.current;
             const secondaryOpen = secondarySidebarOpenRef.current;
             const primaryExpanded = primarySidebarExpandedRef.current;
 
-            // Calculate available space in different configurations
-            const sidebarExpandedNoSecondary = getAvailableWidth(windowWidth, "sidebar", false, true);
-            const sidebarExpandedWithSecondary = getAvailableWidth(windowWidth, "sidebar", true, true);
-            const sidebarCollapsedNoSecondary = getAvailableWidth(windowWidth, "sidebar", false, false);
-            const sidebarCollapsedWithSecondary = getAvailableWidth(windowWidth, "sidebar", true, false);
-            const bottomBarAvailable = getAvailableWidth(windowWidth, "bottombar", false, false);
+            // If we have measured dimensions, use the actual container width directly
+            if (measured && isAutoKeySize) {
+                // Direct comparison: does the keyboard fit at each size?
+                const containerWidth = measured.containerWidth;
+                const widths = measured.keyboardWidths;
 
-            // Determine what configuration we need:
-            // 1. Try current sidebar state first
-            // 2. If small doesn't fit, collapse the sidebar
-            // 3. If small still doesn't fit collapsed, switch to bottom bar
+                let bestSize: KeyVariant = "small";
+                if (containerWidth >= widths.default) {
+                    bestSize = "default";
+                } else if (containerWidth >= widths.medium) {
+                    bestSize = "medium";
+                }
+                setKeyVariantState(bestSize);
+            }
 
-            let targetSidebarExpanded = primaryExpanded;
-            let useSidebarMode = true;
+            // For layout mode, still use window-based calculation for sidebar decisions
+            if (isAutoLayoutMode) {
+                const windowWidth = window.innerWidth;
 
-            // Check with current sidebar state
-            const currentSidebarAvailable = primaryExpanded
-                ? (secondaryOpen ? sidebarExpandedWithSecondary : sidebarExpandedNoSecondary)
-                : (secondaryOpen ? sidebarCollapsedWithSecondary : sidebarCollapsedNoSecondary);
+                // Calculate available space in different configurations
+                const sidebarExpandedNoSecondary = getAvailableWidth(windowWidth, "sidebar", false, true);
+                const sidebarExpandedWithSecondary = getAvailableWidth(windowWidth, "sidebar", true, true);
+                const sidebarCollapsedNoSecondary = getAvailableWidth(windowWidth, "sidebar", false, false);
+                const sidebarCollapsedWithSecondary = getAvailableWidth(windowWidth, "sidebar", true, false);
+                const bottomBarAvailable = getAvailableWidth(windowWidth, "bottombar", false, false);
 
-            if (!keyboardFits(currentSidebarAvailable, "small")) {
-                // Small doesn't fit - try collapsing primary sidebar if expanded
-                if (primaryExpanded) {
-                    const collapsedAvailable = secondaryOpen ? sidebarCollapsedWithSecondary : sidebarCollapsedNoSecondary;
+                let targetSidebarExpanded = primaryExpanded;
+                let useSidebarMode = true;
 
-                    if (keyboardFits(collapsedAvailable, "small")) {
-                        // Collapsing sidebar makes it fit - request collapse
-                        targetSidebarExpanded = false;
-                        if (collapsePrimarySidebar) {
-                            setTimeout(() => collapsePrimarySidebar(), 0);
+                // Check with current sidebar state
+                const currentSidebarAvailable = primaryExpanded
+                    ? (secondaryOpen ? sidebarExpandedWithSecondary : sidebarExpandedNoSecondary)
+                    : (secondaryOpen ? sidebarCollapsedWithSecondary : sidebarCollapsedNoSecondary);
+
+                if (!keyboardFits(currentSidebarAvailable, "small")) {
+                    // Small doesn't fit - try collapsing primary sidebar if expanded
+                    if (primaryExpanded) {
+                        const collapsedAvailable = secondaryOpen ? sidebarCollapsedWithSecondary : sidebarCollapsedNoSecondary;
+
+                        if (keyboardFits(collapsedAvailable, "small")) {
+                            // Collapsing sidebar makes it fit - request collapse
+                            targetSidebarExpanded = false;
+                            if (collapsePrimarySidebar) {
+                                setTimeout(() => collapsePrimarySidebar(), 0);
+                            }
+                        } else {
+                            // Even collapsed doesn't fit - switch to bottom bar
+                            useSidebarMode = false;
                         }
                     } else {
-                        // Even collapsed doesn't fit - switch to bottom bar
+                        // Already collapsed and still doesn't fit - switch to bottom bar
                         useSidebarMode = false;
                     }
-                } else {
-                    // Already collapsed and still doesn't fit - switch to bottom bar
-                    useSidebarMode = false;
                 }
-            }
 
-            if (isAutoLayoutMode) {
                 setLayoutModeState(useSidebarMode ? "sidebar" : "bottombar");
-            }
 
-            // For key size: use actual available space based on decided mode
-            if (isAutoKeySize) {
-                if (useSidebarMode) {
-                    const actualAvailable = targetSidebarExpanded
-                        ? (secondaryOpen ? sidebarExpandedWithSecondary : sidebarExpandedNoSecondary)
-                        : (secondaryOpen ? sidebarCollapsedWithSecondary : sidebarCollapsedNoSecondary);
-                    setKeyVariantState(getBestKeySize(actualAvailable));
-                } else {
-                    setKeyVariantState(getBestKeySize(bottomBarAvailable));
+                // If no measured dimensions yet, use calculated available width for key size
+                if (!measured && isAutoKeySize) {
+                    if (useSidebarMode) {
+                        const actualAvailable = targetSidebarExpanded
+                            ? (secondaryOpen ? sidebarExpandedWithSecondary : sidebarExpandedNoSecondary)
+                            : (secondaryOpen ? sidebarCollapsedWithSecondary : sidebarCollapsedNoSecondary);
+                        setKeyVariantState(getBestKeySize(actualAvailable));
+                    } else {
+                        setKeyVariantState(getBestKeySize(bottomBarAvailable));
+                    }
                 }
             }
         } finally {
@@ -183,11 +217,11 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
         return () => window.removeEventListener("resize", handleResize);
     }, [updateAutoLayout]);
 
-    // Re-run auto layout when sidebar states change
+    // Re-run auto layout when sidebar states change or measured dimensions update
     // Using state values here is safe because they're debounced by the refs
     useEffect(() => {
         updateAutoLayout();
-    }, [secondarySidebarOpen, primarySidebarExpanded, updateAutoLayout]);
+    }, [secondarySidebarOpen, primarySidebarExpanded, measuredDimensions, updateAutoLayout]);
 
     // Sync refs when state changes (in case setState was called directly)
     useEffect(() => {
@@ -241,6 +275,7 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
             setSecondarySidebarOpen,
             setPrimarySidebarExpanded,
             registerPrimarySidebarControl,
+            setMeasuredDimensions,
         }}>
             {children}
         </LayoutSettingsContext.Provider>

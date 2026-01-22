@@ -107,11 +107,11 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
 
     // In inline mode, render without absolute positioning for overlay use
     const containerClasses = inline
-        ? cn("h-full flex flex-col", bindingTypeToEdit === "overrides" ? "w-[600px]" : "w-full")
+        ? cn("flex flex-col", bindingTypeToEdit === "overrides" ? "w-[600px]" : "w-full")
         : cn("absolute top-1/2 -translate-y-1/2", bindingTypeToEdit === "overrides" ? "w-[600px] right-[-600px]" : "w-[450px] right-[-450px]");
 
     const panelClasses = inline
-        ? cn("bg-kb-gray-medium p-3 flex flex-col w-full h-full")
+        ? cn("bg-kb-gray-medium p-3 flex flex-col w-full")
         : cn("binding-editor bg-kb-gray-medium rounded-r-2xl p-5 flex flex-col w-full min-h-[500px] shadow-[4px_0_16px_rgba(0,0,0,0.1)]", isClosing ? "binding-editor--exit" : "binding-editor--enter");
 
     // Icon sizes: smaller for inline mode
