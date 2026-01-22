@@ -107,6 +107,13 @@ const EditorLayoutInner = () => {
         small: keyboardExtents.maxX * 30 + 32,
     }), [keyboardExtents]);
 
+    // Calculate keyboard heights at each size (for auto-sizing)
+    const keyboardHeights = React.useMemo(() => ({
+        default: keyboardExtents.maxY * UNIT_SIZE + 80, // +80 for layer selector and bottom bar
+        medium: keyboardExtents.maxY * 45 + 80,
+        small: keyboardExtents.maxY * 30 + 80,
+    }), [keyboardExtents]);
+
     // Measure container dimensions and report to context for auto-sizing
     React.useEffect(() => {
         const container = contentContainerRef.current;
@@ -114,11 +121,14 @@ const EditorLayoutInner = () => {
 
         const measureSpace = () => {
             const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
 
             // Report measured dimensions to context for auto-sizing
             setMeasuredDimensions({
                 containerWidth,
+                containerHeight,
                 keyboardWidths,
+                keyboardHeights,
             });
         };
 
@@ -130,7 +140,7 @@ const EditorLayoutInner = () => {
         resizeObserver.observe(container);
 
         return () => resizeObserver.disconnect();
-    }, [keyboardWidths, setMeasuredDimensions]);
+    }, [keyboardWidths, keyboardHeights, setMeasuredDimensions]);
 
     const { getSetting, updateSetting } = useSettings();
     const { getPendingCount, commit, setInstant, clearAll, getPendingChanges } = useChanges();

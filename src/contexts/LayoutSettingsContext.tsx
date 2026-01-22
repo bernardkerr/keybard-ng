@@ -10,6 +10,13 @@ const FALLBACK_KEYBOARD_WIDTH = {
     small: 750,
 };
 
+// Fallback keyboard heights (used when actual measurements aren't available)
+const FALLBACK_KEYBOARD_HEIGHT = {
+    default: 600,
+    medium: 450,
+    small: 300,
+};
+
 // Sidebar widths (from sidebar.tsx CSS variables)
 const PRIMARY_SIDEBAR_EXPANDED = 188; // 11.75rem
 const PRIMARY_SIDEBAR_COLLAPSED = 48; // 3rem
@@ -19,7 +26,9 @@ const LAYOUT_MARGINS = 40; // Buffer for container padding
 // Measured dimensions from EditorLayout
 interface MeasuredDimensions {
     containerWidth: number;
+    containerHeight: number;
     keyboardWidths: { default: number; medium: number; small: number };
+    keyboardHeights: { default: number; medium: number; small: number };
 }
 
 interface LayoutSettingsContextType {
@@ -119,13 +128,27 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
         return measuredDimensionsRef.current?.keyboardWidths ?? FALLBACK_KEYBOARD_WIDTH;
     }, []);
 
-    // Determine best key size that fits without occlusion
-    const getBestKeySize = useCallback((availableWidth: number): KeyVariant => {
+    // Get keyboard heights - use measured if available, otherwise fallback
+    const getKeyboardHeights = useCallback(() => {
+        return measuredDimensionsRef.current?.keyboardHeights ?? FALLBACK_KEYBOARD_HEIGHT;
+    }, []);
+
+    // Determine best key size that fits without occlusion (considers both width and height)
+    const getBestKeySize = useCallback((availableWidth: number, availableHeight?: number): KeyVariant => {
         const widths = getKeyboardWidths();
-        if (availableWidth >= widths.default) return "default";
-        if (availableWidth >= widths.medium) return "medium";
+        const heights = getKeyboardHeights();
+
+        // Check if size fits both width and height constraints
+        const fitsAt = (size: KeyVariant) => {
+            const widthFits = availableWidth >= widths[size];
+            const heightFits = availableHeight === undefined || availableHeight >= heights[size];
+            return widthFits && heightFits;
+        };
+
+        if (fitsAt("default")) return "default";
+        if (fitsAt("medium")) return "medium";
         return "small";
-    }, [getKeyboardWidths]);
+    }, [getKeyboardWidths, getKeyboardHeights]);
 
     // Check if keyboard fits at given size
     const keyboardFits = useCallback((availableWidth: number, size: KeyVariant): boolean => {
@@ -142,16 +165,22 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
         const primaryExpanded = primarySidebarExpandedRef.current;
         const userManuallyCollapsed = userManuallyCollapsedRef.current;
 
-        // If we have measured dimensions, use the actual container width directly
+        // If we have measured dimensions, use the actual container dimensions directly
         if (measured && isAutoKeySize) {
-            // Direct comparison: does the keyboard fit at each size?
+            // Direct comparison: does the keyboard fit at each size (both width AND height)?
             const containerWidth = measured.containerWidth;
+            const containerHeight = measured.containerHeight;
             const widths = measured.keyboardWidths;
+            const heights = measured.keyboardHeights;
+
+            // Check if size fits both width and height
+            const fitsAt = (size: KeyVariant) =>
+                containerWidth >= widths[size] && containerHeight >= heights[size];
 
             let bestSize: KeyVariant = "small";
-            if (containerWidth >= widths.default) {
+            if (fitsAt("default")) {
                 bestSize = "default";
-            } else if (containerWidth >= widths.medium) {
+            } else if (fitsAt("medium")) {
                 bestSize = "medium";
             }
             setKeyVariantState(bestSize);
