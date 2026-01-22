@@ -101,15 +101,40 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
 
                     if (!hasActions) return null;
 
+                    const macroKeycode = `M${i}`;
+                    const macroKeyContents = getKeyContents(keyboard, macroKeycode) as KeyContent;
+
                     return (
                         <div
                             key={i}
-                            className="flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors min-w-[80px] max-w-[180px]"
+                            className="flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors min-w-[100px] max-w-[180px]"
                             onClick={() => handleEdit(i)}
                         >
-                            <span className="text-xs font-bold text-center mb-1 text-slate-600 truncate">
-                                {customName || `M${i}`}
-                            </span>
+                            {/* Header with draggable macro key and label */}
+                            <div className="flex flex-row items-center gap-2 mb-2">
+                                <div className="w-[30px] h-[30px] relative" onClick={(e) => e.stopPropagation()}>
+                                    <Key
+                                        isRelative
+                                        x={0}
+                                        y={0}
+                                        w={1}
+                                        h={1}
+                                        row={-1}
+                                        col={-1}
+                                        keycode={macroKeycode}
+                                        label={i.toString()}
+                                        keyContents={macroKeyContents}
+                                        variant="small"
+                                        layerColor="sidebar"
+                                        className="border-kb-gray"
+                                        headerClassName="bg-kb-sidebar-dark"
+                                        onClick={() => assignKeycode(macroKeycode)}
+                                    />
+                                </div>
+                                <span className="text-xs font-bold text-slate-600 truncate">
+                                    {customName || `Macro ${i}`}
+                                </span>
+                            </div>
                             <div className="flex flex-row items-center gap-0.5 flex-wrap justify-center">
                                 {actions.slice(0, 4).map((action, idx) => (
                                     <React.Fragment key={idx}>

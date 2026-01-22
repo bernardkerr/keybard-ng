@@ -3,6 +3,7 @@ import { FC, useEffect, useRef } from "react";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { getKeyContents } from "@/utils/keys";
 import { ArrowRight, Trash2 } from "lucide-react";
 import { Key } from "@/components/Key";
@@ -17,7 +18,12 @@ const ComboEditor: FC<Props> = () => {
     const { setPanelToGoBack, setAlternativeHeader, itemToEdit } = usePanels();
     const { selectComboKey, selectedTarget, assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
+    const { layoutMode } = useLayoutSettings();
     const hasAutoSelected = useRef(false);
+
+    const isHorizontal = layoutMode === "bottombar";
+    const keySize = isHorizontal ? "w-[45px] h-[45px]" : "w-[60px] h-[60px]";
+    const keyVariant = isHorizontal ? "medium" : "default";
 
     const layerColorName = keyboard?.cosmetic?.layer_colors?.[selectedLayer] || "primary";
     const hoverBorderColor = hoverBorderClasses[layerColorName] || hoverBorderClasses["primary"];
@@ -71,8 +77,11 @@ const ComboEditor: FC<Props> = () => {
             headerClass = "text-black";
         }
 
+        const trashOffset = isHorizontal ? "-left-8" : "-left-10";
+        const trashSize = isHorizontal ? "w-3 h-3" : "w-4 h-4";
+
         return (
-            <div className="relative w-[60px] h-[60px] group/key">
+            <div className={`relative ${keySize} group/key`}>
                 <Key
                     isRelative
                     x={0} y={0} w={1} h={1} row={-1} col={-1}
@@ -87,26 +96,21 @@ const ComboEditor: FC<Props> = () => {
                     hoverBorderColor={hoverBorderColor}
                     hoverBackgroundColor={hoverBackgroundColor}
                     hoverLayerColor={layerColorName}
+                    variant={keyVariant}
                 />
 
                 {hasContent && (
-                    <div className="absolute -left-10 top-0 h-full flex items-center justify-center opacity-0 group-hover/key:opacity-100 transition-opacity">
+                    <div className={`absolute ${trashOffset} top-0 h-full flex items-center justify-center opacity-0 group-hover/key:opacity-100 transition-opacity`}>
                         <button
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                // We need to clear this specific slot.
-                                // If the slot is currently selected, clearSelection is handled by assignKeycode naturally if we were to select it first.
-                                // But here we might not be selected.
-                                // We should select the slot then assign KC_NO.
-                                // However, assignKeycode works on 'selectedTarget'.
-                                // So we must select this slot first!
                                 selectComboKey(itemToEdit!, slot);
                                 setTimeout(() => assignKeycode("KC_NO"), 0);
                             }}
                             title="Clear key"
                         >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className={trashSize} />
                         </button>
                     </div>
                 )}
@@ -114,6 +118,41 @@ const ComboEditor: FC<Props> = () => {
         );
     };
 
+    // Horizontal layout: 2x2 grid of input keys + arrow + output
+    if (isHorizontal) {
+        return (
+            <div className="flex flex-row items-center gap-6 px-6 py-3">
+                <div className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-slate-500 mb-1">Input Keys</span>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div className="flex flex-col items-center">
+                            <span className="text-[10px] text-gray-400 mb-0.5">1</span>
+                            {renderKey(keys[0], 0)}
+                        </div>
+                        <div className="flex flex-col items-center">
+                            <span className="text-[10px] text-gray-400 mb-0.5">2</span>
+                            {renderKey(keys[1], 1)}
+                        </div>
+                        <div className="flex flex-col items-center">
+                            <span className="text-[10px] text-gray-400 mb-0.5">3</span>
+                            {renderKey(keys[2], 2)}
+                        </div>
+                        <div className="flex flex-col items-center">
+                            <span className="text-[10px] text-gray-400 mb-0.5">4</span>
+                            {renderKey(keys[3], 3)}
+                        </div>
+                    </div>
+                </div>
+                <ArrowRight className="h-5 w-5 flex-shrink-0 text-gray-600" />
+                <div className="flex flex-col items-center">
+                    <span className="text-xs font-medium text-slate-500 mb-1">Output</span>
+                    {renderKey(keys[4], 4)}
+                </div>
+            </div>
+        );
+    }
+
+    // Vertical layout (sidebar mode)
     return (
         <div className="flex flex-row items-center px-20 gap-8 pt-5">
             <div className="flex flex-col gap-0 py-8">

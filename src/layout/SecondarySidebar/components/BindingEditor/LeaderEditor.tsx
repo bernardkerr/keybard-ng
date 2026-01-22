@@ -3,6 +3,7 @@ import { ArrowRight, Trash2 } from "lucide-react";
 
 import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,12 @@ const LeaderEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
     const { itemToEdit, setPanelToGoBack, setAlternativeHeader } = usePanels();
     const { selectLeaderKey, selectedTarget } = useKeyBinding();
+    const { layoutMode } = useLayoutSettings();
+
+    const isHorizontal = layoutMode === "bottombar";
+    const seqKeySize = isHorizontal ? "w-[45px] h-[45px]" : "w-[50px] h-[50px]";
+    const outputKeySize = isHorizontal ? "w-[45px] h-[45px]" : "w-[60px] h-[60px]";
+    const keyVariant = isHorizontal ? "medium" : "default";
 
     const leaderIndex = itemToEdit!;
     const leaderEntry = keyboard?.leaders?.[leaderIndex];
@@ -103,8 +110,8 @@ const LeaderEditor: FC = () => {
 
         return (
             <div className="flex flex-col items-center gap-1 relative">
-                <span className="text-xs font-medium text-slate-500">{seqIndex + 1}</span>
-                <div className="relative w-[50px] h-[50px] group/leader-key">
+                <span className={cn("font-medium text-slate-500", isHorizontal ? "text-[10px]" : "text-xs")}>{seqIndex + 1}</span>
+                <div className={`relative ${seqKeySize} group/leader-key`}>
                     <Key
                         isRelative
                         x={0}
@@ -121,6 +128,7 @@ const LeaderEditor: FC = () => {
                         layerColor={keyColor}
                         className={keyClassName}
                         headerClassName={headerClass}
+                        variant={keyVariant}
                     />
                     {hasContent && (
                         <div className="absolute -top-2 -right-2 opacity-0 group-hover/leader-key:opacity-100 transition-opacity">
@@ -166,10 +174,13 @@ const LeaderEditor: FC = () => {
             headerClass = "text-black";
         }
 
+        const trashOffset = isHorizontal ? "-left-8" : "-left-10";
+        const trashSize = isHorizontal ? "w-3 h-3" : "w-4 h-4";
+
         return (
             <div className="flex flex-col items-center gap-1 relative">
-                <span className="text-sm font-bold text-slate-600">Output</span>
-                <div className="relative w-[60px] h-[60px] group/leader-output">
+                <span className={cn("font-bold text-slate-600", isHorizontal ? "text-xs" : "text-sm")}>Output</span>
+                <div className={`relative ${outputKeySize} group/leader-output`}>
                     <Key
                         isRelative
                         x={0}
@@ -186,18 +197,19 @@ const LeaderEditor: FC = () => {
                         layerColor={keyColor}
                         className={keyClassName}
                         headerClassName={headerClass}
+                        variant={keyVariant}
                     />
                     {hasContent && (
-                        <div className="absolute -left-10 top-0 h-full flex items-center justify-center opacity-0 group-hover/leader-output:opacity-100 transition-opacity">
+                        <div className={`absolute ${trashOffset} top-0 h-full flex items-center justify-center opacity-0 group-hover/leader-output:opacity-100 transition-opacity`}>
                             <button
-                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
+                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     clearKey("output");
                                 }}
                                 title="Clear key"
                             >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className={trashSize} />
                             </button>
                         </div>
                     )}
@@ -213,6 +225,64 @@ const LeaderEditor: FC = () => {
     // Count how many sequence keys are filled
     const filledKeys = leaderEntry.sequence?.filter(k => k && k !== "KC_NO").length || 0;
 
+    // Horizontal layout for bottom bar mode
+    if (isHorizontal) {
+        return (
+            <div className="flex flex-row items-center gap-6 px-6 py-3">
+                {/* Active Toggle */}
+                <div className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-slate-500">Status</span>
+                    <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-400/50">
+                        <button
+                            onClick={() => updateOption(LeaderOptions.ENABLED, true)}
+                            className={cn(
+                                "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[4px] transition-all font-bold border",
+                                isEnabled
+                                    ? "bg-black text-white shadow-sm border-black"
+                                    : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
+                            )}
+                        >
+                            ON
+                        </button>
+                        <button
+                            onClick={() => updateOption(LeaderOptions.ENABLED, false)}
+                            className={cn(
+                                "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[4px] transition-all font-bold border",
+                                !isEnabled
+                                    ? "bg-black text-white shadow-sm border-black"
+                                    : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
+                            )}
+                        >
+                            OFF
+                        </button>
+                    </div>
+                </div>
+
+                {/* Sequence Keys */}
+                <div className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-slate-500">Sequence</span>
+                    <div className="flex flex-row gap-1 items-end">
+                        {[0, 1, 2, 3, 4].map((idx) => {
+                            if (idx > filledKeys) return null;
+                            return (
+                                <div key={idx} className="flex items-center gap-0.5">
+                                    {idx > 0 && <ArrowRight className="w-3 h-3 text-gray-400" />}
+                                    {renderSequenceKey(idx)}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <ArrowRight className="w-5 h-5 text-gray-600 flex-shrink-0" />
+
+                {/* Output Key */}
+                {renderOutputKey()}
+            </div>
+        );
+    }
+
+    // Vertical layout (sidebar mode)
     return (
         <div className="flex flex-col gap-4 py-8 pl-[84px] pr-5 pb-4">
             {/* Active Toggle */}

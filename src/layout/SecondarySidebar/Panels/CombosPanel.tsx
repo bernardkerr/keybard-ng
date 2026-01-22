@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { ArrowRight, Plus } from "lucide-react";
+import { ArrowRight, Plus, X } from "lucide-react";
 
+import ComboIcon from "@/components/ComboIcon";
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { Input } from "@/components/ui/input";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -31,6 +32,43 @@ const CombosPanel: React.FC = () => {
     const isHorizontal = layoutMode === "bottombar";
 
     if (!keyboard) return null;
+
+    const clearCombo = async (index: number) => {
+        if (!keyboard.combos) return;
+        const updatedCombos = [...keyboard.combos];
+        updatedCombos[index] = {
+            ...updatedCombos[index],
+            keys: ["KC_NO", "KC_NO", "KC_NO", "KC_NO"],
+            output: "KC_NO"
+        };
+        const updatedKeyboard = { ...keyboard, combos: updatedCombos };
+        setKeyboard(updatedKeyboard);
+
+        try {
+            await vialService.updateCombo(updatedKeyboard, index);
+            await vialService.saveViable();
+        } catch (err) {
+            console.error("Failed to clear combo:", err);
+        }
+    };
+
+    const findFirstEmptyCombo = (): number => {
+        if (!keyboard.combos) return 0;
+        for (let i = 0; i < keyboard.combos.length; i++) {
+            const combo = keyboard.combos[i] as any;
+            const hasInputs = combo.keys?.some((k: string) => k && k !== "KC_NO");
+            const hasOutput = combo.output && combo.output !== "KC_NO";
+            if (!hasInputs && !hasOutput) return i;
+        }
+        return keyboard.combos.length; // All full, return next index (might be out of bounds)
+    };
+
+    const handleAddCombo = () => {
+        const emptyIndex = findFirstEmptyCombo();
+        if (emptyIndex < (keyboard.combos?.length || 0)) {
+            handleEdit(emptyIndex);
+        }
+    };
 
     // QSID 2 = Combo timeout
     const COMBO_TIMEOUT_QSID = 2;
@@ -117,10 +155,27 @@ const CombosPanel: React.FC = () => {
                     return (
                         <div
                             key={i}
-                            className="flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors min-w-[100px]"
+                            className="relative flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors min-w-[100px] group"
                             onClick={() => handleEdit(i)}
                         >
-                            <span className="text-xs font-bold text-center mb-1 text-slate-600">Combo {i}</span>
+                            {/* Delete button */}
+                            <button
+                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    clearCombo(i);
+                                }}
+                                title="Clear combo"
+                            >
+                                <X className="w-3 h-3 text-white" />
+                            </button>
+                            {/* Header with icon and label */}
+                            <div className="flex flex-row items-center gap-2 mb-2">
+                                <div className="w-5 h-5 text-slate-600 flex-shrink-0">
+                                    <ComboIcon />
+                                </div>
+                                <span className="text-xs font-bold text-slate-600">Combo {i}</span>
+                            </div>
                             <div className="flex flex-row items-center justify-center gap-1 flex-wrap">
                                 {inputs.map((input, idx) => (
                                     <React.Fragment key={input.id}>
@@ -134,6 +189,16 @@ const CombosPanel: React.FC = () => {
                         </div>
                     );
                 })}
+                {/* Add new combo button */}
+                {findFirstEmptyCombo() < (combos.length || 0) && (
+                    <button
+                        className="flex flex-col items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg p-2 min-w-[60px] h-[80px] transition-colors border-2 border-dashed border-gray-300 hover:border-gray-400"
+                        onClick={handleAddCombo}
+                        title="Add new combo"
+                    >
+                        <Plus className="w-6 h-6 text-gray-400" />
+                    </button>
+                )}
                 {combos.filter(combo => {
                     const c = combo as any;
                     const inputs = [0, 1, 2, 3].map(idx => c.keys?.[idx]).filter(k => k && k !== "KC_NO");
