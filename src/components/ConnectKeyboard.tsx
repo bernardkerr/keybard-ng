@@ -83,6 +83,22 @@ const ConnectKeyboard = () => {
             }
         }
     };
+
+    const handleLoadDemo = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await fetch(import.meta.env.BASE_URL + "sval-default.viable");
+            if (!response.ok) throw new Error("Failed to fetch demo file");
+            const blob = await response.blob();
+            const file = new File([blob], "sval-default.viable", { type: "application/octet-stream" });
+            await loadFromFile(file);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to load demo");
+        } finally {
+            setLoading(false);
+        }
+    };
     return (
         <div className="h-full flex flex-col justify-center">
             <div className="flex flex-col items-center mb-2">
@@ -145,6 +161,9 @@ const ConnectKeyboard = () => {
                                         {loading ? "Loading..." : "Load File"}
                                     </Button>
                                     <input ref={fileInputRef} type="file" accept=".viable,.vil,.kbi,.json" style={{ display: "none" }} onChange={handleLoadFile} />
+                                    <Button onClick={handleLoadDemo} disabled={loading} variant={"outline"}>
+                                        {loading ? "Loading..." : "Sval-QWERTY Demo"}
+                                    </Button>
                                 </>
                             )}
                         </div>
