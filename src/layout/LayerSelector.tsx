@@ -313,7 +313,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
             onClick={(e) => e.stopPropagation()}
         >
             {/* Layer Tabs with filter toggle - single line only */}
-            <div className="flex items-center gap-2 pl-4 py-2 whitespace-nowrap">
+            <div className="flex items-center gap-2 pl-5 py-2 whitespace-nowrap">
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <button
@@ -335,8 +335,8 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                     </TooltipContent>
                 </Tooltip>
 
-                {/* Layer tabs - single line, clips overflow */}
-                <div className="flex items-center gap-1 overflow-hidden">
+                {/* Layer tabs - single line */}
+                <div className="flex items-center gap-1">
                     {Array.from({ length: keyboard.layers || 16 }, (_, i) => renderLayerTab(i))}
                 </div>
             </div>

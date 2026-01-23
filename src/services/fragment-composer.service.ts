@@ -310,37 +310,40 @@ export class FragmentComposerService {
         // Desired gap between index bottom and thumb top (in key units)
         const desiredYGap = 1.0 + FRAGMENT_THUMB_GAP_REDUCTION_U;
 
-        // Calculate Y shifts to position thumbs one key unit below their adjacent index clusters
-        const leftThumbShiftY = (leftIndexBottomEdge + desiredYGap) - leftThumbTopEdge;
-        const rightThumbShiftY = (rightIndexBottomEdge + desiredYGap) - rightThumbTopEdge;
+        // Use the maximum index cluster bottom edge so both thumbs stay horizontally aligned
+        // If either index cluster is taller (e.g., 6-key), both thumbs move down together
+        const maxIndexBottomEdge = Math.max(leftIndexBottomEdge, rightIndexBottomEdge);
+
+        // Calculate a single Y shift for both thumb clusters to keep them aligned
+        // Use the minimum thumb top edge to ensure proper gap from the tallest index cluster
+        const minThumbTopEdge = Math.min(leftThumbTopEdge, rightThumbTopEdge);
+        const thumbShiftY = (maxIndexBottomEdge + desiredYGap) - minThumbTopEdge;
 
         const correctedLayout = { ...layout };
 
-        // Apply corrections to both thumb clusters independently
+        // Apply corrections to both thumb clusters
         for (const row of [leftThumbRow, rightThumbRow]) {
             const clusterKeys = keysByRow[row] || [];
             if (clusterKeys.length === 0) continue;
 
             const isLeftThumb = row === leftThumbRow;
 
-            // Use independent shifts for each thumb cluster
+            // Use independent X shifts but shared Y shift to keep thumbs horizontally aligned
             const shiftX = isLeftThumb ? leftThumbShiftX : rightThumbShiftX;
-            const shiftY = isLeftThumb ? leftThumbShiftY : rightThumbShiftY;
 
             for (const matrixPos of clusterKeys) {
                 const key = correctedLayout[matrixPos];
                 correctedLayout[matrixPos] = {
                     ...key,
                     x: key.x + shiftX,
-                    y: key.y + shiftY,
+                    y: key.y + thumbShiftY,
                 };
             }
 
-            const indexBottom = isLeftThumb ? leftIndexBottomEdge : rightIndexBottomEdge;
-            console.log(`Thumb cluster row ${row}: indexBottom=${indexBottom.toFixed(2)}, shiftX=${shiftX.toFixed(2)}, shiftY=${shiftY.toFixed(2)}`);
+            console.log(`Thumb cluster row ${row}: shiftX=${shiftX.toFixed(2)}, shiftY=${thumbShiftY.toFixed(2)}`);
         }
 
-        console.log(`Midline: ${midline.toFixed(2)}, desiredYGap: ${desiredYGap.toFixed(2)}`);
+        console.log(`Midline: ${midline.toFixed(2)}, maxIndexBottom: ${maxIndexBottomEdge.toFixed(2)}, desiredYGap: ${desiredYGap.toFixed(2)}`);
 
         return correctedLayout;
     }

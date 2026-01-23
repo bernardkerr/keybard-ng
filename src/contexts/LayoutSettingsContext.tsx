@@ -72,6 +72,7 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     const primarySidebarExpandedRef = useRef(true);
     const userManuallyCollapsedRef = useRef(false);
     const measuredDimensionsRef = useRef<MeasuredDimensions | null>(null);
+    const layoutModeRef = useRef<LayoutMode>("sidebar");
 
     const setMeasuredDimensions = useCallback((dimensions: MeasuredDimensions) => {
         measuredDimensionsRef.current = dimensions;
@@ -189,25 +190,45 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
         // For layout mode, still use window-based calculation for sidebar decisions
         if (isAutoLayoutMode) {
             const windowWidth = window.innerWidth;
+            const currentLayoutMode = layoutModeRef.current;
 
             // Calculate available space in different configurations
             const sidebarExpandedNoSecondary = getAvailableWidth(windowWidth, "sidebar", false, true);
             const sidebarExpandedWithSecondary = getAvailableWidth(windowWidth, "sidebar", true, true);
             const sidebarCollapsedNoSecondary = getAvailableWidth(windowWidth, "sidebar", false, false);
             const sidebarCollapsedWithSecondary = getAvailableWidth(windowWidth, "sidebar", true, false);
-            const bottomBarAvailable = getAvailableWidth(windowWidth, "bottombar", false, false);
+            const bottomBarExpandedAvailable = getAvailableWidth(windowWidth, "bottombar", false, true);
+            const bottomBarCollapsedAvailable = getAvailableWidth(windowWidth, "bottombar", false, false);
 
             let targetSidebarExpanded = primaryExpanded;
-            let useSidebarMode = true;
+            // Start with current mode - only change if necessary
+            let useSidebarMode = currentLayoutMode === "sidebar";
 
-            // Check with current sidebar state
-            const currentSidebarAvailable = primaryExpanded
-                ? (secondaryOpen ? sidebarExpandedWithSecondary : sidebarExpandedNoSecondary)
-                : (secondaryOpen ? sidebarCollapsedWithSecondary : sidebarCollapsedNoSecondary);
+            // Check with current sidebar state - use appropriate mode for calculation
+            // In bottombar mode, secondary sidebar doesn't affect horizontal space
+            let currentAvailable: number;
+            if (currentLayoutMode === "bottombar") {
+                currentAvailable = primaryExpanded ? bottomBarExpandedAvailable : bottomBarCollapsedAvailable;
+            } else {
+                currentAvailable = primaryExpanded
+                    ? (secondaryOpen ? sidebarExpandedWithSecondary : sidebarExpandedNoSecondary)
+                    : (secondaryOpen ? sidebarCollapsedWithSecondary : sidebarCollapsedNoSecondary);
+            }
 
-            const smallFits = keyboardFits(currentSidebarAvailable, "small");
+            const smallFits = keyboardFits(currentAvailable, "small");
 
-            if (!smallFits) {
+            // If keyboard fits in current mode, stay in current mode
+            // Only evaluate mode changes when things don't fit
+            if (smallFits) {
+                // Current mode works fine - check if we can expand sidebar in sidebar mode
+                if (useSidebarMode && !primaryExpanded && !userManuallyCollapsed && expandPrimarySidebar) {
+                    const expandedAvailable = secondaryOpen ? sidebarExpandedWithSecondary : sidebarExpandedNoSecondary;
+                    if (keyboardFits(expandedAvailable, "small")) {
+                        targetSidebarExpanded = true;
+                        setTimeout(() => expandPrimarySidebar(), 0);
+                    }
+                }
+            } else if (!smallFits) {
                 // Small doesn't fit - try collapsing primary sidebar if expanded
                 if (primaryExpanded) {
                     const collapsedAvailable = secondaryOpen ? sidebarCollapsedWithSecondary : sidebarCollapsedNoSecondary;
@@ -231,14 +252,6 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
                     // Already collapsed and still doesn't fit - switch to bottom bar
                     useSidebarMode = false;
                 }
-            } else if (!primaryExpanded && !userManuallyCollapsed && expandPrimarySidebar) {
-                // Sidebar is collapsed but NOT by user - check if we can expand it
-                const expandedAvailable = secondaryOpen ? sidebarExpandedWithSecondary : sidebarExpandedNoSecondary;
-                if (keyboardFits(expandedAvailable, "small")) {
-                    // There's room with expanded sidebar - auto-expand
-                    targetSidebarExpanded = true;
-                    setTimeout(() => expandPrimarySidebar(), 0);
-                }
             }
 
             setLayoutModeState(useSidebarMode ? "sidebar" : "bottombar");
@@ -251,6 +264,7 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
                         : (secondaryOpen ? sidebarCollapsedWithSecondary : sidebarCollapsedNoSecondary);
                     setKeyVariantState(getBestKeySize(actualAvailable));
                 } else {
+                    const bottomBarAvailable = targetSidebarExpanded ? bottomBarExpandedAvailable : bottomBarCollapsedAvailable;
                     setKeyVariantState(getBestKeySize(bottomBarAvailable));
                 }
             }
@@ -288,6 +302,10 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     useEffect(() => {
         userManuallyCollapsedRef.current = userManuallyCollapsedSidebar;
     }, [userManuallyCollapsedSidebar]);
+
+    useEffect(() => {
+        layoutModeRef.current = layoutMode;
+    }, [layoutMode]);
 
     // When auto mode is disabled, use the manual setting
     useEffect(() => {
