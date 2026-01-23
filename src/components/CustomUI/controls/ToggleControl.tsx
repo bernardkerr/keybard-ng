@@ -1,19 +1,25 @@
 import { Switch } from "@/components/ui/switch";
 import type { CustomUIMenuItem } from "@/types/vial.types";
+import { cn } from "@/lib/utils";
 
 interface ToggleControlProps {
     item: CustomUIMenuItem;
     value: number;
     onChange: (value: number) => void;
+    compact?: boolean;
 }
 
-export const ToggleControl: React.FC<ToggleControlProps> = ({ item, value, onChange }) => {
+export const ToggleControl: React.FC<ToggleControlProps> = ({ item, value, onChange, compact = false }) => {
     return (
-        <div className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item">
-            <span className="text-md">{item.label}</span>
+        <div className={cn(
+            "flex flex-row items-center justify-between gap-2",
+            compact ? "py-0.5" : "p-3 panel-layer-item"
+        )}>
+            <span className={compact ? "text-xs" : "text-md"}>{item.label}</span>
             <Switch
                 checked={value === 1}
                 onCheckedChange={(checked) => onChange(checked ? 1 : 0)}
+                className={compact ? "scale-75" : ""}
             />
         </div>
     );

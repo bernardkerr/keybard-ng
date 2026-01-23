@@ -5,6 +5,7 @@ import * as React from "react";
 import AltRepeatPanel from "../SecondarySidebar/Panels/AltRepeatPanel";
 import BasicKeyboards from "../SecondarySidebar/Panels/BasicKeyboards";
 import CombosPanel from "../SecondarySidebar/Panels/CombosPanel";
+import DynamicMenuPanel from "../SecondarySidebar/Panels/DynamicMenuPanel";
 import FragmentsPanel from "../SecondarySidebar/Panels/FragmentsPanel";
 import LeadersPanel from "../SecondarySidebar/Panels/LeadersPanel";
 import LayersPanel from "../SecondarySidebar/Panels/LayersPanel";
@@ -69,6 +70,15 @@ const BottomPanel: React.FC<BottomPanelProps> = ({ leftOffset, pickerMode }) => 
                     Select a panel from the sidebar to view options.
                 </div>
             );
+        }
+
+        // Handle dynamic menu panels
+        if (activePanel.startsWith("dynamic-menu-")) {
+            const indexStr = activePanel.replace("dynamic-menu-", "");
+            const menuIndex = parseInt(indexStr, 10);
+            if (!isNaN(menuIndex)) {
+                return <DynamicMenuPanel menuIndex={menuIndex} horizontal />;
+            }
         }
 
         switch (activePanel) {

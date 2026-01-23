@@ -9,6 +9,8 @@ interface CustomUIControlProps {
     values: Map<string, number>;
     onValueChange: (key: string, value: number) => void;
     onButtonClick?: (key: string) => void;
+    /** When true, renders in compact size for bottom panel */
+    compact?: boolean;
 }
 
 /**
@@ -19,6 +21,7 @@ export const CustomUIControl: React.FC<CustomUIControlProps> = ({
     values,
     onValueChange,
     onButtonClick,
+    compact = false,
 }) => {
     // Extract value key from content array
     const content = item.content as (string | number)[] | undefined;
@@ -45,6 +48,7 @@ export const CustomUIControl: React.FC<CustomUIControlProps> = ({
                     item={item}
                     value={currentValue}
                     onChange={handleChange}
+                    compact={compact}
                 />
             );
 
@@ -54,6 +58,7 @@ export const CustomUIControl: React.FC<CustomUIControlProps> = ({
                     item={item}
                     value={currentValue}
                     onChange={handleChange}
+                    compact={compact}
                 />
             );
 
@@ -63,6 +68,7 @@ export const CustomUIControl: React.FC<CustomUIControlProps> = ({
                     item={item}
                     value={currentValue}
                     onChange={handleChange}
+                    compact={compact}
                 />
             );
 
@@ -71,6 +77,7 @@ export const CustomUIControl: React.FC<CustomUIControlProps> = ({
                 <ButtonControl
                     item={item}
                     onClick={handleButtonClick}
+                    compact={compact}
                 />
             );
 

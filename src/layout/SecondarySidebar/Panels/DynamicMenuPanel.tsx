@@ -6,13 +6,15 @@ import type { CustomUIMenuItem } from "@/types/vial.types";
 
 interface DynamicMenuPanelProps {
     menuIndex: number;
+    /** When true, renders controls in a horizontal flow layout (for BottomPanel) */
+    horizontal?: boolean;
 }
 
 /**
  * Dynamic panel that renders a VIA3 custom UI menu
  * Loads values from keyboard on mount and handles updates
  */
-const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex }) => {
+const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizontal = false }) => {
     const { keyboard, isConnected } = useVial();
     const [values, setValues] = useState<Map<string, number>>(new Map());
     const [loading, setLoading] = useState(true);
@@ -109,6 +111,23 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex }) => {
     }
 
     // Render the menu
+    // Horizontal mode: compact flowing layout for bottom panel
+    // Vertical mode: title on top, controls stacked below
+    if (horizontal) {
+        return (
+            <section className="h-full overflow-auto px-2 py-1">
+                <CustomUIRenderer
+                    items={menu.content as CustomUIMenuItem[]}
+                    values={values}
+                    onValueChange={handleValueChange}
+                    onButtonClick={handleButtonClick}
+                    horizontal
+                    compact
+                />
+            </section>
+        );
+    }
+
     return (
         <section className="h-full flex flex-col overflow-hidden">
             <div className="flex-shrink-0 px-4 py-3 border-b">
