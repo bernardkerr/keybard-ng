@@ -415,15 +415,15 @@ const AppSidebar = () => {
                     {!isCollapsed && (
                         <SidebarMenuItem>
                             <SidebarMenuButton asChild size="nav" className="text-slate-600 transition-colors">
-                                <div className="flex w-full items-center justify-start">
+                                <div className="flex w-full items-center justify-start pr-2">
                                     <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
                                         <ArrowUpDown className="h-4 w-4 shrink-0" />
                                     </div>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="text-sm font-medium hover:text-slate-900">
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="text-xs font-medium hover:text-slate-900">
                                         Import
                                     </button>
-                                    <span className="text-slate-300 mx-1.5">|</span>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }} className="text-sm font-medium hover:text-slate-900 disabled:opacity-50" disabled={!keyboard}>
+                                    <span className="text-slate-300 mx-1">|</span>
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }} className="text-xs font-medium hover:text-slate-900 disabled:opacity-50" disabled={!keyboard}>
                                         Export
                                     </button>
                                 </div>
