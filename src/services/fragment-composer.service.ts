@@ -9,7 +9,6 @@
 import type { KeyboardInfo, FragmentInstance } from "../types/vial.types";
 import { KleService } from "./kle.service";
 import { FragmentService } from "./fragment.service";
-import { SVALBOARD_LAYOUT } from "../constants/svalboard-layout";
 import { FRAGMENT_THUMB_GAP_REDUCTION_U } from "../constants/keyboard-visuals";
 
 /**
@@ -259,28 +258,61 @@ export class FragmentComposerService {
             }
         }
 
-        // Get resolved fragment names for thumb clusters to detect non-standard variants
-        const thumbFragmentNames = this.getThumbFragmentNames(kbinfo);
-
         // Calculate independent X shifts for each thumb cluster
         // This handles asymmetric configurations (e.g., 6-key thumb on left, 5-key finger on right)
-        const desiredGap = 0.4; // Gap between thumb clusters (in units)
+        const desiredXGap = 0.4; // Gap between thumb clusters horizontally (in units)
 
-        // Left thumb: align rightmost edge to be (desiredGap/2) left of midline
-        const leftThumbShiftX = (midline - desiredGap / 2) - leftThumbRightEdge;
+        // Left thumb: align rightmost edge to be (desiredXGap/2) left of midline
+        const leftThumbShiftX = (midline - desiredXGap / 2) - leftThumbRightEdge;
 
-        // Right thumb: align leftmost edge to be (desiredGap/2) right of midline
-        const rightThumbShiftX = (midline + desiredGap / 2) - rightThumbLeftEdge;
+        // Right thumb: align leftmost edge to be (desiredXGap/2) right of midline
+        const rightThumbShiftX = (midline + desiredXGap / 2) - rightThumbLeftEdge;
 
-        // Also need Y correction - use SVALBOARD_LAYOUT reference
-        let deltaY = 0;
-        const leftThumbKeys = keysByRow[leftThumbRow] || [];
-        if (leftThumbKeys.length > 0) {
-            const refKey = leftThumbKeys.find(pos => SVALBOARD_LAYOUT[pos]);
-            if (refKey !== undefined) {
-                deltaY = SVALBOARD_LAYOUT[refKey].y - layout[refKey].y;
+        // Calculate Y positioning dynamically based on index finger cluster bottom edges
+        // Find bottom edge of left index cluster (max Y + height)
+        let leftIndexBottomEdge = 0;
+        for (const matrixPos of (keysByRow[leftIndexRow] || [])) {
+            const key = layout[matrixPos];
+            const bottomEdge = key.y + key.h;
+            if (bottomEdge > leftIndexBottomEdge) {
+                leftIndexBottomEdge = bottomEdge;
             }
         }
+
+        // Find bottom edge of right index cluster
+        let rightIndexBottomEdge = 0;
+        for (const matrixPos of (keysByRow[rightIndexRow] || [])) {
+            const key = layout[matrixPos];
+            const bottomEdge = key.y + key.h;
+            if (bottomEdge > rightIndexBottomEdge) {
+                rightIndexBottomEdge = bottomEdge;
+            }
+        }
+
+        // Find top edge of left thumb cluster (min Y)
+        let leftThumbTopEdge = Infinity;
+        for (const matrixPos of (keysByRow[leftThumbRow] || [])) {
+            const key = layout[matrixPos];
+            if (key.y < leftThumbTopEdge) {
+                leftThumbTopEdge = key.y;
+            }
+        }
+
+        // Find top edge of right thumb cluster
+        let rightThumbTopEdge = Infinity;
+        for (const matrixPos of (keysByRow[rightThumbRow] || [])) {
+            const key = layout[matrixPos];
+            if (key.y < rightThumbTopEdge) {
+                rightThumbTopEdge = key.y;
+            }
+        }
+
+        // Desired gap between index bottom and thumb top (in key units)
+        const desiredYGap = 1.0 + FRAGMENT_THUMB_GAP_REDUCTION_U;
+
+        // Calculate Y shifts to position thumbs one key unit below their adjacent index clusters
+        const leftThumbShiftY = (leftIndexBottomEdge + desiredYGap) - leftThumbTopEdge;
+        const rightThumbShiftY = (rightIndexBottomEdge + desiredYGap) - rightThumbTopEdge;
 
         const correctedLayout = { ...layout };
 
@@ -289,60 +321,27 @@ export class FragmentComposerService {
             const clusterKeys = keysByRow[row] || [];
             if (clusterKeys.length === 0) continue;
 
-            // Non-standard thumb variants don't have "thumb" in the fragment name
-            // Standard ones are named like "Left thumb cluster (6 keys)"
             const isLeftThumb = row === leftThumbRow;
-            const fragmentName = isLeftThumb ? thumbFragmentNames.left : thumbFragmentNames.right;
-            const isNonStandardThumb = fragmentName !== null && !fragmentName.toLowerCase().includes('thumb');
-            const extraYShift = isNonStandardThumb ? 1 : 0;
 
-            // Use independent X shift for each thumb cluster
+            // Use independent shifts for each thumb cluster
             const shiftX = isLeftThumb ? leftThumbShiftX : rightThumbShiftX;
-
-            // Apply gap reduction to bring thumbs closer to finger clusters
-            // Plus any extra shift for non-standard thumb variants
-            const totalYShift = deltaY + FRAGMENT_THUMB_GAP_REDUCTION_U + extraYShift;
+            const shiftY = isLeftThumb ? leftThumbShiftY : rightThumbShiftY;
 
             for (const matrixPos of clusterKeys) {
                 const key = correctedLayout[matrixPos];
                 correctedLayout[matrixPos] = {
                     ...key,
                     x: key.x + shiftX,
-                    y: key.y + totalYShift,
+                    y: key.y + shiftY,
                 };
             }
 
-            console.log(`Thumb cluster row ${row} (${fragmentName}): shifted X by ${shiftX.toFixed(2)}, Y by ${totalYShift.toFixed(2)} (deltaY=${deltaY.toFixed(2)}, gapReduction=${FRAGMENT_THUMB_GAP_REDUCTION_U}, extraYShift=${extraYShift})`);
+            const indexBottom = isLeftThumb ? leftIndexBottomEdge : rightIndexBottomEdge;
+            console.log(`Thumb cluster row ${row}: indexBottom=${indexBottom.toFixed(2)}, shiftX=${shiftX.toFixed(2)}, shiftY=${shiftY.toFixed(2)}`);
         }
 
-        console.log(`Midline: ${midline.toFixed(2)}, leftShiftX: ${leftThumbShiftX.toFixed(2)}, rightShiftX: ${rightThumbShiftX.toFixed(2)}`);
+        console.log(`Midline: ${midline.toFixed(2)}, desiredYGap: ${desiredYGap.toFixed(2)}`);
 
         return correctedLayout;
-    }
-
-    /**
-     * Get the resolved fragment names for thumb cluster instances
-     */
-    private getThumbFragmentNames(kbinfo: KeyboardInfo): { left: string | null; right: string | null } {
-        const result = { left: null as string | null, right: null as string | null };
-
-        if (!kbinfo.composition?.instances) {
-            return result;
-        }
-
-        const instances = kbinfo.composition.instances;
-        for (let i = 0; i < instances.length; i++) {
-            const instance = instances[i];
-            const id = instance.id?.toLowerCase() || '';
-
-            // Find thumb cluster instances by their instance ID
-            if (id.includes('left') && id.includes('thumb')) {
-                result.left = this.fragmentService.resolveFragment(kbinfo, i, instance);
-            } else if (id.includes('right') && id.includes('thumb')) {
-                result.right = this.fragmentService.resolveFragment(kbinfo, i, instance);
-            }
-        }
-
-        return result;
     }
 }
