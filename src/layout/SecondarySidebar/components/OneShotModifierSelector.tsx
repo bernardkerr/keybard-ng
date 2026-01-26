@@ -55,12 +55,19 @@ const OneShotModifierSelector: FC<Props> = ({ value, onChange }) => {
         onChange(newValue);
     };
 
-    const toggleBit = (bit: number) => {
+    // Toggle between L and R for a modifier group
+    const toggleSide = (lBit: number, rBit: number) => {
         let newValue = value;
-        if ((newValue & bit) !== 0) {
-            newValue &= ~bit;
+        const lActive = (value & lBit) !== 0;
+
+        if (lActive) {
+            // Switch from L to R
+            newValue &= ~lBit;
+            newValue |= rBit;
         } else {
-            newValue |= bit;
+            // Switch from R to L
+            newValue &= ~rBit;
+            newValue |= lBit;
         }
         onChange(newValue);
     };
@@ -89,6 +96,7 @@ const OneShotModifierSelector: FC<Props> = ({ value, onChange }) => {
                     const lActive = (value & group.lBit) !== 0;
                     const rActive = (value & group.rBit) !== 0;
                     const anyActive = lActive || rActive;
+                    const isRight = rActive && !lActive;
 
                     return (
                         <div
@@ -112,43 +120,35 @@ const OneShotModifierSelector: FC<Props> = ({ value, onChange }) => {
                                 {group.label}
                             </button>
 
-                            {/* L/R Toggles Container */}
+                            {/* L/R Sliding Toggle Switch */}
                             <div className={cn(
-                                "flex flex-row items-center justify-center gap-0.5 w-full pb-1 transition-opacity duration-200",
+                                "flex flex-row items-center justify-center w-full pb-1 transition-opacity duration-200",
                                 anyActive ? "opacity-100 delay-150" : "opacity-0 pointer-events-none duration-100"
                             )}>
-                                {/* Left Toggle */}
                                 <button
                                     type="button"
-                                    className={cn(
-                                        "w-7 h-5 rounded-[4px] flex items-center justify-center text-[10px] font-bold transition-colors border outline-none hover:bg-white hover:text-black",
-                                        lActive
-                                            ? "bg-black border-white text-white"
-                                            : "bg-kb-gray-medium border-white text-black"
-                                    )}
+                                    className="relative w-10 h-5 rounded-full bg-gray-600 flex items-center px-0.5 outline-none"
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        toggleBit(group.lBit);
+                                        toggleSide(group.lBit, group.rBit);
                                     }}
                                 >
-                                    L
-                                </button>
-
-                                {/* Right Toggle */}
-                                <button
-                                    type="button"
-                                    className={cn(
-                                        "w-7 h-5 rounded-[4px] flex items-center justify-center text-[10px] font-bold transition-colors border outline-none hover:bg-white hover:text-black",
-                                        rActive
-                                            ? "bg-black border-white text-white"
-                                            : "bg-kb-gray-medium border-white text-black"
-                                    )}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleBit(group.rBit);
-                                    }}
-                                >
-                                    R
+                                    {/* L and R labels */}
+                                    <span className={cn(
+                                        "absolute left-1 text-[8px] font-bold transition-opacity",
+                                        isRight ? "opacity-50" : "opacity-0"
+                                    )}>L</span>
+                                    <span className={cn(
+                                        "absolute right-1 text-[8px] font-bold transition-opacity",
+                                        isRight ? "opacity-0" : "opacity-50"
+                                    )}>R</span>
+                                    {/* Sliding thumb */}
+                                    <span className={cn(
+                                        "w-4 h-4 rounded-full bg-white flex items-center justify-center text-[8px] font-bold text-black transition-transform duration-200",
+                                        isRight ? "translate-x-5" : "translate-x-0"
+                                    )}>
+                                        {isRight ? "R" : "L"}
+                                    </span>
                                 </button>
                             </div>
                         </div>

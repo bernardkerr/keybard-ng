@@ -155,7 +155,6 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
     };
 
     const isPresetLeft = (lMask: number) => modMask === lMask;
-    const isPresetRight = (rMask: number) => modMask === rMask;
 
     const togglePreset = (lMask: number, rMask: number) => {
         if (modMask === lMask || modMask === rMask) {
@@ -163,6 +162,16 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
             setModMask(0);
         } else {
             // Turn on left by default
+            setModMask(lMask);
+        }
+    };
+
+    const togglePresetSide = (lMask: number, rMask: number) => {
+        if (modMask === lMask) {
+            // Switch from L to R
+            setModMask(rMask);
+        } else {
+            // Switch from R to L
             setModMask(lMask);
         }
     };
@@ -221,14 +230,13 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
             {/* Modifier selector with L/R drop-under buttons */}
             <OneShotModifierSelector value={modMask} onChange={setModMask} />
 
-            {/* Presets with expandable L/R buttons */}
+            {/* Presets with sliding L/R toggle */}
             <div className="flex flex-col gap-2">
                 <span className="text-sm font-medium text-slate-500">Presets</span>
                 <div className="flex flex-row gap-1.5 min-h-[58px]">
                     {PRESET_GROUPS.map((preset) => {
                         const anyActive = isPresetActive(preset.lMask, preset.rMask);
-                        const lActive = isPresetLeft(preset.lMask);
-                        const rActive = isPresetRight(preset.rMask);
+                        const isRight = !isPresetLeft(preset.lMask) && anyActive;
 
                         return (
                             <div
@@ -252,43 +260,35 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
                                     {preset.label}
                                 </button>
 
-                                {/* L/R Toggles Container */}
+                                {/* L/R Sliding Toggle Switch */}
                                 <div className={cn(
-                                    "flex flex-row items-center justify-center gap-0.5 w-full pb-1 transition-opacity duration-200",
+                                    "flex flex-row items-center justify-center w-full pb-1 transition-opacity duration-200",
                                     anyActive ? "opacity-100 delay-150" : "opacity-0 pointer-events-none duration-100"
                                 )}>
-                                    {/* Left Toggle */}
                                     <button
                                         type="button"
-                                        className={cn(
-                                            "w-7 h-5 rounded-[4px] flex items-center justify-center text-[10px] font-bold transition-colors border outline-none hover:bg-white hover:text-black",
-                                            lActive
-                                                ? "bg-black border-white text-white"
-                                                : "bg-kb-gray-medium border-white text-black"
-                                        )}
+                                        className="relative w-10 h-5 rounded-full bg-gray-600 flex items-center px-0.5 outline-none"
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            setModMask(preset.lMask);
+                                            togglePresetSide(preset.lMask, preset.rMask);
                                         }}
                                     >
-                                        L
-                                    </button>
-
-                                    {/* Right Toggle */}
-                                    <button
-                                        type="button"
-                                        className={cn(
-                                            "w-7 h-5 rounded-[4px] flex items-center justify-center text-[10px] font-bold transition-colors border outline-none hover:bg-white hover:text-black",
-                                            rActive
-                                                ? "bg-black border-white text-white"
-                                                : "bg-kb-gray-medium border-white text-black"
-                                        )}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setModMask(preset.rMask);
-                                        }}
-                                    >
-                                        R
+                                        {/* L and R labels */}
+                                        <span className={cn(
+                                            "absolute left-1 text-[8px] font-bold transition-opacity",
+                                            isRight ? "opacity-50" : "opacity-0"
+                                        )}>L</span>
+                                        <span className={cn(
+                                            "absolute right-1 text-[8px] font-bold transition-opacity",
+                                            isRight ? "opacity-0" : "opacity-50"
+                                        )}>R</span>
+                                        {/* Sliding thumb */}
+                                        <span className={cn(
+                                            "w-4 h-4 rounded-full bg-white flex items-center justify-center text-[8px] font-bold text-black transition-transform duration-200",
+                                            isRight ? "translate-x-5" : "translate-x-0"
+                                        )}>
+                                            {isRight ? "R" : "L"}
+                                        </span>
                                     </button>
                                 </div>
                             </div>
