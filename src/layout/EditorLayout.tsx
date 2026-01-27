@@ -5,7 +5,7 @@ import { PanelsProvider, usePanels } from "@/contexts/PanelsContext";
 import { DragProvider, useDrag } from "@/contexts/DragContext";
 import { DragOverlay } from "@/components/DragOverlay";
 import SecondarySidebar, { DETAIL_SIDEBAR_WIDTH } from "./SecondarySidebar/SecondarySidebar";
-import { BottomPanel, BOTTOM_PANEL_MIN_HEIGHT, BOTTOM_PANEL_MAX_HEIGHT } from "./BottomPanel";
+import { BottomPanel, BOTTOM_PANEL_HEIGHT } from "./BottomPanel";
 import BindingEditorContainer from "./SecondarySidebar/components/BindingEditor/BindingEditorContainer";
 
 import { Keyboard } from "@/components/Keyboard";
@@ -374,39 +374,15 @@ const EditorLayoutInner = () => {
     }, [registerPrimarySidebarControl]);
 
     const contentOffset = showDetailsSidebar ? `calc(${primaryOffset ?? "0px"} + ${DETAIL_SIDEBAR_WIDTH})` : primaryOffset ?? undefined;
-
-    // Calculate dynamic bottom panel height to fill remaining space
-    const dynamicBottomPanelHeight = React.useMemo(() => {
-        if (!showBottomPanel) return 0;
-
-        // Estimate heights
-        const layerSelectorHeight = showEditorOverlay ? 40 : 80;
-        const controlsAreaHeight = 60; // Space for the controls at bottom
-        const topPadding = 16; // Min top padding
-
-        // Get current keyboard height based on variant
-        const kbHeight = keyVariant === 'small'
-            ? keyboardHeights.small
-            : keyVariant === 'medium'
-                ? keyboardHeights.medium
-                : keyboardHeights.default;
-
-        // Available space for bottom panel = container - layer selector - keyboard - controls - padding
-        const availableForPanel = containerHeight - layerSelectorHeight - kbHeight - controlsAreaHeight - topPadding;
-
-        // Clamp to min/max
-        return Math.max(BOTTOM_PANEL_MIN_HEIGHT, Math.min(availableForPanel, BOTTOM_PANEL_MAX_HEIGHT));
-    }, [containerHeight, keyboardHeights, keyVariant, showEditorOverlay, showBottomPanel]);
-
     const contentStyle = React.useMemo<React.CSSProperties>(
         () => ({
             marginLeft: contentOffset,
             transition: "margin-left 320ms cubic-bezier(0.22, 1, 0.36, 1), padding-bottom 300ms ease-in-out",
             willChange: "margin-left, padding-bottom",
             // Add bottom padding when bottom panel is shown
-            paddingBottom: showBottomPanel ? dynamicBottomPanelHeight : 0,
+            paddingBottom: showBottomPanel ? BOTTOM_PANEL_HEIGHT : 0,
         }),
-        [contentOffset, showBottomPanel, dynamicBottomPanelHeight]
+        [contentOffset, showBottomPanel]
     );
 
     // Calculate dynamic top padding for keyboard
@@ -418,7 +394,7 @@ const EditorLayoutInner = () => {
 
         // Estimate heights: layer selector ~40px (compact) or ~80px (standard)
         const layerSelectorHeight = showEditorOverlay ? 40 : 80;
-        const bottomBarHeight = showBottomPanel ? dynamicBottomPanelHeight : 0;
+        const bottomBarHeight = showBottomPanel ? BOTTOM_PANEL_HEIGHT : 0;
 
         // Get current keyboard height based on variant
         const kbHeight = keyVariant === 'small'
@@ -439,7 +415,7 @@ const EditorLayoutInner = () => {
         } else {
             return minGap;
         }
-    }, [currentUnitSize, containerHeight, keyboardHeights, keyVariant, showEditorOverlay, showBottomPanel, dynamicBottomPanelHeight]);
+    }, [currentUnitSize, containerHeight, keyboardHeights, keyVariant, showEditorOverlay, showBottomPanel]);
 
     return (
         <div className={cn("flex flex-1 h-screen max-w-screen min-w-[850px] p-0", showDetailsSidebar && "bg-white")}>
@@ -835,7 +811,7 @@ const EditorLayoutInner = () => {
                 )}
             </div>
             {/* Render BottomPanel at root level so it spans full width */}
-            {useBottomLayout && <BottomPanel leftOffset={primaryOffset} pickerMode={pickerMode} dynamicHeight={dynamicBottomPanelHeight} />}
+            {useBottomLayout && <BottomPanel leftOffset={primaryOffset} pickerMode={pickerMode} />}
 
             {/* Paste Layer Dialog */}
             <PasteLayerDialog
