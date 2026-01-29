@@ -29,6 +29,8 @@ interface LayerRowProps {
     onPlace: () => void;
     /** Optional search query for highlighting matches */
     searchQuery?: string;
+    /** Compact mode for horizontal layout */
+    compact?: boolean;
 }
 
 // Small unit size used by Key component in "small" variant

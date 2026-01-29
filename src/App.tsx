@@ -12,7 +12,7 @@ import { SettingsProvider } from "./contexts/SettingsContext";
 import { VialProvider, useVial } from "./contexts/VialContext";
 
 // Simple page navigation context
-type Page = "main" | "explore";
+type Page = "main" | "explore" | "proof-sheet";
 
 interface NavigationContextType {
     currentPage: Page;
