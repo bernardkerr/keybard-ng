@@ -11,6 +11,82 @@ import type { LayerEntry } from "@/types/layer-library";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { colorClasses } from "@/utils/colors";
+import { useVial } from "@/contexts/VialContext";
+import { SVALBOARD_LAYOUT, MATRIX_COLS } from "@/constants/svalboard-layout";
+import { PreviewKey } from "@/components/PreviewKey";
+import { getKeyLabel, getKeycodeName } from "@/utils/layers";
+
+/** Miniature keyboard preview using real key rendering, grayed out for empty keys */
+const MiniKeyboardPreview: FC<{
+    keymap: number[];
+    layerColor?: string;
+    unitSize?: number;
+    className?: string;
+}> = ({ keymap, layerColor = "primary", unitSize = 15, className }) => {
+    const { keyboard } = useVial();
+    const layout = (keyboard?.keylayout && Object.keys(keyboard.keylayout).length > 0)
+        ? keyboard.keylayout as Record<number, { x: number; y: number; w: number; h: number; row?: number; col?: number }>
+        : SVALBOARD_LAYOUT;
+    const matrixCols = keyboard?.cols || MATRIX_COLS;
+
+    let maxX = 0, maxY = 0;
+    for (const k of Object.values(layout)) {
+        maxX = Math.max(maxX, k.x + k.w);
+        maxY = Math.max(maxY, k.y + k.h);
+    }
+
+    const mockKeyboard = keyboard ? { ...keyboard, keymap: [keymap] } : {
+        keymap: [keymap], rows: 5, cols: matrixCols,
+    };
+
+    return (
+        <div
+            className={cn("relative flex-shrink-0", className)}
+            style={{ width: maxX * unitSize, height: maxY * unitSize }}
+        >
+            {Object.entries(layout).map(([matrixPos, k]) => {
+                const pos = Number(matrixPos);
+                const keycode = keymap[pos] || 0;
+                const isEmpty = keycode === 0 || keycode === 1; // KC_NO or KC_TRNS
+
+                if (isEmpty) {
+                    // Gray placeholder for unassigned keys
+                    return (
+                        <div
+                            key={pos}
+                            className="absolute rounded-[3px] bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600"
+                            style={{
+                                left: k.x * unitSize,
+                                top: k.y * unitSize,
+                                width: k.w * unitSize,
+                                height: k.h * unitSize,
+                            }}
+                        />
+                    );
+                }
+
+                const { label, keyContents } = getKeyLabel(mockKeyboard as any, keycode);
+                const keycodeName = getKeycodeName(keycode);
+
+                return (
+                    <PreviewKey
+                        key={pos}
+                        x={k.x}
+                        y={k.y}
+                        w={k.w}
+                        h={k.h}
+                        keycode={keycodeName}
+                        label={label}
+                        keyContents={keyContents}
+                        layerColor={layerColor}
+                        unitSize={unitSize}
+                        tiny={unitSize <= 18}
+                    />
+                );
+            })}
+        </div>
+    );
+};
 
 interface LayerCardProps {
     layer: LayerEntry;
@@ -18,6 +94,8 @@ interface LayerCardProps {
     onDelete?: (layer: LayerEntry) => void | Promise<void>;
     onClick?: (layer: LayerEntry) => void;
     className?: string;
+    /** Compact mode for horizontal/bottom bar layout */
+    compact?: boolean;
 }
 
 export const LayerCard: FC<LayerCardProps> = ({
@@ -26,6 +104,7 @@ export const LayerCard: FC<LayerCardProps> = ({
     onDelete,
     onClick,
     className,
+    compact = false,
 }) => {
     const [justCopied, setJustCopied] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -70,6 +149,76 @@ export const LayerCard: FC<LayerCardProps> = ({
     const layerColorClass = layer.layerColor
         ? colorClasses[layer.layerColor] || "bg-kb-primary"
         : "bg-kb-primary";
+
+    // Compact mode for horizontal/bottom bar layout - wide card with mini keyboard preview
+    if (compact) {
+        return (
+            <div
+                onClick={handleClick}
+                className={cn(
+                    "border rounded-lg p-2 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow",
+                    "border-gray-200 dark:border-gray-700 w-[340px] h-full flex-shrink-0 flex flex-col",
+                    onClick && "cursor-pointer",
+                    className
+                )}
+            >
+                {/* Header row: color dot + name + key count + delete */}
+                <div className="flex items-center gap-1.5 mb-1">
+                    <div className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", layerColorClass)} />
+                    <h3 className="font-semibold text-xs text-gray-900 dark:text-gray-100 truncate flex-1">
+                        {layer.name}
+                    </h3>
+                    <span className="text-[9px] px-1 py-0.5 rounded font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 flex-shrink-0">
+                        {layer.keyCount} keys
+                    </span>
+                    {onDelete && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onDelete(layer); }}
+                            className="text-gray-300 hover:text-red-500 flex-shrink-0"
+                        >
+                            <Trash2 className="w-3 h-3" />
+                        </button>
+                    )}
+                </div>
+
+                {/* Mini keyboard preview - real key rendering */}
+                <div className="flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded p-1 flex-1 min-h-0 overflow-hidden">
+                    <MiniKeyboardPreview
+                        keymap={layer.keymap}
+                        layerColor={layer.layerColor || "primary"}
+                        unitSize={12}
+                    />
+                </div>
+
+                {/* Footer: place button */}
+                <div className="flex items-center justify-end gap-1 mt-1">
+                    <Button
+                        variant={justCopied ? "default" : error ? "destructive" : "outline"}
+                        size="sm"
+                        className="h-5 text-[10px] px-2"
+                        onClick={handleCopy}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : justCopied ? (
+                            <>
+                                <Check className="w-3 h-3 mr-0.5" />
+                                Placed
+                            </>
+                        ) : error ? (
+                            "Error"
+                        ) : (
+                            <>
+                                <Copy className="w-3 h-3 mr-0.5" />
+                                Place
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div
@@ -121,6 +270,15 @@ export const LayerCard: FC<LayerCardProps> = ({
                         </Button>
                     )}
                 </div>
+            </div>
+
+            {/* Keyboard Preview */}
+            <div className="flex items-center justify-center bg-gray-50 dark:bg-gray-900 rounded-lg p-2 mb-3 overflow-hidden">
+                <MiniKeyboardPreview
+                    keymap={layer.keymap}
+                    layerColor={layer.layerColor || "primary"}
+                    unitSize={18}
+                />
             </div>
 
             {/* Meta info */}

@@ -1,5 +1,5 @@
 import { SettingDefinition, SettingsCategory, SettingsContextType, SettingsState } from "@/types/settings.types";
-import { SettingsIcon } from "lucide-react";
+import { SettingsIcon, Import as ImportIcon, FileJson } from "lucide-react";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 import { SettingsService } from "@/services/settings.service";
@@ -17,7 +17,7 @@ export const SETTINGS: SettingDefinition[] = [
         name: "typing-binds-key",
         label: "Typing binds a key",
         description: "When enabled, typing on your physical keyboard will bind the corresponding key on the layout.",
-        defaultValue: false,
+        defaultValue: true,
         type: "boolean",
     },
     {
@@ -29,7 +29,7 @@ export const SETTINGS: SettingDefinition[] = [
             { label: "Across rows then columns", value: "row-col" },
             { label: "Svalboard by key direction", value: "svalboard" },
         ],
-        defaultValue: "col-row",
+        defaultValue: "svalboard",
     },
     {
         name: "international-keyboards",
@@ -87,6 +87,13 @@ export const SETTINGS: SettingDefinition[] = [
         label: "QMK Settings...",
         type: "action",
         action: "open-qmk-settings",
+    },
+    {
+        name: "key-proof-sheet",
+        label: "Key Proof Sheet...",
+        description: "Visual inspection of key renderings at all sizes",
+        type: "action",
+        action: "open-proof-sheet",
     },
     {
         name: "left-dpi",
@@ -156,6 +163,18 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
         label: "General",
         icon: SettingsIcon,
         settings: ["typing-binds-key", "serial-assignment", "international-keyboards", "qmk-settings"],
+    },
+    {
+        name: "import-export",
+        label: "Import / Export",
+        icon: ImportIcon,
+        settings: ["import", "export", "print"],
+    },
+    {
+        name: "developer",
+        label: "Developer",
+        icon: FileJson,
+        settings: ["key-proof-sheet"],
     },
 ];
 

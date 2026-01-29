@@ -51,6 +51,9 @@ const MOUSE_KEYS: readonly MouseKeyDefinition[] = [
     { keycode: "SV_SNIPER_2", label: "Mouse Sniper 2x" },
     { keycode: "SV_SNIPER_3", label: "Mouse Sniper 3x" },
     { keycode: "SV_SNIPER_5", label: "Mouse Sniper 5x" },
+    { keycode: "SV_SNIPER_2_TG", label: "Sniper 2x Toggle" },
+    { keycode: "SV_SNIPER_3_TG", label: "Sniper 3x Toggle" },
+    { keycode: "SV_SNIPER_5_TG", label: "Sniper 5x Toggle" },
     { keycode: "SV_MH_CHANGE_TIMEOUTS", label: "Mouse Key Timer" },
     { keycode: "SV_RECALIBRATE_POINTER", label: "Fix Drift" },
     { keycode: "SV_CAPS_WORD", label: "Caps Word" },
@@ -131,7 +134,7 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
                                 layerColor="sidebar"
                                 headerClassName={`bg-kb-sidebar-dark ${hoverStyles.hoverHeaderClass}`}
                                 isRelative
-                                variant="small"
+                                variant="medium"
                                 hoverBorderColor={hoverStyles.hoverBorderColor}
                                 hoverBackgroundColor={hoverStyles.hoverBackgroundColor}
                                 hoverLayerColor={hoverStyles.layerColorName}

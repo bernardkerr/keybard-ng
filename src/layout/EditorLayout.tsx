@@ -20,7 +20,7 @@ import { PasteLayerDialog } from "@/components/PasteLayerDialog";
 
 import { LayoutSettingsProvider, useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { UNIT_SIZE, SVALBOARD_LAYOUT } from "@/constants/svalboard-layout";
-import { THUMB_OFFSET_U } from "@/constants/keyboard-visuals";
+import { THUMB_OFFSET_U, MAX_FINGER_CLUSTER_SQUEEZE_U } from "@/constants/keyboard-visuals";
 
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -108,12 +108,21 @@ const EditorLayoutInner = () => {
     const [containerHeight, setContainerHeight] = React.useState(0);
 
 
-    // Calculate keyboard widths at each size (for auto-sizing)
-    const keyboardWidths = React.useMemo(() => ({
+    // Raw keyboard widths without squeeze (used for squeeze calculation)
+    const rawKeyboardWidths = React.useMemo(() => ({
         default: keyboardExtents.maxX * UNIT_SIZE + 32, // +32 for padding
         medium: keyboardExtents.maxX * 45 + 32,
         small: keyboardExtents.maxX * 30 + 32,
     }), [keyboardExtents]);
+
+    // Calculate keyboard widths at each size (for auto-sizing)
+    // Account for max squeeze capability - both sides can squeeze toward center
+    const squeezeReduction = 2 * MAX_FINGER_CLUSTER_SQUEEZE_U;
+    const keyboardWidths = React.useMemo(() => ({
+        default: rawKeyboardWidths.default, // no squeeze at default
+        medium: (keyboardExtents.maxX - squeezeReduction) * 45 + 32, // squeeze enabled
+        small: rawKeyboardWidths.small, // no squeeze at small (already compact)
+    }), [keyboardExtents, squeezeReduction, rawKeyboardWidths]);
 
     // Calculate keyboard heights at each size (for auto-sizing)
     const keyboardHeights = React.useMemo(() => ({
@@ -140,6 +149,7 @@ const EditorLayoutInner = () => {
                 containerHeight: height,
                 keyboardWidths,
                 keyboardHeights,
+                rawKeyboardWidths,
             });
         };
 
@@ -151,7 +161,7 @@ const EditorLayoutInner = () => {
         resizeObserver.observe(container);
 
         return () => resizeObserver.disconnect();
-    }, [keyboardWidths, keyboardHeights, setMeasuredDimensions]);
+    }, [keyboardWidths, keyboardHeights, rawKeyboardWidths, setMeasuredDimensions]);
 
     const { getSetting, updateSetting } = useSettings();
     const { getPendingCount, commit, setInstant, clearAll, queue } = useChanges();
@@ -374,16 +384,6 @@ const EditorLayoutInner = () => {
     }, [registerPrimarySidebarControl]);
 
     const contentOffset = showDetailsSidebar ? `calc(${primaryOffset ?? "0px"} + ${DETAIL_SIDEBAR_WIDTH})` : primaryOffset ?? undefined;
-    const contentStyle = React.useMemo<React.CSSProperties>(
-        () => ({
-            marginLeft: contentOffset,
-            transition: "margin-left 320ms cubic-bezier(0.22, 1, 0.36, 1), padding-bottom 300ms ease-in-out",
-            willChange: "margin-left, padding-bottom",
-            // Add bottom padding when bottom panel is shown
-            paddingBottom: showBottomPanel ? BOTTOM_PANEL_HEIGHT : 0,
-        }),
-        [contentOffset, showBottomPanel]
-    );
 
     // Calculate dynamic top padding for keyboard
     // Ideal: 1 key height gap between layer selector and keyboard
@@ -416,6 +416,39 @@ const EditorLayoutInner = () => {
             return minGap;
         }
     }, [currentUnitSize, containerHeight, keyboardHeights, keyVariant, showEditorOverlay, showBottomPanel]);
+
+    // Calculate dynamic bottom panel height to fill remaining vertical space
+    const dynamicBottomPanelHeight = React.useMemo(() => {
+        if (!showBottomPanel) return BOTTOM_PANEL_HEIGHT;
+
+        const MIN_HEIGHT = 150;
+        const MAX_HEIGHT = 400;
+        const layerSelectorHeight = 80;
+        const topPadding = dynamicTopPadding;
+
+        // Get current keyboard height based on variant
+        const kbHeight = keyVariant === 'small'
+            ? keyboardHeights.small
+            : keyVariant === 'medium'
+                ? keyboardHeights.medium
+                : keyboardHeights.default;
+
+        // Available = container - layerSelector - topPadding - keyboard
+        const available = containerHeight - layerSelectorHeight - topPadding - kbHeight;
+
+        return Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, available));
+    }, [showBottomPanel, containerHeight, keyboardHeights, keyVariant, dynamicTopPadding]);
+
+    const contentStyle = React.useMemo<React.CSSProperties>(
+        () => ({
+            marginLeft: contentOffset,
+            transition: "margin-left 320ms cubic-bezier(0.22, 1, 0.36, 1), padding-bottom 300ms ease-in-out",
+            willChange: "margin-left, padding-bottom",
+            // Add bottom padding when bottom panel is shown
+            paddingBottom: showBottomPanel ? dynamicBottomPanelHeight : 0,
+        }),
+        [contentOffset, showBottomPanel, dynamicBottomPanelHeight]
+    );
 
     return (
         <div className={cn("flex flex-1 h-screen max-w-screen min-w-[850px] p-0", showDetailsSidebar && "bg-white")}>
@@ -811,7 +844,7 @@ const EditorLayoutInner = () => {
                 )}
             </div>
             {/* Render BottomPanel at root level so it spans full width */}
-            {useBottomLayout && <BottomPanel leftOffset={primaryOffset} pickerMode={pickerMode} />}
+            {useBottomLayout && <BottomPanel leftOffset={primaryOffset} pickerMode={pickerMode} height={dynamicBottomPanelHeight} />}
 
             {/* Paste Layer Dialog */}
             <PasteLayerDialog

@@ -45,19 +45,67 @@ const MODIFIER_MAP: Record<number, string> = {
     15: "HYPR",
 };
 
-// Helper to apply modifiers to a keycode
-const applyModifiers = (keycode: string, activeModifiers: Modifier[]) => {
-    if (activeModifiers.length === 0) return keycode;
+// Mod-Tap variants (hold for modifier, tap for keycode)
+const MOD_TAP_MAP: Record<number, string> = {
+    1: "LCTL_T",
+    2: "LSFT_T",
+    3: "C_S_T",
+    4: "LALT_T",
+    5: "LCA_T",
+    6: "LSA_T",
+    7: "MEH_T",
+    8: "LGUI_T",
+    9: "LCG_T",
+    10: "SGUI_T",
+    11: "LSCG_T",
+    12: "LAG_T",
+    13: "LCAG_T",
+    14: "LSAG_T",
+    15: "HYPR_T",
+};
 
+// One-Shot Modifier keycodes (standalone, don't wrap a keycode)
+const ONE_SHOT_MAP: Record<number, string> = {
+    1: "OSM(MOD_LCTL)",
+    2: "OSM(MOD_LSFT)",
+    3: "OSM(MOD_LCTL|MOD_LSFT)",
+    4: "OSM(MOD_LALT)",
+    5: "OSM(MOD_LCTL|MOD_LALT)",
+    6: "OSM(MOD_LSFT|MOD_LALT)",
+    7: "OSM(MOD_MEH)",
+    8: "OSM(MOD_LGUI)",
+    9: "OSM(MOD_LCTL|MOD_LGUI)",
+    10: "OSM(MOD_LSFT|MOD_LGUI)",
+    11: "OSM(MOD_LCTL|MOD_LSFT|MOD_LGUI)",
+    12: "OSM(MOD_LALT|MOD_LGUI)",
+    13: "OSM(MOD_LCTL|MOD_LALT|MOD_LGUI)",
+    14: "OSM(MOD_LSFT|MOD_LALT|MOD_LGUI)",
+    15: "OSM(MOD_HYPR)",
+};
+
+// Helper to get modifier bitmask
+const getModifierMask = (activeModifiers: Modifier[]): number => {
     const hasCtrl = activeModifiers.includes("Ctrl");
     const hasShift = activeModifiers.includes("Shift");
     const hasAlt = activeModifiers.includes("Alt");
     const hasGui = activeModifiers.includes("Gui");
+    return (hasCtrl ? 1 : 0) | (hasShift ? 2 : 0) | (hasAlt ? 4 : 0) | (hasGui ? 8 : 0);
+};
 
-    // bitmask: Ctrl=1, Shift=2, Alt=4, Gui=8
-    const mask = (hasCtrl ? 1 : 0) | (hasShift ? 2 : 0) | (hasAlt ? 4 : 0) | (hasGui ? 8 : 0);
+// Get the OSM keycode string for the currently active modifiers (or null if none)
+const getOsmKeycode = (activeModifiers: Modifier[]): string | null => {
+    if (activeModifiers.length === 0) return null;
+    const mask = getModifierMask(activeModifiers);
+    return ONE_SHOT_MAP[mask] || null;
+};
 
-    const modifierFunc = MODIFIER_MAP[mask];
+// Helper to apply modifiers to a keycode
+const applyModifiers = (keycode: string, activeModifiers: Modifier[], isModTap: boolean) => {
+    if (activeModifiers.length === 0) return keycode;
+
+    const mask = getModifierMask(activeModifiers);
+    const modMap = isModTap ? MOD_TAP_MAP : MODIFIER_MAP;
+    const modifierFunc = modMap[mask];
     return modifierFunc ? `${modifierFunc}(${keycode})` : keycode;
 };
 
@@ -67,6 +115,7 @@ interface Props {
 
 const BasicKeyboards = ({ isPicker }: Props) => {
     const [activeModifiers, setActiveModifiers] = useState<Modifier[]>([]);
+    const [modTapEnabled, setModTapEnabled] = useState(false);
     const { assignKeycode, isBinding } = useKeyBinding();
     const { keyboard } = useVial();
     const { selectedLayer } = useLayer();
@@ -76,7 +125,8 @@ const BasicKeyboards = ({ isPicker }: Props) => {
 
     useEffect(() => {
         setActiveModifiers([]);
-    }, []);
+        setModTapEnabled(false);
+           }, []);
 
     const layerColorName = keyboard?.cosmetic?.layer_colors?.[selectedLayer] || "primary";
     const hoverBorderColor = hoverBorderClasses[layerColorName] || hoverBorderClasses["primary"];
@@ -97,7 +147,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
 
         // Ensure we translate names like 'SV_...' to actual keycodes if needed
         const mappedKeycode = getKeyCodeForButton(keyboard, keycode) || keycode;
-        const finalKeycode = applyModifiers(mappedKeycode, activeModifiers);
+        const finalKeycode = applyModifiers(mappedKeycode, activeModifiers, modTapEnabled);
         assignKeycode(finalKeycode);
     };
 
@@ -108,7 +158,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
 
     const numpadKeys = [
         { keycode: "KC_PSCR", label: "PrtSc" }, { keycode: "KC_SLCK", label: "ScrLk" }, { keycode: "KC_PAUS", label: "Pause" },
-        { keycode: "KC_NLCK", label: "Lock" }, { keycode: "KC_PEQL", label: "=" }, { keycode: "KC_KP_SLASH", label: "/" }, { keycode: "KC_KP_ASTERISK", label: "*" },
+        { keycode: "KC_NLCK", label: "NumLk" }, { keycode: "KC_PEQL", label: "=" }, { keycode: "KC_KP_SLASH", label: "/" }, { keycode: "KC_KP_ASTERISK", label: "*" },
 
         { keycode: "KC_INS", label: "Ins" }, { keycode: "KC_HOME", label: "Home" }, { keycode: "KC_PGUP", label: "PgUp" },
         { keycode: "KC_KP_7", label: "7" }, { keycode: "KC_KP_8", label: "8" }, { keycode: "KC_KP_9", label: "9" }, { keycode: "KC_KP_MINUS", label: "-" },
@@ -129,25 +179,20 @@ const BasicKeyboards = ({ isPicker }: Props) => {
         { keycode: "KC_TRNS", label: "▽" },
     ];
 
-    const otherKeys = [
-        { keycode: "QK_REPEAT_KEY", label: "Repeat" },
-        { keycode: "QK_ALT_REPEAT_KEY", label: "Alt-Repeat" },
-        { keycode: "QK_LAYER_LOCK", label: "Lyr Lock" },
-        { keycode: "QK_LEADER", label: "Leader" },
-    ];
+    const numpadGridCols = 'grid-cols-[repeat(7,45px)]'; // Always medium for sidebar numpad
 
-    // Size for blank placeholder keys based on variant
-    const blankKeySize = keyVariant === 'small' ? 'w-[30px] h-[30px]' : keyVariant === 'medium' ? 'w-[45px] h-[45px]' : 'w-[60px] h-[60px]';
-    const numpadGridCols = keyVariant === 'small' ? 'grid-cols-[repeat(7,30px)]' : keyVariant === 'medium' ? 'grid-cols-[repeat(7,45px)]' : 'grid-cols-[repeat(7,60px)]';
-
-    const renderKeyGrid = (keys: { keycode: string, label: string }[], gridCols?: string) => (
+    const renderKeyGrid = (keys: { keycode: string, label: string, useServiceLabel?: boolean }[], gridCols?: string, variantOverride?: "small" | "medium" | "default") => {
+        const effectiveVariant = variantOverride || keyVariant;
+        const blankSize = effectiveVariant === 'small' ? 'w-[30px] h-[30px]' : effectiveVariant === 'medium' ? 'w-[45px] h-[45px]' : 'w-[60px] h-[60px]';
+        return (
         <div className={cn("gap-1", gridCols ? `grid ${gridCols}` : "flex flex-wrap")}>
             {keys.map((k, i) => {
                 if (k.keycode === "BLANK") {
-                    return <div key={`blank-${i}`} className={blankKeySize} />;
+                    return <div key={`blank-${i}`} className={blankSize} />;
                 }
                 const keyContents = keyboard ? getKeyContents(keyboard, k.keycode) : undefined;
-                const displayLabel = keyService.define(k.keycode)?.str || k.label || k.keycode;
+                // Use custom label for numpad keys, otherwise fall back to keyService
+                const displayLabel = k.useServiceLabel ? (keyService.define(k.keycode)?.str || k.label || k.keycode) : (k.label || k.keycode);
                 const isDoubleHeight = k.keycode === "KC_KP_ENTER";
 
                 return (
@@ -160,7 +205,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                         layerColor="sidebar"
                         headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
                         isRelative
-                        variant={keyVariant}
+                        variant={effectiveVariant}
                         className={cn(
                             isDoubleHeight ? "row-span-2" : ""
                         )}
@@ -173,6 +218,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
             })}
         </div>
     );
+    };
 
     // Compact horizontal layout for bottom panel
     if (isHorizontal) {
@@ -194,39 +240,104 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                         ))}
                     </select>
 
-                    {/* Modifiers */}
+                    {/* Modifiers section */}
+                    <span className="text-[9px] font-bold text-slate-500 uppercase">Modifiers</span>
                     <Button
                         type="button"
                         variant={activeModifiers.length === 0 ? "default" : "secondary"}
                         size="sm"
                         className={cn(
-                            "rounded-md px-2 py-1 h-7 transition-all text-xs font-medium border-none w-full",
+                            "rounded-md px-2 py-0.5 h-6 transition-all text-[10px] font-medium border-none w-full",
                             activeModifiers.length === 0 ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
                         )}
-                        onClick={() => setActiveModifiers([])}
+                        onClick={() => { setActiveModifiers([]); setModTapEnabled(false);}}
+                        title="Clear modifiers"
                     >
-                        NONE
+                        None
                     </Button>
-                    {modifierOptions.map((modifier) => {
-                        const isActive = activeModifiers.includes(modifier);
-                        const abbrev = modifier === "Shift" ? "⇧" : modifier === "Ctrl" ? "⌃" : modifier === "Alt" ? "⌥" : "⌘";
-                        return (
-                            <Button
-                                key={modifier}
-                                type="button"
-                                variant={isActive ? "default" : "secondary"}
-                                size="sm"
-                                className={cn(
-                                    "rounded-md px-2 py-1 h-7 transition-all text-xs font-medium border-none w-full",
-                                    isActive ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
-                                )}
-                                onClick={() => handleModifierToggle(modifier)}
-                                title={modifier}
-                            >
-                                {abbrev}
-                            </Button>
-                        );
-                    })}
+
+                    {/* Modifier 2x2 grid */}
+                    <div className="grid grid-cols-2 gap-0.5">
+                        {modifierOptions.map((modifier) => {
+                            const isActive = activeModifiers.includes(modifier);
+                            return (
+                                <Button
+                                    key={modifier}
+                                    type="button"
+                                    variant={isActive ? "default" : "secondary"}
+                                    size="sm"
+                                    className={cn(
+                                        "rounded-md px-0.5 py-0.5 h-6 transition-all text-[8px] font-medium border-none",
+                                        isActive ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
+                                    )}
+                                    onClick={() => handleModifierToggle(modifier)}
+                                    title={modifier}
+                                >
+                                    {modifier.toUpperCase()}
+                                </Button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Mod-Tap / One-Shot toggles */}
+                    <div className="border-t border-gray-200 pt-1 mt-1 flex flex-col gap-0.5">
+                        <Button
+                            type="button"
+                            variant={modTapEnabled ? "default" : "secondary"}
+                            size="sm"
+                            className={cn(
+                                "rounded-md px-1 py-0.5 h-6 transition-all text-[9px] font-medium border-none w-full",
+                                modTapEnabled ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white",
+                                activeModifiers.length === 0 && "opacity-50 cursor-not-allowed"
+                            )}
+                            onClick={() => { setModTapEnabled(!modTapEnabled);}}
+                            disabled={activeModifiers.length === 0}
+                            title="Mod-Tap: Hold for modifier, tap for key"
+                        >
+                            Mod-Tap
+                        </Button>
+                        {/* One-Shot: rendered as a draggable Key when modifiers are selected */}
+                        {(() => {
+                            const osmKc = getOsmKeycode(activeModifiers);
+                            if (osmKc && keyboard) {
+                                const osmContents = getKeyContents(keyboard, osmKc);
+                                return (
+                                    <Key
+                                        x={0} y={0} w={1} h={1} row={0} col={0}
+                                        keycode={osmKc}
+                                        label={osmContents?.str || "OSM"}
+                                        keyContents={osmContents}
+                                        layerColor="sidebar"
+                                        headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
+                                        isRelative
+                                        variant="small"
+                                        className="h-[30px] w-full"
+                                        onClick={() => assignKeycode(osmKc)}
+                                        hoverBorderColor={hoverBorderColor}
+                                        hoverBackgroundColor={hoverBackgroundColor}
+                                        hoverLayerColor={layerColorName}
+                                    />
+                                );
+                            }
+                            const placeholderContents = keyboard ? getKeyContents(keyboard, "OSM(MOD_LCTL)") : undefined;
+                            return (
+                                <div className="opacity-30 pointer-events-none w-full">
+                                    <Key
+                                        x={0} y={0} w={1} h={1} row={0} col={0}
+                                        keycode="OSM(MOD_LCTL)"
+                                        label="OSM"
+                                        keyContents={placeholderContents}
+                                        layerColor="sidebar"
+                                        headerClassName="bg-kb-sidebar-dark"
+                                        isRelative
+                                        variant="small"
+                                        className="h-[30px] w-full"
+                                        disableHover
+                                    />
+                                </div>
+                            );
+                        })()}
+                    </div>
                 </div>
 
                 {/* QWERTY keyboard - main content, no language selector here */}
@@ -260,6 +371,37 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                         })}
                     </div>
                 </div>
+
+                {/* Numpad section - compact grid */}
+                <div className="flex flex-col gap-1 flex-shrink-0">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Numpad</span>
+                    <div className="grid grid-cols-7 gap-0.5">
+                        {numpadKeys.map((k, i) => {
+                            if (k.keycode === "BLANK") {
+                                return <div key={`blank-${i}`} className="w-[30px] h-[30px]" />;
+                            }
+                            const keyContents = keyboard ? getKeyContents(keyboard, k.keycode) : undefined;
+                            const displayLabel = k.label || k.keycode;
+                            return (
+                                <Key
+                                    key={`${k.keycode}-${i}`}
+                                    x={0} y={0} w={1} h={1} row={0} col={0}
+                                    keycode={k.keycode}
+                                    label={displayLabel}
+                                    keyContents={keyContents as KeyContent | undefined}
+                                    layerColor="sidebar"
+                                    headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
+                                    isRelative
+                                    variant="small"
+                                    hoverBorderColor={hoverBorderColor}
+                                    hoverBackgroundColor={hoverBackgroundColor}
+                                    hoverLayerColor={layerColorName}
+                                    onClick={() => handleKeyClick(k.keycode)}
+                                />
+                            );
+                        })}
+                    </div>
+                </div>
             </div>
         );
     }
@@ -274,18 +416,19 @@ const BasicKeyboards = ({ isPicker }: Props) => {
             )}
             <section className="flex flex-col gap-2 sticky top-0 z-20 bg-white pt-4 pb-4 -mt-4">
                 <span className="font-semibold text-lg text-slate-700">Modifiers</span>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-1">
                     <Button
                         type="button"
                         variant={activeModifiers.length === 0 ? "default" : "secondary"}
                         size="sm"
                         className={cn(
-                            "rounded-md px-5 transition-all text-sm font-medium border-none",
+                            "rounded-md px-2 py-1 h-8 transition-all text-xs font-medium border-none",
                             activeModifiers.length === 0 ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
                         )}
-                        onClick={() => setActiveModifiers([])}
+                        onClick={() => { setActiveModifiers([]); setModTapEnabled(false);}}
+                        title="Clear modifiers"
                     >
-                        NONE
+                        None
                     </Button>
                     {modifierOptions.map((modifier) => {
                         const isActive = activeModifiers.includes(modifier);
@@ -296,7 +439,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                 variant={isActive ? "default" : "secondary"}
                                 size="sm"
                                 className={cn(
-                                    "rounded-md px-5 transition-all text-sm font-medium border-none",
+                                    "rounded-md px-3 py-1 h-8 transition-all text-xs font-medium border-none",
                                     isActive ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
                                 )}
                                 onClick={() => handleModifierToggle(modifier)}
@@ -305,6 +448,68 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                             </Button>
                         );
                     })}
+
+                    {/* Mod-Tap / One-Shot toggles */}
+                    <div className="border-l border-gray-300 pl-2 ml-2 flex gap-1">
+                        <Button
+                            type="button"
+                            variant={modTapEnabled ? "default" : "secondary"}
+                            size="sm"
+                            className={cn(
+                                "rounded-md px-2 py-1 h-8 transition-all text-xs font-medium border-none",
+                                modTapEnabled ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white",
+                                activeModifiers.length === 0 && "opacity-50 cursor-not-allowed"
+                            )}
+                            onClick={() => { setModTapEnabled(!modTapEnabled);}}
+                            disabled={activeModifiers.length === 0}
+                            title="Mod-Tap: Hold for modifier, tap for key"
+                        >
+                            Mod-Tap
+                        </Button>
+                        {/* One-Shot: rendered as a draggable Key when modifiers are selected */}
+                        {(() => {
+                            const osmKc = getOsmKeycode(activeModifiers);
+                            const sidebarVariant = keyVariant === 'small' ? 'small' as const : 'medium' as const;
+                            const sidebarSizeClass = sidebarVariant === 'small' ? 'h-[30px] w-[60px]' : 'h-[45px] w-[90px]';
+                            if (osmKc && keyboard) {
+                                const osmContents = getKeyContents(keyboard, osmKc);
+                                return (
+                                    <Key
+                                        x={0} y={0} w={1} h={1} row={0} col={0}
+                                        keycode={osmKc}
+                                        label={osmContents?.str || "OSM"}
+                                        keyContents={osmContents}
+                                        layerColor="sidebar"
+                                        headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
+                                        isRelative
+                                        variant={sidebarVariant}
+                                        className={sidebarSizeClass}
+                                        onClick={() => assignKeycode(osmKc)}
+                                        hoverBorderColor={hoverBorderColor}
+                                        hoverBackgroundColor={hoverBackgroundColor}
+                                        hoverLayerColor={layerColorName}
+                                    />
+                                );
+                            }
+                            const placeholderContents = keyboard ? getKeyContents(keyboard, "OSM(MOD_LCTL)") : undefined;
+                            return (
+                                <div className="opacity-30 pointer-events-none">
+                                    <Key
+                                        x={0} y={0} w={1} h={1} row={0} col={0}
+                                        keycode="OSM(MOD_LCTL)"
+                                        label="OSM"
+                                        keyContents={placeholderContents}
+                                        layerColor="sidebar"
+                                        headerClassName="bg-kb-sidebar-dark"
+                                        isRelative
+                                        variant={sidebarVariant}
+                                        className={sidebarSizeClass}
+                                        disableHover
+                                    />
+                                </div>
+                            );
+                        })()}
+                    </div>
                 </div>
             </section>
 
@@ -313,22 +518,11 @@ const BasicKeyboards = ({ isPicker }: Props) => {
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                     <span className="font-semibold text-lg text-slate-700">Blank and Transparent</span>
-                    {renderKeyGrid(blankKeys)}
+                    {renderKeyGrid(blankKeys, undefined, "medium")}
                 </div>
                 <div className="flex flex-col gap-2">
                     <span className="font-semibold text-lg text-slate-700">Numpad</span>
-                    {renderKeyGrid(numpadKeys, numpadGridCols)}
-                </div>
-                <div className="flex flex-col gap-2">
-                    <span className="font-semibold text-lg text-slate-700">Others</span>
-                    {renderKeyGrid(otherKeys)}
-                </div>
-                <div className="flex flex-col gap-2">
-                    <span className="font-semibold text-lg text-slate-700">Extra Function Keys</span>
-                    {renderKeyGrid(Array.from({ length: 12 }, (_, i) => ({
-                        keycode: `KC_F${i + 13}`,
-                        label: `F${i + 13}`
-                    })))}
+                    {renderKeyGrid(numpadKeys, numpadGridCols, "medium")}
                 </div>
             </div>
         </div>
