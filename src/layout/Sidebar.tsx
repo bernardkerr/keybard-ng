@@ -401,34 +401,34 @@ const AppSidebar = () => {
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild size="nav" className="text-slate-600 transition-colors">
+                        <SidebarMenuButton asChild size="nav" className="text-gray-400 transition-colors hover:text-sidebar-foreground">
                             <button type="button" onClick={(e) => { e.stopPropagation(); connect(); }} className="flex w-full items-center justify-start">
                                 <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
                                     {isConnected ? <Zap className="h-4 w-4 shrink-0 fill-black text-black" /> : <Unplug className="h-4 w-4 shrink-0" />}
                                 </div>
-                                <span className={cn("text-md font-medium truncate", isCollapsed && "hidden")}>{isConnected ? "Connected" : "Connect"}</span>
+                                <span className={cn("truncate", isCollapsed && "hidden")}>{isConnected ? "Connected" : "Connect"}</span>
                             </button>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                     {/* Import */}
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild size="nav" tooltip={isCollapsed ? "Import" : undefined} sidebarName="primary-nav" className="text-slate-600 transition-colors">
+                        <SidebarMenuButton asChild size="nav" tooltip={isCollapsed ? "Import" : undefined} sidebarName="primary-nav" className="text-gray-400 transition-colors">
                             <button type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className={cn("flex w-full items-center", isCollapsed ? "justify-center" : "justify-start pr-2")}>
                                 <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
                                     <Download className="h-4 w-4 shrink-0" />
                                 </div>
-                                {!isCollapsed && <span className="text-xs font-medium">Import</span>}
+                                <span className={cn("truncate", isCollapsed && "hidden")}>Import</span>
                             </button>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                     {/* Export */}
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild size="nav" tooltip={isCollapsed ? "Export" : undefined} sidebarName="primary-nav" className="text-slate-600 transition-colors">
+                        <SidebarMenuButton asChild size="nav" tooltip={isCollapsed ? "Export" : undefined} sidebarName="primary-nav" className="text-gray-400 transition-colors">
                             <button type="button" onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }} className={cn("flex w-full items-center disabled:opacity-50", isCollapsed ? "justify-center" : "justify-start pr-2")} disabled={!keyboard}>
                                 <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
                                     <Upload className="h-4 w-4 shrink-0" />
                                 </div>
-                                {!isCollapsed && <span className="text-xs font-medium">Export</span>}
+                                <span className={cn("truncate", isCollapsed && "hidden")}>Export</span>
                             </button>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
