@@ -20,6 +20,8 @@ This applies to all work, no matter how small. Feature branches allow for:
 - Easy rollback if needed
 - Clean commit history on main
 
+**ALWAYS run `npm run build` before pushing** to catch TypeScript errors. The CI deploy will fail on TS errors, so catch them locally first.
+
 ---
 
 ## IMPORTANT: This is a Git Worktree
