@@ -2,8 +2,9 @@ import LayersActiveIcon from "@/components/icons/LayersActive";
 import LayersDefaultIcon from "@/components/icons/LayersDefault";
 import { LayoutImport } from "@/components/icons/LayoutImport";
 import { LayoutExport } from "@/components/icons/LayoutExport";
+import MatrixTesterIcon from "@/components/icons/MatrixTesterSvg";
 import { LayerNameBadge } from "@/components/LayerNameBadge";
-import { ChevronDown, Unplug, Zap } from "lucide-react";
+import { ArrowLeft, ChevronDown, Unplug, Zap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useVial } from "@/contexts/VialContext";
@@ -349,34 +350,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
         batchWipeKeys(KC_TRNS, (currentValue) => currentValue === KC_NO);
     };
 
-    const { activePanel } = usePanels();
-
-    if (activePanel === "matrixtester") {
-        return (
-            <div className="w-full flex data-[state=collapsed] flex-col pt-4" onClick={(e) => e.stopPropagation()}>
-                <div className="flex flex-col justify-start items-start px-5 py-2 relative mt-3">
-                    <span className="font-bold text-lg text-black">Matrix Tester</span>
-                    {!isConnected ? (
-                        <button
-                            onClick={() => connect()}
-                            className="mt-2 bg-black text-white px-4 py-1 rounded-full text-sm font-medium hover:bg-gray-800 transition-colors flex items-center gap-2"
-                        >
-                            <Unplug className="h-4 w-4" />
-                            Connect Keyboard
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => connect()}
-                            className="mt-2 bg-white text-black px-4 py-1 rounded-full text-sm font-medium hover:bg-gray-100 transition-colors flex items-center gap-2"
-                        >
-                            <Zap className="h-4 w-4 fill-black text-black" />
-                            Keyboard Connected
-                        </button>
-                    )}
-                </div>
-            </div>
-        )
-    }
+    const { activePanel, setActivePanel, setOpen, setItemToEdit, setPanelToGoBack } = usePanels();
 
     // Render a layer tab with context menu for right-click actions
     const renderLayerTab = (i: number) => {
@@ -555,11 +529,36 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                         {/* Divider */}
                         <div className="h-4 w-[1px] bg-slate-400 mx-2 flex-shrink-0" />
 
+                        {/* Matrix Tester Button */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (activePanel === "matrixtester") {
+                                    // If already in matrix tester mode, exit it
+                                    setActivePanel(null);
+                                } else {
+                                    // Enter matrix tester mode
+                                    setOpen(false);
+                                    setActivePanel("matrixtester");
+                                    setPanelToGoBack(null);
+                                    setItemToEdit(null);
+                                }
+                            }}
+                            className={cn(
+                                "group flex items-center text-sm font-medium cursor-pointer transition-opacity mr-2",
+                                activePanel === "matrixtester" ? "opacity-100" : "opacity-100"
+                            )}
+                        >
+                            <MatrixTesterIcon className="h-5 w-5 text-black" />
+                            <span className="max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 overflow-hidden whitespace-nowrap">
+                                {activePanel === "matrixtester" ? "Exit Matrix Tester" : "Matrix Tester"}
+                            </span>
+                        </button>
+
                         {/* Import Button */}
                         <button
                             onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                             className="group flex items-center text-sm font-medium cursor-pointer transition-opacity opacity-100 mr-2"
-                            title="Import Configuration"
                         >
                             <LayoutImport className="h-5 w-5 text-black" />
                             <span className="max-w-0 opacity-0 group-hover:max-w-[60px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 overflow-hidden whitespace-nowrap">
@@ -572,7 +571,6 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                             onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }}
                             className="group flex items-center text-sm font-medium cursor-pointer transition-opacity opacity-100"
                             disabled={!keyboard}
-                            title="Export Configuration"
                         >
                             <LayoutExport className="h-5 w-5 text-black" />
                             <span className="max-w-0 opacity-0 group-hover:max-w-[60px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 overflow-hidden whitespace-nowrap">
@@ -610,9 +608,22 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                         </div>
                     </div>
 
-                    {/* Bottom Row: Layer Name Badge */}
+                    {/* Bottom Row: Layer Name Badge or Matrix Tester Title */}
                     <div className="pl-[27px] pt-[7px] pb-2">
-                        <LayerNameBadge selectedLayer={selectedLayer} />
+                        {activePanel === "matrixtester" ? (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setActivePanel(null)}
+                                    className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                                    title="Return to layer view"
+                                >
+                                    <ArrowLeft className="h-5 w-5 text-black" />
+                                </button>
+                                <span className="font-bold text-lg text-black">Matrix Tester</span>
+                            </div>
+                        ) : (
+                            <LayerNameBadge selectedLayer={selectedLayer} />
+                        )}
                     </div>
                 </div>
             )}

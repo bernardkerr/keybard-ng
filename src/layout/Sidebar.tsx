@@ -3,7 +3,6 @@ import LayoutsIcon from "@/components/icons/Layouts";
 import { useCallback, useMemo } from "react";
 
 import ComboIcon from "@/components/ComboIcon";
-import GamepadDirectional from "@/components/icons/GamepadDirectional";
 import { isExcludedMenu, getIconForMenu } from "@/constants/custom-ui-exclusions";
 
 import LayersDefaultIcon from "@/components/icons/LayersDefault";
@@ -41,13 +40,24 @@ export type SidebarItem = {
     icon: LucideIcon | React.FC<React.SVGProps<SVGSVGElement>>;
 };
 
-export const primarySidebarItems: SidebarItem[] = [
+// Items that appear before dynamic menus (Pointing Devices)
+export const primarySidebarItemsBeforeDynamic: SidebarItem[] = [
     { title: "Keyboard", url: "keyboard", icon: Keyboard },
     { title: "Special", url: "special", icon: Piano },
     { title: "Layer Keys", url: "layers", icon: LayersDefaultIcon },
     { title: "Mouse", url: "mouse", icon: Mouse },
+];
+
+// Items that appear after dynamic menus
+export const primarySidebarItemsAfterDynamic: SidebarItem[] = [
     { title: "Tap Dances", url: "tapdances", icon: TapdanceIcon },
     { title: "Macros", url: "macros", icon: MacrosIcon },
+];
+
+// Combined for backward compatibility and index calculations
+export const primarySidebarItems: SidebarItem[] = [
+    ...primarySidebarItemsBeforeDynamic,
+    ...primarySidebarItemsAfterDynamic,
 ];
 
 // Alt-Repeat - enabled for testing
@@ -65,7 +75,6 @@ const featureSidebarItems: SidebarItem[] = [
 
 const footerItems: SidebarItem[] = [
     { title: "About", url: "about", icon: HelpCircle },
-    { title: "Matrix Tester", url: "matrixtester", icon: GamepadDirectional },
     { title: "Layouts", url: "layouts", icon: LayoutsIcon },
     { title: "Settings", url: "settings", icon: Settings },
 ];
@@ -193,19 +202,25 @@ const AppSidebar = () => {
             });
     }, [keyboard?.menus]);
 
-    const activePrimaryIndex = primarySidebarItems.findIndex((item) => item.url === activePanel);
+    const activePrimaryBeforeIndex = primarySidebarItemsBeforeDynamic.findIndex((item) => item.url === activePanel);
+    const activePrimaryAfterIndex = primarySidebarItemsAfterDynamic.findIndex((item) => item.url === activePanel);
     const activeFeatureIndex = featureSidebarItems.findIndex((item) => item.url === activePanel);
     const activeDynamicIndex = dynamicMenuItems.findIndex((item) => item.url === activePanel);
     const activeFooterIndex = footerItems.findIndex((item) => item.url === activePanel);
 
     let indicatorY = -1;
-    if (activePrimaryIndex !== -1) {
-        indicatorY = activePrimaryIndex * MENU_ITEM_GAP_PX;
-    } else if (activeFeatureIndex !== -1) {
-        indicatorY = (primarySidebarItems.length * MENU_ITEM_GAP_PX) + FEATURE_SECTION_OFFSET + (activeFeatureIndex * MENU_ITEM_GAP_PX);
+    if (activePrimaryBeforeIndex !== -1) {
+        // Items before dynamic (Keyboard, Special, Layer Keys, Mouse)
+        indicatorY = activePrimaryBeforeIndex * MENU_ITEM_GAP_PX;
     } else if (activeDynamicIndex !== -1 && dynamicMenuItems.length > 0) {
-        // Dynamic menu indicator position: after primary + feature + divider
-        indicatorY = (primarySidebarItems.length * MENU_ITEM_GAP_PX) + FEATURE_SECTION_OFFSET + (featureSidebarItems.length * MENU_ITEM_GAP_PX) + FEATURE_SECTION_OFFSET + (activeDynamicIndex * MENU_ITEM_GAP_PX);
+        // Dynamic menu items (Pointing Devices) - right after Mouse
+        indicatorY = (primarySidebarItemsBeforeDynamic.length * MENU_ITEM_GAP_PX) + (activeDynamicIndex * MENU_ITEM_GAP_PX);
+    } else if (activePrimaryAfterIndex !== -1) {
+        // Items after dynamic (Tap Dances, Macros)
+        indicatorY = (primarySidebarItemsBeforeDynamic.length * MENU_ITEM_GAP_PX) + (dynamicMenuItems.length * MENU_ITEM_GAP_PX) + (activePrimaryAfterIndex * MENU_ITEM_GAP_PX);
+    } else if (activeFeatureIndex !== -1) {
+        // Feature items come after all primary + dynamic + divider
+        indicatorY = (primarySidebarItems.length * MENU_ITEM_GAP_PX) + (dynamicMenuItems.length * MENU_ITEM_GAP_PX) + FEATURE_SECTION_OFFSET + (activeFeatureIndex * MENU_ITEM_GAP_PX);
     }
 
     const sidebarClasses = cn(
@@ -259,7 +274,35 @@ const AppSidebar = () => {
                     <div className="flex-1 flex flex-col justify-center py-2">
                         <SidebarMenu className="relative">
                             {indicatorY !== -1 && <SlidingIndicator y={indicatorY} />}
-                            {primarySidebarItems.map((item) => (
+
+                            {/* Primary items before dynamic (Keyboard, Special, Layer Keys, Mouse) */}
+                            {primarySidebarItemsBeforeDynamic.map((item) => (
+                                <SidebarNavItem
+                                    key={item.url}
+                                    item={item}
+                                    isActive={activePanel === item.url}
+                                    isPreviousPanel={panelToGoBack === item.url}
+                                    alternativeHeader={alternativeHeader}
+                                    isCollapsed={isCollapsed}
+                                    onClick={handleItemSelect}
+                                />
+                            ))}
+
+                            {/* Dynamic menu items from keyboard definition (Pointing Devices) - right after Mouse */}
+                            {dynamicMenuItems.map((item) => (
+                                <SidebarNavItem
+                                    key={item.url}
+                                    item={item}
+                                    isActive={activePanel === item.url}
+                                    isPreviousPanel={panelToGoBack === item.url}
+                                    alternativeHeader={alternativeHeader}
+                                    isCollapsed={isCollapsed}
+                                    onClick={handleItemSelect}
+                                />
+                            ))}
+
+                            {/* Primary items after dynamic (Tap Dances, Macros) */}
+                            {primarySidebarItemsAfterDynamic.map((item) => (
                                 <SidebarNavItem
                                     key={item.url}
                                     item={item}
@@ -284,24 +327,6 @@ const AppSidebar = () => {
                                     onClick={handleItemSelect}
                                 />
                             ))}
-
-                            {/* Dynamic menu items from keyboard definition */}
-                            {dynamicMenuItems.length > 0 && (
-                                <>
-                                    <div className="mx-4 my-2 h-[1px] bg-slate-200" />
-                                    {dynamicMenuItems.map((item) => (
-                                        <SidebarNavItem
-                                            key={item.url}
-                                            item={item}
-                                            isActive={activePanel === item.url}
-                                            isPreviousPanel={panelToGoBack === item.url}
-                                            alternativeHeader={alternativeHeader}
-                                            isCollapsed={isCollapsed}
-                                            onClick={handleItemSelect}
-                                        />
-                                    ))}
-                                </>
-                            )}
                         </SidebarMenu>
                     </div>
 
