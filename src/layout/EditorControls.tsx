@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { PanelBottom, PanelRight } from "lucide-react";
 import { InfoIcon } from "@/components/icons/InfoIcon";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-import { useVial } from "@/contexts/VialContext";
+// import { useVial } from "@/contexts/VialContext";
 import { useChanges } from "@/hooks/useChanges";
 
 interface EditorControlsProps {
@@ -29,12 +29,12 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
         setLayoutMode
     } = useLayoutSettings();
 
-    const { getPendingCount, commit, clearAll } = useChanges();
-    const { resetToOriginal } = useVial();
+    const { getPendingCount, commit } = useChanges();
+    // const { resetToOriginal } = useVial();
 
     return (
         <div className="flex items-center gap-6">
-            {/* Push Changes and Revert buttons - only show when there are pending changes */}
+            {/* Push Changes - only show when there are pending changes */}
             {getPendingCount() > 0 && (
                 <div className="flex flex-row items-center gap-2">
                     <button
@@ -46,17 +46,6 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
                         title="Push all pending changes to keyboard"
                     >
                         Push Changes ({getPendingCount()})
-                    </button>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            clearAll();
-                            resetToOriginal();
-                        }}
-                        className="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600 transition-all"
-                        title="Revert all pending changes"
-                    >
-                        Revert
                     </button>
                 </div>
             )}

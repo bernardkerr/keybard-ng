@@ -551,9 +551,11 @@ const EditorLayoutInner = () => {
                 {/* Controls - bottom left in sidebar mode only */}
                 {!useBottomLayout && (
                     <>
-                        <div className="absolute bottom-9 left-[37px] z-50">
-                            <InfoPanelWidget showInfoPanel={showInfoPanel} setShowInfoPanel={setShowInfoPanel} />
-                        </div>
+                        {activePanel !== "matrixtester" && (
+                            <div className="absolute bottom-9 left-[37px] z-50">
+                                <InfoPanelWidget showInfoPanel={showInfoPanel} setShowInfoPanel={setShowInfoPanel} />
+                            </div>
+                        )}
 
                         <div className="absolute bottom-9 right-[37px] flex flex-col items-end gap-1 pointer-events-none">
                             <div className="pointer-events-auto">
