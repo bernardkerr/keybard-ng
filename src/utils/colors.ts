@@ -154,3 +154,45 @@ export const hoverContainerTextClasses: { [key: string]: string } = {
     magenta: "hover:text-white",
     white: "hover:text-black",
 };
+
+/**
+ * Active background classes for each color
+ * Used for click/active states
+ */
+export const activeBackgroundClasses: { [key: string]: string } = {
+    primary: "active:bg-kb-primary",
+    black: "active:bg-black",
+    sidebar: "active:bg-kb-sidebar-base",
+    red: "active:bg-kb-red",
+    green: "active:bg-kb-green",
+    blue: "active:bg-kb-blue",
+    yellow: "active:bg-kb-yellow",
+    orange: "active:bg-kb-orange",
+    purple: "active:bg-kb-purple",
+    grey: "active:bg-kb-grey",
+    "light-grey": "active:bg-kb-light-grey",
+    brown: "active:bg-kb-brown",
+    magenta: "active:bg-kb-magenta",
+    white: "active:bg-white",
+};
+
+/**
+ * Active text color classes for each color
+ * Used for click/active states to ensure contrast
+ */
+export const activeTextClasses: { [key: string]: string } = {
+    primary: "active:text-white",
+    black: "active:text-white",
+    sidebar: "active:text-white",
+    red: "active:text-white",
+    green: "active:text-white",
+    blue: "active:text-white",
+    yellow: "active:text-orange-800",
+    orange: "active:text-white",
+    purple: "active:text-white",
+    grey: "active:text-gray-200",
+    "light-grey": "active:text-black",
+    brown: "active:text-white",
+    magenta: "active:text-white",
+    white: "active:text-black",
+};

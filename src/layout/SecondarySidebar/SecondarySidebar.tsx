@@ -51,14 +51,14 @@ const getPanelTitle = (panel: string | null | undefined, menus?: CustomUIMenuIte
     }
 
     const titles: Record<string, string> = {
-        keyboard: "Keyboard",
+        keyboard: "Keyboard Keys",
         layers: "Layer Keys",
         tapdances: "Tap Dances",
         macros: "Macros",
         qmk: "One-Shot (Legacy)",
         oneshot: "One-Shot / Mod-Tap",
-        special: "Special",
-        mouse: "Mouse",
+        special: "Special Keys",
+        mouse: "Mouse Keys",
         combos: "Combos",
         overrides: "Overrides",
         altrepeat: "Alt-Repeat Keys",
@@ -195,7 +195,7 @@ const SecondarySidebar = () => {
             defaultOpen={false}
             collapsible="offcanvas"
             hideGap
-            className="z-9 absolute"
+            className="z-9 absolute select-none"
             style={{
                 left: state === "collapsed" ? undefined : primaryOffset,
                 "--sidebar-width": DETAIL_SIDEBAR_WIDTH,

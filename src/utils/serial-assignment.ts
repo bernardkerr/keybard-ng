@@ -3,7 +3,7 @@
  * Based on viable-gui's serial_assignment.py implementation
  */
 
-export type SerialMode = 'col-row' | 'row-col' | 'svalboard';
+export type SerialMode = 'none' | 'col-row' | 'row-col' | 'svalboard';
 
 // Layout entry type (matches keyboard.keylayout structure)
 interface LayoutEntry {

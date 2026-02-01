@@ -203,7 +203,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                             onChange={(e) => setEditTitleValue(e.target.value)}
                                             onBlur={handleSaveTitle}
                                             onKeyDown={handleTitleKeyDown}
-                                            className="h-auto py-1 px-2 text-lg font-bold border-none focus-visible:ring-0 w-auto min-w-[130px]"
+                                            className="h-auto py-1 px-2 text-lg font-bold border-none focus-visible:ring-0 w-auto min-w-[130px] select-text"
                                             autoFocus
                                         />
                                     </div>

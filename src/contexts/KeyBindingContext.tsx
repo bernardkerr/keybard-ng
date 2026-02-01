@@ -176,7 +176,14 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             : SVALBOARD_LAYOUT;
 
         const matrixCols = keyboard.cols || MATRIX_COLS;
-        const mode = getSetting('serial-assignment', 'svalboard') as SerialMode;
+        const mode = getSetting('serial-assignment', 'none') as SerialMode;
+
+        // If mode is 'none', don't advance - just clear the selection
+        if (mode === 'none') {
+            clearSelection();
+            return;
+        }
+
         const ordered = getOrderedKeyPositions(keylayout, mode, matrixCols);
 
         if (ordered.length === 0) {
