@@ -12,8 +12,8 @@ import { useChanges } from "@/contexts/ChangesContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
 import { cn } from "@/lib/utils";
-// import { activeBackgroundClasses, activeTextClasses } from "@/utils/colors";
 import { svalService } from "@/services/sval.service";
+
 import { fileService } from "@/services/file.service";
 import {
     Dialog,
@@ -113,17 +113,17 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                             const composedLayout = fragmentComposer.composeLayout(newKbInfo);
                             if (Object.keys(composedLayout).length > 0) {
                                 newKbInfo.keylayout = composedLayout;
-                                console.log("Fragment layout recomposed after import:", Object.keys(composedLayout).length, "keys");
                             }
+
                         }
                     }
 
                     setKeyboard(newKbInfo);
-                    console.log("Import successful", newKbInfo);
                 }
             } catch (err) {
                 console.error("Upload failed", err);
             }
+
         }
         // Reset input so same file can be selected again
         if (event.target) {
