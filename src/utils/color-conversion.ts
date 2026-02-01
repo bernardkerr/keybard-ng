@@ -87,20 +87,12 @@ export function hsvToHex(hue: number, sat: number, val: number): string {
 
 /**
  * Pre-computed HSV values for KeyBard preset colors
- * These map the layerColors hex values to HSV (0-255 range)
+ * Built from the led property in layerColors for hand-tuned LED values
  */
-export const presetColorHsv: Record<string, { hue: number; sat: number; val: number }> = {
-    green: hexToHsv('#099e7c'),   // Teal-ish green
-    blue: hexToHsv('#379cd7'),    // Sky blue
-    purple: hexToHsv('#8672b5'),  // Soft purple
-    orange: hexToHsv('#f89804'),  // Bright orange
-    yellow: hexToHsv('#ffc222'),  // Golden yellow
-    grey: hexToHsv('#85929b'),    // Cool grey
-    red: hexToHsv('#d8304a'),     // Crimson red
-    brown: hexToHsv('#b39369'),   // Tan brown
-    magenta: hexToHsv('#b5508a'), // Muted magenta/rose
-    white: { hue: 0, sat: 0, val: 255 }, // Pure white (no saturation)
-};
+export const presetColorHsv: Record<string, { hue: number; sat: number; val: number }> =
+    Object.fromEntries(
+        layerColors.map(color => [color.name, color.led])
+    );
 
 /**
  * Find the closest preset color name for a given HSV value
@@ -140,8 +132,9 @@ export function getPresetHex(colorName: string): string {
 }
 
 /**
- * Get HSV for a preset color name
+ * Get LED HSV for a preset color name (hand-tuned values for hardware)
  */
 export function getPresetHsv(colorName: string): { hue: number; sat: number; val: number } {
-    return presetColorHsv[colorName] || presetColorHsv.green;
+    const color = layerColors.find(c => c.name === colorName);
+    return color?.led || layerColors[0].led; // Default to green
 }
