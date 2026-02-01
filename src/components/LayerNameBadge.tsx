@@ -14,7 +14,7 @@ import { useChanges } from "@/contexts/ChangesContext";
 import { svalService } from "@/services/sval.service";
 import { usbInstance } from "@/services/usb.service";
 import { layerColors } from "@/utils/colors";
-import { getPresetHsv, getClosestPresetColor, hsvToHex } from "@/utils/color-conversion";
+import { getPresetHsv, getClosestPresetColor, hsvToHex, hexToHsv } from "@/utils/color-conversion";
 import { cn } from "@/lib/utils";
 import { KEYMAP } from "@/constants/keygen";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
@@ -64,17 +64,28 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
 
     const currentLayerColorName = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "green";
 
-    // Get the actual display color - either from cosmetic name or hardware HSV
-    const getCurrentColorHex = (): string => {
-        const hwColor = keyboard.layer_colors?.[selectedLayer];
-        if (hwColor && (hwColor.hue !== 0 || hwColor.sat !== 0 || hwColor.val !== 0)) {
-            return hsvToHex(hwColor.hue, hwColor.sat, hwColor.val);
+    // Get the display color from the preset hex value or custom hex
+    const getDisplayColorHex = (): string => {
+        if (currentLayerColorName && currentLayerColorName.startsWith("#")) {
+            return currentLayerColorName;
         }
         const preset = layerColors.find(c => c.name === currentLayerColorName);
         return preset?.hex || "#099e7c";
     };
 
-    const currentColorHex = getCurrentColorHex();
+    // Get the LED hardware color from the stored HSV or preset LED values
+    const getHardwareColorHex = (): string => {
+        const hwColor = keyboard.layer_colors?.[selectedLayer];
+        if (hwColor && (hwColor.hue !== 0 || hwColor.sat !== 0 || hwColor.val !== 0)) {
+            return hsvToHex(hwColor.hue, hwColor.sat, hwColor.val);
+        }
+        // Fall back to preset LED values
+        const preset = layerColors.find(c => c.name === currentLayerColorName);
+        return preset?.led ? hsvToHex(preset.led.hue, preset.led.sat, preset.led.val) : "#00ff00";
+    };
+
+    const displayColorHex = getDisplayColorHex();
+    const hardwareColorHex = getHardwareColorHex();
     const allColors = [...layerColors];
 
     const handleStartEditing = () => {
@@ -125,21 +136,27 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
         setIsColorPickerOpen(false);
     };
 
-    const handleSetCustomColor = async (hue: number, sat: number, val: number) => {
+    const handleSetCustomColor = async (
+        displayHsv: { hue: number; sat: number; val: number },
+        ledHsv: { hue: number; sat: number; val: number }
+    ) => {
         if (keyboard) {
-            const closestPreset = getClosestPresetColor(hue, sat, val);
+            // Convert display HSV to hex and store directly as cosmetic color
+            const displayHex = hsvToHex(displayHsv.hue, displayHsv.sat, displayHsv.val);
+
             const cosmetic = JSON.parse(JSON.stringify(keyboard.cosmetic || { layer: {}, layer_colors: {} }));
             if (!cosmetic.layer_colors) cosmetic.layer_colors = {};
-            cosmetic.layer_colors[selectedLayer.toString()] = closestPreset;
+            cosmetic.layer_colors[selectedLayer.toString()] = displayHex;
 
+            // Store LED color as hardware HSV
             const updatedLayerColors = [...(keyboard.layer_colors || [])];
-            updatedLayerColors[selectedLayer] = { hue, sat, val };
+            updatedLayerColors[selectedLayer] = { hue: ledHsv.hue, sat: ledHsv.sat, val: ledHsv.val };
 
             setKeyboard({ ...keyboard, cosmetic, layer_colors: updatedLayerColors });
 
             if (isConnected) {
                 try {
-                    await usbInstance.setLayerColor(selectedLayer, hue, sat);
+                    await usbInstance.setLayerColor(selectedLayer, ledHsv.hue, ledHsv.sat);
                 } catch (e) {
                     console.error("Failed to set hardware layer color:", e);
                 }
@@ -255,7 +272,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
                 style={style}
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Color Dot with Picker */}
+                {/* Display Color Dot with Picker */}
                 <div className="relative" ref={pickerRef}>
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -264,11 +281,11 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
                                     "w-5 h-5 rounded-full shadow-sm cursor-pointer transition-transform hover:scale-110 border-2",
                                     isColorPickerOpen ? "border-black" : "border-transparent"
                                 )}
-                                style={{ backgroundColor: currentColorHex }}
+                                style={{ backgroundColor: displayColorHex }}
                                 onClick={() => setIsColorPickerOpen(!isColorPickerOpen)}
                             />
                         </TooltipTrigger>
-                        <TooltipContent side="top">Layer LED Color</TooltipContent>
+                        <TooltipContent side="top">Display Color</TooltipContent>
                     </Tooltip>
 
                     {isColorPickerOpen && (
@@ -282,7 +299,6 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
                                     )}
                                     style={{ backgroundColor: color.hex }}
                                     onClick={() => handleSetColor(color.name)}
-                                    title={color.name}
                                 />
                             ))}
                             {/* Custom color button - always available, hardware write only happens when connected */}
@@ -292,7 +308,6 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
                                     setIsColorPickerOpen(false);
                                     setIsCustomColorOpen(true);
                                 }}
-                                title="Custom color"
                             >
                                 <Settings className="w-3 h-3 text-gray-600" />
                             </button>
@@ -352,6 +367,17 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
                     </DropdownMenuContent>
                 </DropdownMenu>
 
+                {/* LED Color Indicator - Hidden per user request */}
+                {/* <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div
+                            className="w-2.5 h-2.5 rounded-full shadow-sm border border-gray-300"
+                            style={{ backgroundColor: hardwareColorHex }}
+                        />
+                    </TooltipTrigger>
+                    <TooltipContent side="top">LED Color</TooltipContent>
+                </Tooltip> */}
+
                 {/* Publish Layer Dialog */}
                 <PublishLayerDialog
                     isOpen={isPublishDialogOpen}
@@ -361,12 +387,18 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
             </div>
 
             {/* Custom Color Dialog */}
+            {/* Custom Color Dialog */}
             <CustomColorDialog
                 open={isCustomColorOpen}
                 onOpenChange={setIsCustomColorOpen}
-                initialHue={keyboard.layer_colors?.[selectedLayer]?.hue ?? 85}
-                initialSat={keyboard.layer_colors?.[selectedLayer]?.sat ?? 255}
-                initialVal={keyboard.layer_colors?.[selectedLayer]?.val ?? 200}
+                // LED Color (Hardware)
+                initialLedHue={keyboard.layer_colors?.[selectedLayer]?.hue ?? 85}
+                initialLedSat={keyboard.layer_colors?.[selectedLayer]?.sat ?? 255}
+                initialLedVal={keyboard.layer_colors?.[selectedLayer]?.val ?? 200}
+                // Display Color (UI) - Convert current display hex to HSV
+                initialDisplayHue={hexToHsv(displayColorHex).hue}
+                initialDisplaySat={hexToHsv(displayColorHex).sat}
+                initialDisplayVal={hexToHsv(displayColorHex).val}
                 onApply={handleSetCustomColor}
                 layerName={svalService.getLayerName(keyboard, selectedLayer)}
             />

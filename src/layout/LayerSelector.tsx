@@ -610,75 +610,87 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                         {/* Divider */}
                         <div className="h-4 w-[1px] bg-slate-400 mx-0 flex-shrink-0" />
 
-                        {/* Matrix Tester Button */}
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (activePanel === "matrixtester") {
-                                            // If already in matrix tester mode, exit it
-                                            setActivePanel(null);
-                                        } else {
-                                            // Enter matrix tester mode
-                                            setOpen(false);
-                                            setActivePanel("matrixtester");
-                                            setPanelToGoBack(null);
-                                            setItemToEdit(null);
-                                        }
-                                    }}
-                                    className={cn(
-                                        "p-2 rounded-full transition-all cursor-pointer mr-2",
-                                        activePanel === "matrixtester"
-                                            ? "bg-black hover:bg-gray-800"
-                                            : "hover:bg-gray-100"
-                                    )}
-                                    aria-label={activePanel === "matrixtester" ? "Exit Matrix Tester" : "Matrix Tester"}
-                                >
-                                    <MatrixTesterIcon className={cn(
-                                        "h-5 w-5",
-                                        activePanel === "matrixtester" ? "text-kb-gray" : "text-black"
-                                    )} />
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                                {activePanel === "matrixtester" ? "Exit Matrix Tester" : "Matrix Tester"}
-                            </TooltipContent>
-                        </Tooltip>
+                        <div className="flex items-center gap-1">
+                            {/* Matrix Tester Button */}
+                            <Tooltip delayDuration={500}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (activePanel === "matrixtester") {
+                                                // If already in matrix tester mode, exit it
+                                                setActivePanel(null);
+                                            } else {
+                                                // Enter matrix tester mode
+                                                setOpen(false);
+                                                setActivePanel("matrixtester");
+                                                setPanelToGoBack(null);
+                                                setItemToEdit(null);
+                                            }
+                                        }}
+                                        className={cn(
+                                            "p-2 rounded-full transition-all cursor-pointer",
+                                            activePanel === "matrixtester"
+                                                ? "bg-black hover:bg-gray-800"
+                                                : "hover:bg-gray-200"
+                                        )}
+                                        aria-label={activePanel === "matrixtester" ? "Exit Matrix Tester" : "Matrix Tester"}
+                                    >
+                                        <MatrixTesterIcon className={cn(
+                                            "h-5 w-5",
+                                            activePanel === "matrixtester" ? "text-kb-gray" : "text-black"
+                                        )} />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    {activePanel === "matrixtester" ? "Exit Matrix Tester" : "Matrix Tester"}
+                                </TooltipContent>
+                            </Tooltip>
 
-                        {/* Import Button */}
-                        <button
-                            onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                            className="group flex items-center text-sm font-medium cursor-pointer transition-opacity opacity-100 mr-2"
-                        >
-                            <LayoutImport className="h-5 w-5 text-black" />
-                            <span className="max-w-0 opacity-0 group-hover:max-w-[60px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 overflow-hidden whitespace-nowrap">
-                                Import
-                            </span>
-                        </button>
+                            {/* Import Button */}
+                            <Tooltip delayDuration={500}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                                        className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-200"
+                                        aria-label="Import"
+                                    >
+                                        <LayoutImport className="h-5 w-5 text-black" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    Import
+                                </TooltipContent>
+                            </Tooltip>
 
-                        {/* Export Button */}
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }}
-                            className="group flex items-center text-sm font-medium cursor-pointer transition-opacity opacity-100"
-                            disabled={!keyboard}
-                        >
-                            <LayoutExport className="h-5 w-5 text-black" />
-                            <span className="max-w-0 opacity-0 group-hover:max-w-[60px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 overflow-hidden whitespace-nowrap">
-                                Export
-                            </span>
-                        </button>
+                            {/* Export Button */}
+                            <Tooltip delayDuration={500}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }}
+                                        className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-200"
+                                        disabled={!keyboard}
+                                        aria-label="Export"
+                                    >
+                                        <LayoutExport className="h-5 w-5 text-black" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    Export
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
 
                         {/* Divider */}
                         <div className="h-4 w-[1px] bg-slate-400 mx-2 flex-shrink-0" />
 
-                        <Tooltip>
+                        <Tooltip delayDuration={500}>
                             <TooltipTrigger asChild>
                                 <button
                                     onClick={toggleShowLayers}
                                     disabled={isNarrow || activePanel === "matrixtester"}
                                     className={cn(
-                                        "p-1.5 rounded-md transition-colors flex-shrink-0",
+                                        "p-2 rounded-full transition-colors flex-shrink-0",
                                         (isNarrow || activePanel === "matrixtester")
                                             ? "text-gray-400 cursor-not-allowed opacity-30"
                                             : "text-black hover:bg-gray-200"

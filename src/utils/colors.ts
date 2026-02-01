@@ -1,15 +1,15 @@
 export const layerColors = [
-    { name: "green", hex: "#099e7c" },
-    { name: "blue", hex: "#379cd7" },
-    { name: "purple", hex: "#8672b5" },
-    { name: "orange", hex: "#f89804" },
-    { name: "brown", hex: "#b39369" },
-    { name: "magenta", hex: "#b5508a" },
-    { name: "yellow", hex: "#ffc222" },
-    { name: "red", hex: "#d8304a" },
-    { name: "grey", hex: "#85929b" },
-    { name: "light-grey", hex: "#D8D8D8" },
-    { name: "white", hex: "#ffffff" },
+    { name: "green", hex: "#099e7c", led: { hue: 90, sat: 255, val: 255 } },
+    { name: "blue", hex: "#379cd7", led: { hue: 149, sat: 255, val: 255 } },
+    { name: "purple", hex: "#8672b5", led: { hue: 188, sat: 255, val: 255 } },
+    { name: "orange", hex: "#f89804", led: { hue: 27, sat: 255, val: 255 } },
+    { name: "brown", hex: "#b39369", led: { hue: 28, sat: 255, val: 255 } },
+    { name: "magenta", hex: "#b5508a", led: { hue: 224, sat: 255, val: 255 } },
+    { name: "yellow", hex: "#ffc222", led: { hue: 40, sat: 255, val: 255 } },
+    { name: "red", hex: "#d8304a", led: { hue: 244, sat: 255, val: 255 } },
+    { name: "grey", hex: "#85929b", led: { hue: 0, sat: 0, val: 150 } },
+    { name: "light-grey", hex: "#D8D8D8", led: { hue: 0, sat: 0, val: 200 } },
+    { name: "white", hex: "#ffffff", led: { hue: 0, sat: 0, val: 255 } },
 ];
 
 // function to get color by name
