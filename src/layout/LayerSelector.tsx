@@ -12,6 +12,7 @@ import { useChanges } from "@/contexts/ChangesContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
 import { cn } from "@/lib/utils";
+import { activeBackgroundClasses, activeTextClasses } from "@/utils/colors";
 import { svalService } from "@/services/sval.service";
 import { fileService } from "@/services/file.service";
 import {
@@ -52,10 +53,12 @@ interface LayerSelectorProps {
 const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer }) => {
     const { keyboard, setKeyboard, updateKey, isConnected, connect } = useVial();
     const { clearSelection } = useKeyBinding();
-    const { queue, commit } = useChanges();
+    const { queue, commit, getPendingCount } = useChanges();
     const { getSetting, updateSetting } = useSettings();
 
     const liveUpdating = getSetting("live-updating") === true;
+
+
 
     // Import/Export / Connect state
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -153,9 +156,9 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
     const containerRef = useRef<HTMLDivElement>(null);
     const [containerWidth, setContainerWidth] = useState(0);
 
-    // Track window height for hover-only mode when vertically constrained
     const [windowHeight, setWindowHeight] = useState(window.innerHeight);
     const [isHovered, setIsHovered] = useState(false);
+    const [ignoreHover, setIgnoreHover] = useState(false);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -379,7 +382,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                                 : "bg-transparent text-gray-600 hover:bg-gray-200"
                         )}
                     >
-                        <span>{layerShortName}</span>
+                        <span className="select-none">{layerShortName}</span>
                     </button>
                 </ContextMenuTrigger>
                 <ContextMenuContent className="w-56">
@@ -485,7 +488,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                                 title="Click to Connect"
                             >
                                 <Unplug className="h-4 w-4 text-gray-200" />
-                                <span>Connect</span>
+                                <span className="select-none">Connect</span>
                             </button>
                         ) : (
                             <div className="flex items-center gap-1 mr-2">
@@ -512,16 +515,25 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
+                                        setIgnoreHover(true);
                                         if (!liveUpdating) {
                                             commit();
                                         }
                                     }}
+                                    onMouseLeave={() => setIgnoreHover(false)}
                                     disabled={liveUpdating}
-                                    className="flex items-center gap-2 text-sm font-medium transition-all px-5 py-1.5 rounded-full border border-black bg-black text-gray-200 cursor-pointer"
+                                    className={cn(
+                                        "flex items-center gap-2 text-sm font-medium transition-all px-5 py-1.5 rounded-full border bg-black text-gray-200 cursor-pointer",
+                                        (!liveUpdating && !ignoreHover) && "hover:bg-red-500 hover:text-white",
+                                        !liveUpdating && getPendingCount() > 0
+                                            ? `border-transparent ring-[3px] ring-red-500 ring-offset-2 ring-offset-kb-gray ${!ignoreHover ? "hover:ring-black" : ""}`
+                                            : `border-black ${!ignoreHover ? "hover:border-red-500" : ""}`,
+                                        !liveUpdating && "active:bg-red-500 active:text-white"
+                                    )}
                                     title={liveUpdating ? "Live Updating Active" : "Push Changes to Keyboard"}
                                 >
                                     {liveUpdating && <Zap className="h-4 w-4 text-gray-200 fill-gray-200" />}
-                                    <span>{liveUpdating ? "Live Updating" : "Update Now"}</span>
+                                    <span className="select-none">{liveUpdating ? "Live Updating" : "Update Now"}</span>
                                 </button>
                             </div>
                         )}

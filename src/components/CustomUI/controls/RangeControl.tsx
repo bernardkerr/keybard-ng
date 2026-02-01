@@ -44,7 +44,7 @@ export const RangeControl: React.FC<RangeControlProps> = ({ item, value, onChang
     }
 
     return (
-        <div className="flex flex-col gap-2 p-3 panel-layer-item">
+        <div className="flex flex-col gap-2 p-2 panel-layer-item">
             <span className="text-md">{item.label}</span>
             <div className="flex flex-row items-center gap-3">
                 <Slider

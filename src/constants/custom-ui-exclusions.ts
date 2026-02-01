@@ -13,6 +13,8 @@ export const EXCLUDED_MENU_LABELS = [
     'Layer Colors',     // Uses existing layer color picker
     'Layer Lights',     // Alternative name for layer colors
     'Lighting',         // Covered by existing lighting controls
+    'Pointing Devices', // Now a static sidebar item
+    'Pointing Device',  // Singular variant - content rendered in unified PointingPanel
 ] as const;
 
 /**

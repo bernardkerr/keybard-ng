@@ -25,11 +25,12 @@ export const SETTINGS: SettingDefinition[] = [
         label: "Serial Assignment",
         type: "select",
         items: [
+            { label: "None", value: "none" },
             { label: "Down columns then rows", value: "col-row" },
             { label: "Across rows then columns", value: "row-col" },
             { label: "Svalboard by key direction", value: "svalboard" },
         ],
-        defaultValue: "svalboard",
+        defaultValue: "none",
     },
     {
         name: "international-keyboards",

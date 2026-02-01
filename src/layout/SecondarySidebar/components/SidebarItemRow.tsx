@@ -211,7 +211,7 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                                         onChange={(e) => setEditValue(e.target.value)}
                                         onBlur={handleSaveEdit}
                                         onKeyDown={handleKeyDown}
-                                        className="h-auto py-0 px-0 text-base md:text-base font-medium border-none shadow-none focus-visible:ring-0 w-full bg-transparent"
+                                        className="h-auto py-0 px-0 text-base md:text-base font-medium border-none shadow-none focus-visible:ring-0 w-full bg-transparent select-text"
                                         autoFocus
                                     />
                                 </div>

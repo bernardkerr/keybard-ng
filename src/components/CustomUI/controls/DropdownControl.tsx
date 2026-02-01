@@ -31,7 +31,7 @@ export const DropdownControl: React.FC<DropdownControlProps> = ({ item, value, o
     return (
         <div className={cn(
             "flex flex-row items-center justify-between gap-2",
-            compact ? "py-0.5" : "p-3 panel-layer-item"
+            compact ? "py-0.5" : "p-2 panel-layer-item"
         )}>
             <span className={compact ? "text-xs" : "text-md"}>{item.label}</span>
             <Select

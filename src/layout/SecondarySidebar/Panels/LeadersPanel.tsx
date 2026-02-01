@@ -293,7 +293,7 @@ const LeadersPanel: React.FC = () => {
                 <div className="flex">
                     <Key
                         isRelative
-                        x={0} y={0} w={1.5} h={1} row={-1} col={-1}
+                        x={0} y={0} w={1} h={1} row={-1} col={-1}
                         keycode="QK_LEADER"
                         label="Leader"
                         keyContents={leaderKeyContents}

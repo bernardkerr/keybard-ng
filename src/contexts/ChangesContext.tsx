@@ -1,5 +1,6 @@
 import { PendingChange, changesUtils } from "@/services/changes.service";
-import React, { ReactNode, createContext, useCallback, useContext, useState } from "react";
+import React, { ReactNode, createContext, useCallback, useContext, useState, useEffect } from "react";
+import { useSettings } from "@/contexts/SettingsContext";
 
 interface ChangesContextType {
     todo: Record<string, PendingChange>;
@@ -28,6 +29,14 @@ interface ChangesProviderProps {
 export const ChangesProvider: React.FC<ChangesProviderProps> = ({ children, onPush }) => {
     const [todo, setTodo] = useState<Record<string, PendingChange>>({});
     const [isInstant, setInstant] = useState(true);
+
+    const { getSetting } = useSettings();
+
+    // Sync isInstant with the live-updating setting from SettingsContext
+    useEffect(() => {
+        const liveUpdating = getSetting("live-updating") === true;
+        setInstant(liveUpdating);
+    }, [getSetting]);
 
     const queue = useCallback(
         async (desc: string, cb: () => Promise<void>, metadata?: Partial<PendingChange>) => {

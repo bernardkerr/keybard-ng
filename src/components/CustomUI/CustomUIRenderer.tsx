@@ -41,12 +41,12 @@ export const CustomUIRenderer: React.FC<CustomUIRendererProps> = ({
         ? compact
             ? "flex flex-col gap-0.5 min-w-[140px] bg-muted/30 rounded px-2 py-1"
             : "flex flex-col gap-1 min-w-[180px]"
-        : "space-y-2";
+        : "flex flex-col gap-1 mb-2";
 
     // Section label classes
     const sectionLabelClasses = compact
         ? "text-xs font-semibold text-muted-foreground uppercase tracking-wide py-0.5"
-        : "text-sm font-semibold text-muted-foreground uppercase tracking-wide px-3 pt-2";
+        : "font-semibold text-lg text-slate-700";
 
     return (
         <div className={containerClasses}>

@@ -293,45 +293,60 @@ const BasicKeyboards = ({ isPicker }: Props) => {
         { keycode: "KC_TRNS", label: "▽" },
     ];
 
-    const numpadGridCols = 'grid-cols-[repeat(7,45px)]'; // Always medium for sidebar numpad
+    // F1-F24 function keys
+    const functionKeys = Array.from({ length: 24 }, (_, i) => ({
+        keycode: `KC_F${i + 1}`,
+        label: `F${i + 1}`
+    }));
 
-    const renderKeyGrid = (keys: { keycode: string, label: string, useServiceLabel?: boolean }[], gridCols?: string, variantOverride?: "small" | "medium" | "default") => {
+    // Grid column sizing based on keyVariant (in pixels)
+    const numpadKeySize = keyVariant === 'small' ? 30 : keyVariant === 'medium' ? 45 : 60;
+
+    const renderKeyGrid = (keys: { keycode: string, label: string, useServiceLabel?: boolean }[], gridColSize?: number, variantOverride?: "small" | "medium" | "default") => {
         const effectiveVariant = variantOverride || keyVariant;
-        const blankSize = effectiveVariant === 'small' ? 'w-[30px] h-[30px]' : effectiveVariant === 'medium' ? 'w-[45px] h-[45px]' : 'w-[60px] h-[60px]';
-        return (
-        <div className={cn("gap-1", gridCols ? `grid ${gridCols}` : "flex flex-wrap")}>
-            {keys.map((k, i) => {
-                if (k.keycode === "BLANK") {
-                    return <div key={`blank-${i}`} className={blankSize} />;
-                }
-                const keyContents = keyboard ? getKeyContents(keyboard, k.keycode) : undefined;
-                // Use custom label for numpad keys, otherwise fall back to keyService
-                const displayLabel = k.useServiceLabel ? (keyService.define(k.keycode)?.str || k.label || k.keycode) : (k.label || k.keycode);
-                const isDoubleHeight = k.keycode === "KC_KP_ENTER";
+        const keySizeClass = effectiveVariant === 'small' ? 'h-[30px] w-[30px]' : effectiveVariant === 'medium' ? 'h-[45px] w-[45px]' : 'h-[60px] w-[60px]';
 
-                return (
-                    <Key
-                        key={`${k.keycode}-${i}`}
-                        x={0} y={0} w={1} h={1} row={0} col={0}
-                        keycode={k.keycode}
-                        label={displayLabel}
-                        keyContents={keyContents as KeyContent | undefined}
-                        layerColor="sidebar"
-                        headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
-                        isRelative
-                        variant={effectiveVariant}
-                        className={cn(
-                            isDoubleHeight ? "row-span-2" : ""
-                        )}
-                        hoverBorderColor={hoverBorderColor}
-                        hoverBackgroundColor={hoverBackgroundColor}
-                        hoverLayerColor={layerColorName}
-                        onClick={() => handleKeyClick(k.keycode)}
-                    />
-                );
-            })}
-        </div>
-    );
+        const gridStyle = gridColSize ? {
+            display: 'grid',
+            gridTemplateColumns: `repeat(7, ${gridColSize}px)`,
+            gap: '4px'
+        } : undefined;
+
+        return (
+            <div className={cn(!gridColSize && "flex flex-wrap gap-1")} style={gridStyle}>
+                {keys.map((k, i) => {
+                    if (k.keycode === "BLANK") {
+                        return <div key={`blank-${i}`} className={keySizeClass} />;
+                    }
+                    const keyContents = keyboard ? getKeyContents(keyboard, k.keycode) : undefined;
+                    // Use custom label for numpad keys, otherwise fall back to keyService
+                    const displayLabel = k.useServiceLabel ? (keyService.define(k.keycode)?.str || k.label || k.keycode) : (k.label || k.keycode);
+                    const isDoubleHeight = k.keycode === "KC_KP_ENTER";
+
+                    return (
+                        <Key
+                            key={`${k.keycode}-${i}`}
+                            x={0} y={0} w={1} h={1} row={0} col={0}
+                            keycode={k.keycode}
+                            label={displayLabel}
+                            keyContents={keyContents as KeyContent | undefined}
+                            layerColor="sidebar"
+                            headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
+                            isRelative
+                            variant={effectiveVariant}
+                            className={cn(
+                                keySizeClass,
+                                isDoubleHeight ? "row-span-2" : ""
+                            )}
+                            hoverBorderColor={hoverBorderColor}
+                            hoverBackgroundColor={hoverBackgroundColor}
+                            hoverLayerColor={layerColorName}
+                            onClick={() => handleKeyClick(k.keycode)}
+                        />
+                    );
+                })}
+            </div>
+        );
     };
 
     // Compact horizontal layout for bottom panel
@@ -511,6 +526,34 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                         })}
                     </div>
                 </div>
+
+                {/* Function Keys section */}
+                <div className="flex flex-col gap-1 flex-shrink-0">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">Function Keys</span>
+                    <div className="flex flex-wrap gap-0.5 max-w-[260px]">
+                        {functionKeys.map((k) => {
+                            const keyContents = keyboard ? getKeyContents(keyboard, k.keycode) : undefined;
+                            return (
+                                <Key
+                                    key={k.keycode}
+                                    x={0} y={0} w={1} h={1} row={0} col={0}
+                                    keycode={k.keycode}
+                                    label={k.label}
+                                    keyContents={keyContents as KeyContent | undefined}
+                                    layerColor="sidebar"
+                                    headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
+                                    isRelative
+                                    variant="small"
+                                    className="h-[30px] w-[30px]"
+                                    hoverBorderColor={hoverBorderColor}
+                                    hoverBackgroundColor={hoverBackgroundColor}
+                                    hoverLayerColor={layerColorName}
+                                    onClick={() => handleKeyClick(k.keycode)}
+                                />
+                            );
+                        })}
+                    </div>
+                </div>
             </div>
         );
     }
@@ -524,7 +567,22 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                 </div>
             )}
 
-            <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} />
+            <div className="flex flex-col gap-2">
+                <div className="flex flex-row items-center justify-start">
+                    <select
+                        className="font-semibold text-lg text-slate-700 bg-transparent border-none p-0 cursor-pointer outline-none focus:ring-0"
+                        value={internationalLayout}
+                        onChange={(e) => setInternationalLayout(e.target.value)}
+                    >
+                        {Object.values(LAYOUTS).map((kb: any) => (
+                            <option key={kb.value} value={kb.value}>
+                                {kb.label}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <QwertyKeyboard onKeyPress={handleKeyboardInput} activeModifiers={activeModifiers} hideLanguageSelector />
+            </div>
 
             <section className="flex flex-col gap-2">
                 <span className="font-semibold text-lg text-slate-700">Modifiers</span>
@@ -534,7 +592,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                         variant={activeModifiers.length === 0 ? "default" : "secondary"}
                         size="sm"
                         className={cn(
-                            "rounded-md px-2 py-1 h-8 transition-all text-xs font-medium border-none",
+                            "rounded-md px-4 py-2 h-11 transition-all text-sm font-bold border-none",
                             activeModifiers.length === 0 ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
                         )}
                         onClick={handleClearModifiers}
@@ -551,7 +609,7 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                 variant={isActive ? "default" : "secondary"}
                                 size="sm"
                                 className={cn(
-                                    "rounded-md px-3 py-1 h-8 transition-all text-xs font-medium border-none",
+                                    "rounded-md px-4 py-2 h-11 transition-all text-sm font-bold border-none",
                                     isActive ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
                                 )}
                                 onClick={() => handleModifierToggle(modifier)}
@@ -633,11 +691,15 @@ const BasicKeyboards = ({ isPicker }: Props) => {
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                     <span className="font-semibold text-lg text-slate-700">Blank and Transparent</span>
-                    {renderKeyGrid(blankKeys, undefined, "medium")}
+                    {renderKeyGrid(blankKeys)}
                 </div>
                 <div className="flex flex-col gap-2">
                     <span className="font-semibold text-lg text-slate-700">Numpad</span>
-                    {renderKeyGrid(numpadKeys, numpadGridCols, "medium")}
+                    {renderKeyGrid(numpadKeys, numpadKeySize)}
+                </div>
+                <div className="flex flex-col gap-2">
+                    <span className="font-semibold text-lg text-slate-700">Function Keys</span>
+                    {renderKeyGrid(functionKeys)}
                 </div>
             </div>
         </div>

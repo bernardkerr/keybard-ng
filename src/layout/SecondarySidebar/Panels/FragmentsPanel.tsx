@@ -62,14 +62,25 @@ const FragmentsPanel: React.FC = () => {
             // Always update local state (works in demo mode and connected mode)
             const newKeyboard = { ...keyboard };
 
-            // Initialize fragmentState if needed
-            if (!newKeyboard.fragmentState) {
-                newKeyboard.fragmentState = {
-                    hwDetection: new Map(),
-                    eepromSelections: new Map(),
-                    userSelections: new Map(),
-                };
-            }
+            // Clone fragmentState and its Maps to ensure React detects the change
+            // Need to create new Map references, not just shallow copy the object
+            const oldState = keyboard.fragmentState;
+            const newHwDetection: Map<number, number> = oldState?.hwDetection instanceof Map
+                ? new Map(oldState.hwDetection)
+                : new Map(Object.entries(oldState?.hwDetection ?? {}).map(([k, v]) => [Number(k), v as number]));
+            const newEepromSelections: Map<number, number> = oldState?.eepromSelections instanceof Map
+                ? new Map(oldState.eepromSelections)
+                : new Map(Object.entries(oldState?.eepromSelections ?? {}).map(([k, v]) => [Number(k), v as number]));
+            const newUserSelections: Map<string, string> = oldState?.userSelections instanceof Map
+                ? new Map(oldState.userSelections)
+                : new Map(Object.entries(oldState?.userSelections ?? {}).map(([k, v]) => [k, v as string]));
+
+            newKeyboard.fragmentState = {
+                hwDetection: newHwDetection,
+                eepromSelections: newEepromSelections,
+                userSelections: newUserSelections,
+            };
+
             newKeyboard.fragmentState.userSelections.set(instance.id, newFragmentName);
 
             // Recompose keyboard layout with new fragment selection

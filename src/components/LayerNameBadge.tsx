@@ -313,7 +313,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
                     />
                 ) : (
                     <span
-                        className="text-base font-medium text-black cursor-pointer hover:underline whitespace-nowrap"
+                        className="text-base font-medium text-black cursor-pointer hover:underline whitespace-nowrap select-none"
                         onClick={handleStartEditing}
                         title="Click to rename layer"
                     >

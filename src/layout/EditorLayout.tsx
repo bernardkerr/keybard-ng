@@ -24,6 +24,7 @@ import { UNIT_SIZE, SVALBOARD_LAYOUT } from "@/constants/svalboard-layout";
 import { THUMB_OFFSET_U, MAX_FINGER_CLUSTER_SQUEEZE_U } from "@/constants/keyboard-visuals";
 
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
+import { keyService } from "@/services/key.service";
 
 import { useChanges } from "@/hooks/useChanges";
 import { PanelBottom, PanelRight, X } from "lucide-react";
@@ -63,7 +64,7 @@ const EditorLayout = () => {
 };
 
 const EditorLayoutInner = () => {
-    const { keyboard, setKeyboard, updateKey } = useVial();
+    const { keyboard, setKeyboard, updateKey, resetToOriginal } = useVial();
     const { selectedLayer, setSelectedLayer } = useLayer();
     const { clearSelection } = useKeyBinding();
     const { keyVariant, setKeyVariant, layoutMode, setLayoutMode, isAutoLayoutMode, setIsAutoLayoutMode, isAutoKeySize, setIsAutoKeySize, setSecondarySidebarOpen, setPrimarySidebarExpanded, registerPrimarySidebarControl, setMeasuredDimensions } = useLayoutSettings();
@@ -165,7 +166,7 @@ const EditorLayoutInner = () => {
     }, [keyboardWidths, keyboardHeights, rawKeyboardWidths, setMeasuredDimensions]);
 
 
-    const { queue } = useChanges();
+    const { queue, getPendingCount, commit, clearAll } = useChanges();
 
     // Ctrl+V handler for pasting layers
     React.useEffect(() => {
@@ -536,6 +537,32 @@ const EditorLayoutInner = () => {
                     {/* Controls - bottom left corner for bottom bar mode (same style as sidebar mode) */}
                     {useBottomLayout && !showEditorOverlay && (
                         <div className="absolute bottom-4 left-4 flex items-center gap-6 z-10">
+                            {/* Push Changes and Revert buttons - only show when there are pending changes */}
+                            {getPendingCount() > 0 && (
+                                <div className="flex flex-row items-center gap-2">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            commit();
+                                        }}
+                                        className="px-3 py-1 text-xs font-medium rounded-full bg-gray-800 text-white hover:bg-gray-700 transition-all"
+                                        title="Push all pending changes to keyboard"
+                                    >
+                                        Push Changes ({getPendingCount()})
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            clearAll();
+                                            resetToOriginal();
+                                        }}
+                                        className="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600 transition-all"
+                                        title="Revert all pending changes"
+                                    >
+                                        Revert
+                                    </button>
+                                </div>
+                            )}
 
                             <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50 w-fit">
                                 {(['default', 'medium', 'small'] as const).map((variant) => (
@@ -641,65 +668,75 @@ const EditorLayoutInner = () => {
                 {/* Controls - bottom left in sidebar mode only */}
                 {!useBottomLayout && (
                     <>
-                        <div className="absolute bottom-9 left-[37px] flex items-center gap-6">
-                            {/* Key Information Panel Button */}
+                        <div className="absolute bottom-9 left-[37px] z-50">
                             {/* Key Information Panel (Expandable Widget) */}
-                            <div
-                                className={cn(
-                                    "bg-white text-black shadow-lg transition-all duration-300 ease-in-out relative flex flex-col overflow-hidden",
-                                    showInfoPanel
-                                        ? "w-[280px] h-[100px] rounded-2xl p-4 cursor-default"
-                                        : "w-12 h-12 rounded-2xl cursor-pointer hover:bg-gray-50 bg-white items-center justify-center border border-gray-200"
-                                )}
-                                onClick={() => !showInfoPanel && setShowInfoPanel(true)}
-                            >
-                                <div className={cn(
-                                    "w-full transition-opacity duration-200 delay-100",
-                                    showInfoPanel ? "opacity-100" : "opacity-0 invisible h-0"
-                                )}>
-                                    {(() => {
-                                        const { hoveredKey, selectedTarget } = useKeyBinding();
-                                        const { keyboard } = useVial();
-                                        const target = hoveredKey || selectedTarget;
+                            {/* Container anchors the icon position - icon button stays fixed here */}
+                            <div className="relative w-12 h-12">
+                                {/* Expanding panel - grows to the right from behind the icon */}
+                                <div
+                                    className={cn(
+                                        "absolute bottom-0 left-0 bg-white text-black shadow-lg transition-all duration-300 ease-in-out overflow-hidden",
+                                        showInfoPanel
+                                            ? "w-[350px] h-12 rounded-xl"
+                                            : "w-12 h-12 rounded-xl border border-gray-200"
+                                    )}
+                                    onClick={() => !showInfoPanel && setShowInfoPanel(true)}
+                                >
+                                    {/* Content area - only visible when open */}
+                                    <div className={cn(
+                                        "absolute top-0 left-12 right-0 bottom-0 flex items-center px-3 overflow-hidden transition-opacity duration-200",
+                                        showInfoPanel ? "opacity-100 delay-100" : "opacity-0 pointer-events-none"
+                                    )}>
+                                        {(() => {
+                                            const { hoveredKey, selectedTarget } = useKeyBinding();
+                                            const { keyboard } = useVial();
 
-                                        if (!target) {
+                                            // Priority: hoveredKey with keycode > selectedTarget
+                                            // For selectedTarget keyboard keys, we need to look up the keycode from keyboard data
+                                            let keycodeName: string | null = null;
+
+                                            if (hoveredKey?.keycode) {
+                                                // Hovered key has keycode directly
+                                                keycodeName = String(hoveredKey.keycode);
+                                            } else if (selectedTarget?.type === "keyboard" && keyboard?.keymap) {
+                                                // Selected keyboard key - look up keycode from keymap
+                                                const { layer, row, col } = selectedTarget;
+                                                if (layer !== undefined && row !== undefined && col !== undefined) {
+                                                    const matrixCols = keyboard.cols || MATRIX_COLS;
+                                                    const pos = row * matrixCols + col;
+                                                    const keycode = keyboard.keymap[layer]?.[pos];
+                                                    if (keycode !== undefined && keycode !== null) {
+                                                        // Convert numeric keycode to string name
+                                                        keycodeName = typeof keycode === "string"
+                                                            ? keycode
+                                                            : keyService.stringify(keycode);
+                                                    }
+                                                }
+                                            }
+
+                                            if (!keycodeName) {
+                                                return (
+                                                    <p className="text-gray-300 italic text-sm select-none">No key selected</p>
+                                                );
+                                            }
+
                                             return (
-                                                <p className="text-gray-300 italic text-sm text-center pt-2 pl-10">No key selected</p>
-                                            );
-                                        }
-
-                                        const matrixCols = keyboard?.cols || MATRIX_COLS;
-                                        const pos = (typeof target.row === 'number' && typeof target.col === 'number')
-                                            ? (target.row * matrixCols + target.col)
-                                            : null;
-
-                                        return (
-                                            <div className="text-sm space-y-1.5 pl-10">
-                                                <div className="flex items-baseline gap-2">
-                                                    <span className="font-bold text-gray-500 text-[10px] uppercase tracking-wider">Keycode:</span>
-                                                    <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs">{target.keycode || "?"}</span>
+                                                <div className="flex items-center gap-2 select-none min-w-0">
+                                                    <span className="font-bold text-gray-500 text-[10px] uppercase tracking-wider shrink-0">Keycode:</span>
+                                                    <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs truncate">{keycodeName}</span>
                                                 </div>
-                                                {pos !== null && (
-                                                    <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-1.5 mt-1.5">
-                                                        <div>
-                                                            <span className="block font-bold text-gray-500 text-[10px] uppercase tracking-wider">Position:</span>
-                                                            <span className="text-xs">R{target.row} C{target.col}</span>
-                                                        </div>
-                                                        <div>
-                                                            <span className="block font-bold text-gray-500 text-[10px] uppercase tracking-wider">Matrix:</span>
-                                                            <span className="text-xs">{pos}</span>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })()}
+                                            );
+                                        })()}
+                                    </div>
                                 </div>
 
+                                {/* Icon button - positioned on top, stays fixed in place */}
                                 <button
                                     className={cn(
-                                        "absolute p-3.5 focus:outline-none text-black hover:text-gray-600 transition-colors",
-                                        showInfoPanel ? "bottom-0 left-0" : "inset-0 flex items-center justify-center p-0"
+                                        "absolute bottom-0 left-0 w-12 h-12 flex items-center justify-center transition-colors z-10",
+                                        showInfoPanel
+                                            ? "text-black hover:text-gray-600"
+                                            : "text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl"
                                     )}
                                     onClick={(e) => {
                                         e.stopPropagation();
@@ -714,6 +751,32 @@ const EditorLayoutInner = () => {
 
                         <div className="absolute bottom-9 right-[37px] flex flex-col items-end gap-1 pointer-events-none">
                             <div className="flex items-center gap-6 pointer-events-auto">
+                                {/* Push Changes and Revert buttons - only show when there are pending changes */}
+                                {getPendingCount() > 0 && (
+                                    <div className="flex flex-row items-center gap-2">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                commit();
+                                            }}
+                                            className="px-3 py-1 text-xs font-medium rounded-full bg-gray-800 text-white hover:bg-gray-700 transition-all"
+                                            title="Push all pending changes to keyboard"
+                                        >
+                                            Push Changes ({getPendingCount()})
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                clearAll();
+                                                resetToOriginal();
+                                            }}
+                                            className="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600 transition-all"
+                                            title="Revert all pending changes"
+                                        >
+                                            Revert
+                                        </button>
+                                    </div>
+                                )}
                                 <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50 w-fit">
                                     {(['default', 'medium', 'small'] as const).map((variant) => (
                                         <button
@@ -816,49 +879,51 @@ const EditorLayoutInner = () => {
             {useBottomLayout && <BottomPanel leftOffset={primaryOffset} pickerMode={pickerMode} height={dynamicBottomPanelHeight} />}
 
             {/* Picked Key Info Panel Display (Floating near bottom left button) */}
-            {useBottomLayout && !showEditorOverlay && showInfoPanel && (
-                <div className="absolute bottom-16 left-4 z-50 bg-white text-black shadow-lg rounded-xl p-4 w-[280px] border border-gray-200">
-                    <div className="text-sm space-y-1">
-                        {(() => {
-                            const { hoveredKey, selectedTarget } = useKeyBinding();
-                            const { keyboard } = useVial();
-                            const target = hoveredKey || selectedTarget;
+            {
+                useBottomLayout && !showEditorOverlay && showInfoPanel && (
+                    <div className="absolute bottom-16 left-4 z-50 bg-white text-black shadow-lg rounded-xl p-4 w-[280px] border border-gray-200">
+                        <div className="text-sm space-y-1">
+                            {(() => {
+                                const { hoveredKey, selectedTarget } = useKeyBinding();
+                                const { keyboard } = useVial();
+                                const target = hoveredKey || selectedTarget;
 
-                            if (!target) {
+                                if (!target) {
+                                    return (
+                                        <p className="text-gray-300 italic text-sm text-center">No key selected</p>
+                                    );
+                                }
+
+                                const matrixCols = keyboard?.cols || MATRIX_COLS;
+                                const pos = (typeof target.row === 'number' && typeof target.col === 'number')
+                                    ? (target.row * matrixCols + target.col)
+                                    : null;
+
                                 return (
-                                    <p className="text-gray-300 italic text-sm text-center">No key selected</p>
-                                );
-                            }
-
-                            const matrixCols = keyboard?.cols || MATRIX_COLS;
-                            const pos = (typeof target.row === 'number' && typeof target.col === 'number')
-                                ? (target.row * matrixCols + target.col)
-                                : null;
-
-                            return (
-                                <div className="text-sm space-y-1.5">
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="font-bold text-gray-500 text-[10px] uppercase tracking-wider">Keycode:</span>
-                                        <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs">{target.keycode || "?"}</span>
-                                    </div>
-                                    {pos !== null && (
-                                        <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-1.5 mt-1.5">
-                                            <div>
-                                                <span className="block font-bold text-gray-500 text-[10px] uppercase tracking-wider">Position:</span>
-                                                <span className="text-xs">R{target.row} C{target.col}</span>
-                                            </div>
-                                            <div>
-                                                <span className="block font-bold text-gray-500 text-[10px] uppercase tracking-wider">Matrix:</span>
-                                                <span className="text-xs">{pos}</span>
-                                            </div>
+                                    <div className="text-sm space-y-1.5 select-none">
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="font-bold text-gray-500 text-[10px] uppercase tracking-wider">Keycode:</span>
+                                            <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-xs">{target.keycode || "?"}</span>
                                         </div>
-                                    )}
-                                </div>
-                            );
-                        })()}
+                                        {pos !== null && (
+                                            <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-1.5 mt-1.5">
+                                                <div>
+                                                    <span className="block font-bold text-gray-500 text-[10px] uppercase tracking-wider">Position:</span>
+                                                    <span className="text-xs">R{target.row} C{target.col}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="block font-bold text-gray-500 text-[10px] uppercase tracking-wider">Matrix:</span>
+                                                    <span className="text-xs">{pos}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
 
             {/* Paste Layer Dialog */}
@@ -866,7 +931,7 @@ const EditorLayoutInner = () => {
                 currentLayerName={currentLayerName}
                 onConfirm={handlePasteConfirm}
             />
-        </div>
+        </div >
     );
 };
 
