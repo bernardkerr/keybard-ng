@@ -516,57 +516,66 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                                 )}
                                 {/* Main Action Button */}
                                 {liveUpdating ? (
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setIgnoreHover(true);
-                                                    // Click to toggle OFF (switch to manual)
-                                                    updateSetting("live-updating", false);
-                                                }}
-                                                onMouseLeave={() => setIgnoreHover(false)}
-                                                disabled={false}
-                                                className={cn(
-                                                    "flex items-center gap-2 text-sm font-medium transition-all pl-3 pr-5 py-1.5 rounded-full border bg-black text-gray-200 cursor-pointer",
-                                                    // Hover logic - Live Mode: Grey fill (bg + border same color)
-                                                    (!ignoreHover) && "hover:bg-gray-600 hover:border-gray-600",
-                                                    "border-black"
-                                                )}
-                                            >
-                                                <Zap className="h-4 w-4 text-gray-200 fill-gray-200" />
-                                                <span className="select-none">Live Updating</span>
-                                            </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top">
-                                            Switch to Manual Updates
-                                        </TooltipContent>
-                                    </Tooltip>
+                                    <>
+                                        {/* Zap button to switch to Manual/Update Now mode - inverted colors */}
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        updateSetting("live-updating", false);
+                                                    }}
+                                                    className="p-2 rounded-full transition-all cursor-pointer bg-black hover:bg-gray-800"
+                                                    aria-label="Switch to Manual Updates"
+                                                >
+                                                    <Zap className="h-4 w-4 fill-kb-gray text-kb-gray" />
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top">
+                                                Switch to Manual Updates
+                                            </TooltipContent>
+                                        </Tooltip>
+                                        {/* Live Updating button - black text on transparent background */}
+                                        <button
+                                            disabled={true}
+                                            className="flex items-center text-sm font-medium pl-2 pr-5 py-1.5 rounded-full bg-transparent text-black border border-transparent cursor-default"
+                                        >
+                                            <span className="select-none">Live Updating</span>
+                                        </button>
+                                    </>
                                 ) : (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             setIgnoreHover(true);
-                                            // Handle "Update Now"
+                                            // Handle "Update Changes"
                                             commit();
                                         }}
                                         onMouseLeave={() => setIgnoreHover(false)}
-                                        disabled={false}
+                                        disabled={getPendingCount() === 0}
                                         className={cn(
-                                            "flex items-center gap-2 text-sm font-medium transition-all px-5 py-1.5 rounded-full border bg-black text-gray-200 cursor-pointer",
-                                            // Hover logic - Manual Mode: Red
-                                            (!ignoreHover) && "hover:bg-red-500 hover:text-white hover:border-red-500",
+                                            "flex items-center gap-2 text-sm font-medium transition-all px-5 py-1.5 rounded-full border",
+                                            // Disabled state
+                                            getPendingCount() === 0
+                                                ? "bg-gray-200 text-black border-gray-200 cursor-not-allowed"
+                                                : "bg-black text-gray-200 cursor-pointer",
+                                            // Hover logic - Manual Mode: Red (only when enabled)
+                                            getPendingCount() > 0 && (!ignoreHover) && "hover:bg-red-500 hover:text-white hover:border-red-500",
 
                                             // Pending Changes Ring (Manual Mode only)
                                             getPendingCount() > 0
                                                 ? `border-transparent ring-[3px] ring-red-500 ring-offset-2 ring-offset-kb-gray ${!ignoreHover ? "hover:ring-black" : ""}`
-                                                : "border-black", // Default border otherwise
+                                                : "", // No ring when disabled
 
-                                            // Active state (click)
-                                            "active:bg-red-500 active:text-white"
+                                            // Active state (click) - only when enabled
+                                            getPendingCount() > 0 && "active:bg-red-500 active:text-white"
                                         )}
                                     >
-                                        <span className="select-none">Update Now</span>
+                                        <span className="select-none">
+                                            {getPendingCount() > 0
+                                                ? `Update ${getPendingCount()} Change${getPendingCount() === 1 ? '' : 's'}`
+                                                : 'Update Changes'}
+                                        </span>
                                     </button>
                                 )}
 
@@ -602,30 +611,40 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                         <div className="h-4 w-[1px] bg-slate-400 mx-0 flex-shrink-0" />
 
                         {/* Matrix Tester Button */}
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (activePanel === "matrixtester") {
-                                    // If already in matrix tester mode, exit it
-                                    setActivePanel(null);
-                                } else {
-                                    // Enter matrix tester mode
-                                    setOpen(false);
-                                    setActivePanel("matrixtester");
-                                    setPanelToGoBack(null);
-                                    setItemToEdit(null);
-                                }
-                            }}
-                            className={cn(
-                                "group flex items-center text-sm font-medium cursor-pointer transition-opacity mr-2",
-                                activePanel === "matrixtester" ? "opacity-100" : "opacity-100"
-                            )}
-                        >
-                            <MatrixTesterIcon className="h-5 w-5 text-black" />
-                            <span className="max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-2 transition-all duration-300 overflow-hidden whitespace-nowrap">
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (activePanel === "matrixtester") {
+                                            // If already in matrix tester mode, exit it
+                                            setActivePanel(null);
+                                        } else {
+                                            // Enter matrix tester mode
+                                            setOpen(false);
+                                            setActivePanel("matrixtester");
+                                            setPanelToGoBack(null);
+                                            setItemToEdit(null);
+                                        }
+                                    }}
+                                    className={cn(
+                                        "p-2 rounded-full transition-all cursor-pointer mr-2",
+                                        activePanel === "matrixtester"
+                                            ? "bg-black hover:bg-gray-800"
+                                            : "hover:bg-gray-100"
+                                    )}
+                                    aria-label={activePanel === "matrixtester" ? "Exit Matrix Tester" : "Matrix Tester"}
+                                >
+                                    <MatrixTesterIcon className={cn(
+                                        "h-5 w-5",
+                                        activePanel === "matrixtester" ? "text-kb-gray" : "text-black"
+                                    )} />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
                                 {activePanel === "matrixtester" ? "Exit Matrix Tester" : "Matrix Tester"}
-                            </span>
-                        </button>
+                            </TooltipContent>
+                        </Tooltip>
 
                         {/* Import Button */}
                         <button

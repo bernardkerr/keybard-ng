@@ -4,7 +4,6 @@ import { PanelBottom, PanelRight } from "lucide-react";
 import { InfoIcon } from "@/components/icons/InfoIcon";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 // import { useVial } from "@/contexts/VialContext";
-import { useChanges } from "@/hooks/useChanges";
 
 interface EditorControlsProps {
     showInfoPanel: boolean;
@@ -28,27 +27,10 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
         setIsAutoLayoutMode,
         setLayoutMode
     } = useLayoutSettings();
-
-    const { getPendingCount, commit } = useChanges();
     // const { resetToOriginal } = useVial();
 
     return (
         <div className="flex items-center gap-6">
-            {/* Push Changes - only show when there are pending changes */}
-            {getPendingCount() > 0 && (
-                <div className="flex flex-row items-center gap-2">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            commit();
-                        }}
-                        className="px-3 py-1 text-xs font-medium rounded-full bg-gray-800 text-white hover:bg-gray-700 transition-all"
-                        title="Push all pending changes to keyboard"
-                    >
-                        Push Changes ({getPendingCount()})
-                    </button>
-                </div>
-            )}
 
             <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50 w-fit">
                 {(['default', 'medium', 'small'] as const).map((variant) => (
