@@ -78,7 +78,7 @@ export const InfoPanelWidget: React.FC<InfoPanelWidgetProps> = ({ showInfoPanel,
                     "absolute bottom-0 left-0 w-12 h-12 flex items-center justify-center transition-colors z-10",
                     showInfoPanel
                         ? "text-black hover:text-gray-600"
-                        : "text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl"
+                        : "text-black hover:text-gray-500 hover:bg-gray-50 rounded-xl"
                 )}
                 onClick={(e) => {
                     e.stopPropagation();

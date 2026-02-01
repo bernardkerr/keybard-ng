@@ -183,7 +183,7 @@ export const MatrixTester: FC = () => {
             </div>
 
             {/* Clear Matrix Button */}
-            <div className="absolute bottom-5 right-5 z-50">
+            <div className="absolute bottom-9 left-[37px] z-50">
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <button

@@ -581,7 +581,7 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     selectComboKey(target.comboId!, target.comboSlot + 1);
                 } else if (target.type === 'tapdance' && target.tapdanceSlot) {
                     // Tap dance: advance tap→hold→doubletap→taphold
-                    const tdOrder: Array<"tap" | "hold" | "doubletap" | "taphold"> = ["tap", "hold", "doubletap", "taphold"];
+                    const tdOrder: Array<"tap" | "hold" | "doubletap" | "taphold"> = ["tap", "hold", "taphold", "doubletap"];
                     const currentIdx = tdOrder.indexOf(target.tapdanceSlot);
                     if (currentIdx >= 0 && currentIdx < tdOrder.length - 1) {
                         selectTapdanceKey(target.tapdanceId!, tdOrder[currentIdx + 1]);

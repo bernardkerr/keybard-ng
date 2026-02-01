@@ -4,7 +4,7 @@ import { LayoutImport } from "@/components/icons/LayoutImport";
 import { LayoutExport } from "@/components/icons/LayoutExport";
 import MatrixTesterIcon from "@/components/icons/MatrixTesterSvg";
 import { LayerNameBadge } from "@/components/LayerNameBadge";
-import { ArrowLeft, ChevronDown, Unplug, Zap } from "lucide-react";
+import { ArrowLeft, ChevronDown, Unplug, Undo2, Zap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useVial } from "@/contexts/VialContext";
@@ -51,9 +51,9 @@ interface LayerSelectorProps {
  * Displays a horizontal bar of layer tabs with a filter toggle for hiding blank layers.
  */
 const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer }) => {
-    const { keyboard, setKeyboard, updateKey, isConnected, connect } = useVial();
+    const { keyboard, setKeyboard, updateKey, isConnected, connect, resetToOriginal } = useVial();
     const { clearSelection } = useKeyBinding();
-    const { queue, commit, getPendingCount } = useChanges();
+    const { queue, commit, getPendingCount, clearAll } = useChanges();
     const { getSetting, updateSetting } = useSettings();
 
     const liveUpdating = getSetting("live-updating") === true;
@@ -491,55 +491,115 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                                 <span className="select-none">Connect</span>
                             </button>
                         ) : (
-                            <div className="flex items-center gap-1 mr-2">
-                                {/* Mode Switch Button (Zap) */}
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                updateSetting("live-updating", !liveUpdating);
-                                            }}
-                                            className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-100"
-                                            aria-label={liveUpdating ? "Switch to Manual Updates" : "Switch to Live Updating"}
-                                        >
-                                            <Zap className="h-4 w-4 fill-black text-black" />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top">
-                                        {liveUpdating ? "Switch to Manual Updates" : "Switch to Live Updating"}
-                                    </TooltipContent>
-                                </Tooltip>
+                            <div className="flex items-center gap-1">
 
+                                {/* Mode Switch Button (Zap) - Only show when NOT live updating (to switch TO live) */}
+                                {!liveUpdating && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    commit();
+                                                    updateSetting("live-updating", true);
+                                                }}
+                                                className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-100"
+                                                aria-label="Switch to Live Updating"
+                                            >
+                                                <Zap className="h-4 w-4 fill-black text-black" />
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            Switch to Live Updating
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )}
                                 {/* Main Action Button */}
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setIgnoreHover(true);
-                                        if (!liveUpdating) {
+                                {liveUpdating ? (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setIgnoreHover(true);
+                                                    // Click to toggle OFF (switch to manual)
+                                                    updateSetting("live-updating", false);
+                                                }}
+                                                onMouseLeave={() => setIgnoreHover(false)}
+                                                disabled={false}
+                                                className={cn(
+                                                    "flex items-center gap-2 text-sm font-medium transition-all pl-3 pr-5 py-1.5 rounded-full border bg-black text-gray-200 cursor-pointer",
+                                                    // Hover logic - Live Mode: Grey fill (bg + border same color)
+                                                    (!ignoreHover) && "hover:bg-gray-600 hover:border-gray-600",
+                                                    "border-black"
+                                                )}
+                                            >
+                                                <Zap className="h-4 w-4 text-gray-200 fill-gray-200" />
+                                                <span className="select-none">Live Updating</span>
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            Switch to Manual Updates
+                                        </TooltipContent>
+                                    </Tooltip>
+                                ) : (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIgnoreHover(true);
+                                            // Handle "Update Now"
                                             commit();
-                                        }
-                                    }}
-                                    onMouseLeave={() => setIgnoreHover(false)}
-                                    disabled={liveUpdating}
-                                    className={cn(
-                                        "flex items-center gap-2 text-sm font-medium transition-all px-5 py-1.5 rounded-full border bg-black text-gray-200 cursor-pointer",
-                                        (!liveUpdating && !ignoreHover) && "hover:bg-red-500 hover:text-white",
-                                        !liveUpdating && getPendingCount() > 0
-                                            ? `border-transparent ring-[3px] ring-red-500 ring-offset-2 ring-offset-kb-gray ${!ignoreHover ? "hover:ring-black" : ""}`
-                                            : `border-black ${!ignoreHover ? "hover:border-red-500" : ""}`,
-                                        !liveUpdating && "active:bg-red-500 active:text-white"
-                                    )}
-                                    title={liveUpdating ? "Live Updating Active" : "Push Changes to Keyboard"}
-                                >
-                                    {liveUpdating && <Zap className="h-4 w-4 text-gray-200 fill-gray-200" />}
-                                    <span className="select-none">{liveUpdating ? "Live Updating" : "Update Now"}</span>
-                                </button>
+                                        }}
+                                        onMouseLeave={() => setIgnoreHover(false)}
+                                        disabled={false}
+                                        className={cn(
+                                            "flex items-center gap-2 text-sm font-medium transition-all px-5 py-1.5 rounded-full border bg-black text-gray-200 cursor-pointer",
+                                            // Hover logic - Manual Mode: Red
+                                            (!ignoreHover) && "hover:bg-red-500 hover:text-white hover:border-red-500",
+
+                                            // Pending Changes Ring (Manual Mode only)
+                                            getPendingCount() > 0
+                                                ? `border-transparent ring-[3px] ring-red-500 ring-offset-2 ring-offset-kb-gray ${!ignoreHover ? "hover:ring-black" : ""}`
+                                                : "border-black", // Default border otherwise
+
+                                            // Active state (click)
+                                            "active:bg-red-500 active:text-white"
+                                        )}
+                                    >
+                                        <span className="select-none">Update Now</span>
+                                    </button>
+                                )}
+
+                                {!liveUpdating && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (getPendingCount() > 0) {
+                                                        clearAll();
+                                                        resetToOriginal();
+                                                    }
+                                                }}
+                                                disabled={getPendingCount() === 0}
+                                                className={cn(
+                                                    "p-2 rounded-full transition-all text-black ml-0",
+                                                    getPendingCount() > 0 ? "cursor-pointer hover:bg-gray-100" : "opacity-30 cursor-not-allowed"
+                                                )}
+                                            >
+                                                <Undo2 className="h-4 w-4" />
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            Revert
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )}
                             </div>
                         )}
 
                         {/* Divider */}
-                        <div className="h-4 w-[1px] bg-slate-400 mx-2 flex-shrink-0" />
+                        <div className="h-4 w-[1px] bg-slate-400 mx-0 flex-shrink-0" />
 
                         {/* Matrix Tester Button */}
                         <button
@@ -597,11 +657,11 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                             <TooltipTrigger asChild>
                                 <button
                                     onClick={toggleShowLayers}
-                                    disabled={isNarrow}
+                                    disabled={isNarrow || activePanel === "matrixtester"}
                                     className={cn(
                                         "p-1.5 rounded-md transition-colors flex-shrink-0",
-                                        isNarrow
-                                            ? "text-gray-400 cursor-not-allowed"
+                                        (isNarrow || activePanel === "matrixtester")
+                                            ? "text-gray-400 cursor-not-allowed opacity-30"
                                             : "text-black hover:bg-gray-200"
                                     )}
                                     aria-label={isNarrow ? "Blank layers auto-hidden" : (showAllLayers ? "Hide Blank Layers" : "Show All Layers")}
@@ -615,7 +675,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                         </Tooltip>
 
                         {/* Layer tabs - single line */}
-                        <div className="flex items-center gap-1">
+                        <div className={cn("flex items-center gap-1", activePanel === "matrixtester" && "opacity-30 pointer-events-none")}>
                             {Array.from({ length: keyboard.layers || 16 }, (_, i) => renderLayerTab(i))}
                         </div>
                     </div>
@@ -626,12 +686,12 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => setActivePanel(null)}
-                                    className="p-1 rounded-full hover:bg-gray-200 transition-colors"
+                                    className="flex items-center gap-2 p-1 pr-3 -ml-1 rounded-lg hover:bg-gray-200 transition-colors"
                                     title="Return to layer view"
                                 >
                                     <ArrowLeft className="h-5 w-5 text-black" />
+                                    <span className="font-bold text-lg text-black">Matrix Tester</span>
                                 </button>
-                                <span className="font-bold text-lg text-black">Matrix Tester</span>
                             </div>
                         ) : (
                             <LayerNameBadge selectedLayer={selectedLayer} />

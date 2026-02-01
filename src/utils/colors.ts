@@ -3,12 +3,12 @@ export const layerColors = [
     { name: "blue", hex: "#379cd7" },
     { name: "purple", hex: "#8672b5" },
     { name: "orange", hex: "#f89804" },
-    { name: "yellow", hex: "#ffc222" },
-    { name: "grey", hex: "#85929b" },
-    { name: "light-grey", hex: "#D8D8D8" },
-    { name: "red", hex: "#d8304a" },
     { name: "brown", hex: "#b39369" },
     { name: "magenta", hex: "#b5508a" },
+    { name: "yellow", hex: "#ffc222" },
+    { name: "red", hex: "#d8304a" },
+    { name: "grey", hex: "#85929b" },
+    { name: "light-grey", hex: "#D8D8D8" },
     { name: "white", hex: "#ffffff" },
 ];
 
