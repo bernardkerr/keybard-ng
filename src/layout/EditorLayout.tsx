@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { PanelsProvider, usePanels } from "@/contexts/PanelsContext";
-import { DragProvider, useDrag } from "@/contexts/DragContext";
+import { DragProvider, useDrag, DragItem } from "@/contexts/DragContext";
 import { DragOverlay } from "@/components/DragOverlay";
 import SecondarySidebar, { DETAIL_SIDEBAR_WIDTH } from "./SecondarySidebar/SecondarySidebar";
 import { BottomPanel, BOTTOM_PANEL_HEIGHT } from "./BottomPanel";
@@ -10,7 +10,6 @@ import BindingEditorContainer from "./SecondarySidebar/components/BindingEditor/
 
 import { Keyboard } from "@/components/Keyboard";
 import { useVial } from "@/contexts/VialContext";
-// import { InfoIcon } from "@/components/icons/InfoIcon";
 import { cn } from "@/lib/utils";
 import LayerSelector from "./LayerSelector";
 import AppSidebar from "./Sidebar";
@@ -24,11 +23,10 @@ import { UNIT_SIZE, SVALBOARD_LAYOUT } from "@/constants/svalboard-layout";
 import { THUMB_OFFSET_U, MAX_FINGER_CLUSTER_SQUEEZE_U } from "@/constants/keyboard-visuals";
 
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
-// import { keyService } from "@/services/key.service";
-
 import { useChanges } from "@/hooks/useChanges";
 // import { PanelBottom, PanelRight, X } from "lucide-react";
 import { X } from "lucide-react";
+
 import { MatrixTester } from "@/components/MatrixTester";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
 import EditorSidePanel, { PickerMode } from "./SecondarySidebar/components/EditorSidePanel";
@@ -38,7 +36,7 @@ import { EditorControls } from "./EditorControls";
 const EditorLayout = () => {
     const { assignKeycodeTo } = useKeyBinding();
 
-    const handleUnhandledDrop = React.useCallback((item: any) => {
+    const handleUnhandledDrop = React.useCallback((item: DragItem) => {
         if (item.row !== undefined && item.col !== undefined && item.layer !== undefined) {
             console.log("Unhandled drop for keyboard key, assigning KC_NO", item);
             assignKeycodeTo({

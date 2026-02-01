@@ -14,7 +14,8 @@ import { useChanges } from "@/contexts/ChangesContext";
 import { svalService } from "@/services/sval.service";
 import { usbInstance } from "@/services/usb.service";
 import { layerColors } from "@/utils/colors";
-import { getPresetHsv, getClosestPresetColor, hsvToHex, hexToHsv } from "@/utils/color-conversion";
+import { getPresetHsv, hsvToHex, hexToHsv } from "@/utils/color-conversion";
+
 import { cn } from "@/lib/utils";
 import { KEYMAP } from "@/constants/keygen";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
@@ -73,19 +74,11 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
         return preset?.hex || "#099e7c";
     };
 
-    // Get the LED hardware color from the stored HSV or preset LED values
-    const getHardwareColorHex = (): string => {
-        const hwColor = keyboard.layer_colors?.[selectedLayer];
-        if (hwColor && (hwColor.hue !== 0 || hwColor.sat !== 0 || hwColor.val !== 0)) {
-            return hsvToHex(hwColor.hue, hwColor.sat, hwColor.val);
-        }
-        // Fall back to preset LED values
-        const preset = layerColors.find(c => c.name === currentLayerColorName);
-        return preset?.led ? hsvToHex(preset.led.hue, preset.led.sat, preset.led.val) : "#00ff00";
-    };
+
 
     const displayColorHex = getDisplayColorHex();
-    const hardwareColorHex = getHardwareColorHex();
+    // const hardwareColorHex = getHardwareColorHex();
+
     const allColors = [...layerColors];
 
     const handleStartEditing = () => {
