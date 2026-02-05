@@ -258,10 +258,10 @@ const CombosPanel: React.FC = () => {
                     const inputs = [0, 1, 2, 3].map(idx => c.keys?.[idx]).filter(k => k && k !== "KC_NO");
                     return inputs.length > 0 || (c.output && c.output !== "KC_NO");
                 }).length === 0 && (
-                    <div className="text-center text-gray-500 py-4 px-6">
-                        No combos configured.
-                    </div>
-                )}
+                        <div className="text-center text-gray-500 py-4 px-6">
+                            No combos configured.
+                        </div>
+                    )}
             </div>
         );
     }
@@ -287,7 +287,7 @@ const CombosPanel: React.FC = () => {
                                 handleTimeoutChange(newVal);
                             }}
                             disabled={saving}
-                            className={cn("w-24 text-right", saving && "opacity-50")}
+                            className={cn("w-24 text-right select-text", saving && "opacity-50")}
                         />
                     </div>
                 </div>

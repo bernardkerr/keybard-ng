@@ -177,7 +177,7 @@ const QMKSettingsPanel: React.FC = () => {
                             handleIntChange(field.qsid, newVal, field.min, field.max);
                         }}
                         disabled={isSaving}
-                        className={cn("w-24 text-right", isSaving && "opacity-50")}
+                        className={cn("w-24 text-right select-text", isSaving && "opacity-50")}
                     />
                 </div>
             );

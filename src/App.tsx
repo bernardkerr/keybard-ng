@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import MainScreen from "./components/MainScreen";
 import PrintableKeymapWrapper from "./components/PrintableKeymapWrapper";
 import ExploreLayoutsPage from "./pages/ExploreLayoutsPage";
-// ProofSheet removed - not part of this branch
+
 import { ChangesProvider } from "./contexts/ChangesContext";
 import { DragProvider } from "./contexts/DragContext";
 import { KeyBindingProvider } from "./contexts/KeyBindingContext";

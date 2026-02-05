@@ -49,58 +49,58 @@ const SettingsPanel = () => {
         if (file) {
             try {
                 const newKbInfo = await fileService.uploadFile(file);
-                    if (newKbInfo) {
-                        // Start sync if connected
-                        if (keyboard && isConnected) {
-                             const { importService } = await import('@/services/import.service');
-                             const { vialService } = await import('@/services/vial.service');
+                if (newKbInfo) {
+                    // Start sync if connected
+                    if (keyboard && isConnected) {
+                        const { importService } = await import('@/services/import.service');
+                        const { vialService } = await import('@/services/vial.service');
 
-                             await importService.syncWithKeyboard(
-                                 newKbInfo,
-                                 keyboard,
-                                 queue,
-                                 { vialService }
-                             );
+                        await importService.syncWithKeyboard(
+                            newKbInfo,
+                            keyboard,
+                            queue,
+                            { vialService }
+                        );
 
-                             // Merge fragment definitions and state from connected keyboard
-                             if (keyboard.fragments) {
-                                 newKbInfo.fragments = keyboard.fragments;
-                             }
-                             if (keyboard.composition) {
-                                 newKbInfo.composition = keyboard.composition;
-                             }
-                             // Merge hardware detection/EEPROM from connected keyboard with user selections from file
-                             // Ensure Maps are actual Maps (they may have been serialized to plain objects)
-                             const ensureMap = <K, V>(obj: Map<K, V> | Record<string, V> | undefined): Map<K, V> => {
-                                 if (!obj) return new Map();
-                                 if (obj instanceof Map) return obj;
-                                 // Convert plain object to Map
-                                 return new Map(Object.entries(obj)) as unknown as Map<K, V>;
-                             };
+                        // Merge fragment definitions and state from connected keyboard
+                        if (keyboard.fragments) {
+                            newKbInfo.fragments = keyboard.fragments;
+                        }
+                        if (keyboard.composition) {
+                            newKbInfo.composition = keyboard.composition;
+                        }
+                        // Merge hardware detection/EEPROM from connected keyboard with user selections from file
+                        // Ensure Maps are actual Maps (they may have been serialized to plain objects)
+                        const ensureMap = <K, V>(obj: Map<K, V> | Record<string, V> | undefined): Map<K, V> => {
+                            if (!obj) return new Map();
+                            if (obj instanceof Map) return obj;
+                            // Convert plain object to Map
+                            return new Map(Object.entries(obj)) as unknown as Map<K, V>;
+                        };
 
-                             if (keyboard.fragmentState) {
-                                 const importedUserSelections = ensureMap<string, string>(newKbInfo.fragmentState?.userSelections);
-                                 newKbInfo.fragmentState = {
-                                     hwDetection: ensureMap<number, number>(keyboard.fragmentState.hwDetection),
-                                     eepromSelections: ensureMap<number, number>(keyboard.fragmentState.eepromSelections),
-                                     userSelections: importedUserSelections,
-                                 };
-                             }
-
-                             // Recompose layout with fragment selections
-                             const fragmentComposer = vialService.getFragmentComposer();
-                             if (fragmentComposer.hasFragments(newKbInfo)) {
-                                 const composedLayout = fragmentComposer.composeLayout(newKbInfo);
-                                 if (Object.keys(composedLayout).length > 0) {
-                                     newKbInfo.keylayout = composedLayout;
-                                     console.log("Fragment layout recomposed after import:", Object.keys(composedLayout).length, "keys");
-                                 }
-                             }
+                        if (keyboard.fragmentState) {
+                            const importedUserSelections = ensureMap<string, string>(newKbInfo.fragmentState?.userSelections);
+                            newKbInfo.fragmentState = {
+                                hwDetection: ensureMap<number, number>(keyboard.fragmentState.hwDetection),
+                                eepromSelections: ensureMap<number, number>(keyboard.fragmentState.eepromSelections),
+                                userSelections: importedUserSelections,
+                            };
                         }
 
-                     setKeyboard(newKbInfo);
-                     // Optional: Show success toast
-                     console.log("Import successful", newKbInfo);
+                        // Recompose layout with fragment selections
+                        const fragmentComposer = vialService.getFragmentComposer();
+                        if (fragmentComposer.hasFragments(newKbInfo)) {
+                            const composedLayout = fragmentComposer.composeLayout(newKbInfo);
+                            if (Object.keys(composedLayout).length > 0) {
+                                newKbInfo.keylayout = composedLayout;
+                                console.log("Fragment layout recomposed after import:", Object.keys(composedLayout).length, "keys");
+                            }
+                        }
+                    }
+
+                    setKeyboard(newKbInfo);
+                    // Optional: Show success toast
+                    console.log("Import successful", newKbInfo);
                 }
             } catch (err) {
                 console.error("Upload failed", err);
@@ -127,7 +127,7 @@ const SettingsPanel = () => {
             }
             setIsExportOpen(false);
         } catch (err) {
-             console.error("Export failed", err);
+            console.error("Export failed", err);
         }
     };
 
@@ -328,7 +328,7 @@ const SettingsPanel = () => {
 
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col w-full mx-auto py-4">
-             {/* Hidden file input for import */}
+            {/* Hidden file input for import */}
             <input
                 type="file"
                 ref={fileInputRef}
@@ -338,7 +338,7 @@ const SettingsPanel = () => {
             />
 
             {/* Export Dialog */}
-             <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
+            <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Export Configuration</DialogTitle>
@@ -348,8 +348,8 @@ const SettingsPanel = () => {
                     </DialogHeader>
                     <div className="flex flex-col gap-4 py-4">
                         <div className="flex flex-col gap-2">
-                             <Label>Format</Label>
-                             <Select value={exportFormat} onValueChange={(v: "viable" | "vil") => setExportFormat(v)}>
+                            <Label>Format</Label>
+                            <Select value={exportFormat} onValueChange={(v: "viable" | "vil") => setExportFormat(v)}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select format" />
                                 </SelectTrigger>
@@ -357,7 +357,7 @@ const SettingsPanel = () => {
                                     <SelectItem value="viable">Viable (.viable) - Native Format</SelectItem>
                                     <SelectItem value="vil">Vial (.vil) - Legacy Compatibility</SelectItem>
                                 </SelectContent>
-                             </Select>
+                            </Select>
                         </div>
                         <div className="flex items-center space-x-2">
                             <Switch id="include-macros" checked={includeMacros} onCheckedChange={(c: boolean) => setIncludeMacros(c)} />
@@ -516,7 +516,7 @@ const SettingsPanel = () => {
                                             type="number"
                                             value={getSetting(setting.name, setting.defaultValue) as number}
                                             onChange={(e) => updateSetting(setting.name, parseInt(e.target.value) || 0)}
-                                            className="w-22 ml-4 text-right"
+                                            className="w-22 ml-4 text-right select-text"
                                         />
                                     </div>
                                 </div>

@@ -140,18 +140,17 @@ const LayersPanel = ({ isPicker }: Props) => {
             )}
             {/* Layer Modifier Selection Tabs */}
             <div className="flex flex-wrap items-center justify-start gap-4">
-                <div className="flex items-center justify-between rounded-full p-1 gap-1 bg-muted/30">
+                <div className="flex items-center justify-start gap-1">
                     {LAYER_MODIFIERS.map((modifier) => {
                         const isActive = modifier === activeModifier;
                         return (
                             <Button
                                 key={modifier}
                                 type="button"
-                                size="sm"
                                 variant={isActive ? "default" : "ghost"}
                                 className={cn(
-                                    "px-3 py-1 text-md rounded-full transition-all",
-                                    isActive ? "shadow-sm bg-slate-900 border-none" : "text-black hover:bg-slate-200"
+                                    "px-5 py-2 text-base font-semibold rounded-full transition-all min-w-[3rem]",
+                                    isActive ? "shadow-sm bg-slate-900 text-white hover:bg-slate-800" : "text-slate-600 hover:bg-slate-200 hover:text-slate-900"
                                 )}
                                 onClick={() => setActiveModifier(modifier)}
                             >

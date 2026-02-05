@@ -1,28 +1,16 @@
-import { Download, HelpCircle, Keyboard, LayoutGrid, ListOrdered, LucideIcon, Mouse, Piano, Repeat, Settings, Unplug, Upload, Zap } from "lucide-react";
-import LayoutsIcon from "@/components/icons/Layouts";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { HelpCircle, Keyboard, LayoutGrid, ListOrdered, LucideIcon, Mouse, Piano, Repeat, Settings } from "lucide-react";
+import PointingDeviceBall01Icon from "@/components/icons/PointingDeviceBall01Icon";
+import LayoutLayersIcon from "@/components/icons/LayoutLayersIcon";
+import { useCallback, useMemo } from "react";
 
 import ComboIcon from "@/components/ComboIcon";
-import GamepadDirectional from "@/components/icons/GamepadDirectional";
 import { isExcludedMenu, getIconForMenu } from "@/constants/custom-ui-exclusions";
 
 import LayersDefaultIcon from "@/components/icons/LayersDefault";
 import MacrosIcon from "@/components/icons/MacrosIcon";
-import MouseIcon from "@/components/icons/Mouse";
 import OverridesIcon from "@/components/icons/Overrides";
 import TapdanceIcon from "@/components/icons/Tapdance";
 import Logo from "@/components/Logo";
-import { Button } from "@/components/ui/button";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
     Sidebar,
     SidebarContent,
@@ -31,18 +19,15 @@ import {
     SidebarMenuItem,
     useSidebar
 } from "@/components/ui/sidebar";
-import { Switch } from "@/components/ui/switch";
-import { useChanges } from "@/contexts/ChangesContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
-import { fileService } from "@/services/file.service";
 import { cn } from "@/lib/utils";
 
 // --- Constants ---
 const MENU_ITEM_GAP_PX = 42; // Matches Gap-4 (16px) + Button Height (26px)
 const DIVIDER_HEIGHT_PX = 17; // 1px + 2*8px (my-2)
 const FLEX_GAP_PX = 16; // Gap-4
-const FEATURE_SECTION_OFFSET = DIVIDER_HEIGHT_PX + FLEX_GAP_PX;
+const DIVIDER_OFFSET = DIVIDER_HEIGHT_PX + FLEX_GAP_PX;
 
 // Icon layout helpers - use isCollapsed boolean
 const getIconGutterWidth = (isCollapsed: boolean) => isCollapsed ? "w-full" : "w-[43px]";
@@ -56,13 +41,29 @@ export type SidebarItem = {
     icon: LucideIcon | React.FC<React.SVGProps<SVGSVGElement>>;
 };
 
-export const primarySidebarItems: SidebarItem[] = [
-    { title: "Keyboard", url: "keyboard", icon: Keyboard },
-    { title: "Special", url: "special", icon: Piano },
+// Top section items (Keyboard and Pointing Devices, before the spacer)
+export const topSectionItems: SidebarItem[] = [
+    { title: "Keyboard Keys", url: "keyboard", icon: Keyboard },
+    { title: "Pointing Devices", url: "pointing", icon: PointingDeviceBall01Icon },
+];
+
+// Middle section items (after the spacer, before the divider)
+export const middleSectionItems: SidebarItem[] = [
+    { title: "Special Keys", url: "special", icon: Piano },
     { title: "Layer Keys", url: "layers", icon: LayersDefaultIcon },
-    { title: "Mouse", url: "mouse", icon: MouseIcon },
+    { title: "Mouse Keys", url: "mouse", icon: Mouse },
     { title: "Tap Dances", url: "tapdances", icon: TapdanceIcon },
     { title: "Macros", url: "macros", icon: MacrosIcon },
+];
+
+// For backward compatibility
+export const primarySidebarItemsBeforeDynamic: SidebarItem[] = topSectionItems;
+export const primarySidebarItemsAfterDynamic: SidebarItem[] = middleSectionItems;
+
+// Combined for backward compatibility and index calculations
+export const primarySidebarItems: SidebarItem[] = [
+    ...topSectionItems,
+    ...middleSectionItems,
 ];
 
 // Alt-Repeat - enabled for testing
@@ -80,8 +81,7 @@ const featureSidebarItems: SidebarItem[] = [
 
 const footerItems: SidebarItem[] = [
     { title: "About", url: "about", icon: HelpCircle },
-    { title: "Matrix Tester", url: "matrixtester", icon: GamepadDirectional },
-    { title: "Layouts", url: "layouts", icon: LayoutsIcon },
+    { title: "Layouts", url: "layouts", icon: LayoutLayersIcon },
     { title: "Settings", url: "settings", icon: Settings },
 ];
 
@@ -140,7 +140,6 @@ const SidebarNavItem = ({
 const AppSidebar = () => {
     const { state, toggleSidebar } = useSidebar("primary-nav", { defaultOpen: false });
     const isCollapsed = state === "collapsed";
-
     const {
         setItemToEdit,
         setActivePanel,
@@ -155,97 +154,9 @@ const AppSidebar = () => {
         setOpen,
     } = usePanels();
 
-    const { connect, isConnected, keyboard, setKeyboard } = useVial();
-    const { queue } = useChanges();
+    const { keyboard } = useVial();
 
-    // Import/Export state
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [isExportOpen, setIsExportOpen] = useState(false);
-    const [exportFormat, setExportFormat] = useState<"viable" | "vil">("viable");
-    const [includeMacros, setIncludeMacros] = useState(true);
 
-    const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            try {
-                const newKbInfo = await fileService.uploadFile(file);
-                if (newKbInfo) {
-                    // Start sync if connected
-                    if (keyboard && isConnected) {
-                        const { importService } = await import('@/services/import.service');
-                        const { vialService } = await import('@/services/vial.service');
-
-                        await importService.syncWithKeyboard(
-                            newKbInfo,
-                            keyboard,
-                            queue,
-                            { vialService }
-                        );
-
-                        // Merge fragment definitions and state from connected keyboard
-                        if (keyboard.fragments) {
-                            newKbInfo.fragments = keyboard.fragments;
-                        }
-                        if (keyboard.composition) {
-                            newKbInfo.composition = keyboard.composition;
-                        }
-                        // Merge hardware detection/EEPROM from connected keyboard with user selections from file
-                        const ensureMap = <K, V>(obj: Map<K, V> | Record<string, V> | undefined): Map<K, V> => {
-                            if (!obj) return new Map();
-                            if (obj instanceof Map) return obj;
-                            return new Map(Object.entries(obj)) as unknown as Map<K, V>;
-                        };
-
-                        if (keyboard.fragmentState) {
-                            const importedUserSelections = ensureMap<string, string>(newKbInfo.fragmentState?.userSelections);
-                            newKbInfo.fragmentState = {
-                                hwDetection: ensureMap<number, number>(keyboard.fragmentState.hwDetection),
-                                eepromSelections: ensureMap<number, number>(keyboard.fragmentState.eepromSelections),
-                                userSelections: importedUserSelections,
-                            };
-                        }
-
-                        // Recompose layout with fragment selections
-                        const fragmentComposer = vialService.getFragmentComposer();
-                        if (fragmentComposer.hasFragments(newKbInfo)) {
-                            const composedLayout = fragmentComposer.composeLayout(newKbInfo);
-                            if (Object.keys(composedLayout).length > 0) {
-                                newKbInfo.keylayout = composedLayout;
-                                console.log("Fragment layout recomposed after import:", Object.keys(composedLayout).length, "keys");
-                            }
-                        }
-                    }
-
-                    setKeyboard(newKbInfo);
-                    console.log("Import successful", newKbInfo);
-                }
-            } catch (err) {
-                console.error("Upload failed", err);
-            }
-        }
-        // Reset input so same file can be selected again
-        if (event.target) {
-            event.target.value = '';
-        }
-    };
-
-    const handleExport = async () => {
-        if (!keyboard) {
-            console.error("No keyboard loaded");
-            return;
-        }
-
-        try {
-            if (exportFormat === "viable") {
-                await fileService.downloadViable(keyboard, includeMacros);
-            } else {
-                await fileService.downloadVIL(keyboard, includeMacros);
-            }
-            setIsExportOpen(false);
-        } catch (err) {
-            console.error("Export failed", err);
-        }
-    };
 
     const handleItemSelect = useCallback(
         (item: SidebarItem) => {
@@ -274,9 +185,7 @@ const AppSidebar = () => {
         [activePanel, open, handleCloseDetails, setActivePanel, openDetails, setPanelToGoBack, setAlternativeHeader, setItemToEdit, setOpen]
     );
 
-    const handleBackgroundClick = useCallback(() => {
-        handleCloseDetails();
-    }, [handleCloseDetails]);
+
 
     // Build dynamic menu items from keyboard definition
     const dynamicMenuItems: SidebarItem[] = useMemo(() => {
@@ -286,8 +195,8 @@ const AppSidebar = () => {
             .filter((menu) => !isExcludedMenu(menu.label))
             .map((menu, index) => {
                 const iconName = getIconForMenu(menu.label);
-                // Map icon name to component - for now use Mouse as default
-                const IconComponent = iconName === 'mouse' ? Mouse : Settings;
+                // Map icon name to component
+                const IconComponent = iconName === 'target' ? PointingDeviceBall01Icon : iconName === 'mouse' ? Mouse : Settings;
 
                 return {
                     title: menu.label || `Menu ${index}`,
@@ -297,216 +206,150 @@ const AppSidebar = () => {
             });
     }, [keyboard?.menus]);
 
-    const activePrimaryIndex = primarySidebarItems.findIndex((item) => item.url === activePanel);
+    const activeTopIndex = topSectionItems.findIndex((item) => item.url === activePanel);
+    const activeMiddleIndex = middleSectionItems.findIndex((item) => item.url === activePanel);
     const activeFeatureIndex = featureSidebarItems.findIndex((item) => item.url === activePanel);
     const activeDynamicIndex = dynamicMenuItems.findIndex((item) => item.url === activePanel);
     const activeFooterIndex = footerItems.findIndex((item) => item.url === activePanel);
 
     let indicatorY = -1;
-    if (activePrimaryIndex !== -1) {
-        indicatorY = activePrimaryIndex * MENU_ITEM_GAP_PX;
-    } else if (activeFeatureIndex !== -1) {
-        indicatorY = (primarySidebarItems.length * MENU_ITEM_GAP_PX) + FEATURE_SECTION_OFFSET + (activeFeatureIndex * MENU_ITEM_GAP_PX);
+    if (activeTopIndex !== -1) {
+        // Top section items (Keyboard, Pointing Devices)
+        indicatorY = activeTopIndex * MENU_ITEM_GAP_PX;
     } else if (activeDynamicIndex !== -1 && dynamicMenuItems.length > 0) {
-        // Dynamic menu indicator position: after primary + feature + divider
-        indicatorY = (primarySidebarItems.length * MENU_ITEM_GAP_PX) + FEATURE_SECTION_OFFSET + (featureSidebarItems.length * MENU_ITEM_GAP_PX) + FEATURE_SECTION_OFFSET + (activeDynamicIndex * MENU_ITEM_GAP_PX);
+        // Dynamic menu items - right after Pointing Devices
+        indicatorY = (topSectionItems.length * MENU_ITEM_GAP_PX) + (activeDynamicIndex * MENU_ITEM_GAP_PX);
+    } else if (activeMiddleIndex !== -1) {
+        // Middle section items - after first divider
+        indicatorY = (topSectionItems.length * MENU_ITEM_GAP_PX)
+            + (dynamicMenuItems.length * MENU_ITEM_GAP_PX)
+            + DIVIDER_OFFSET
+            + (activeMiddleIndex * MENU_ITEM_GAP_PX);
+    } else if (activeFeatureIndex !== -1) {
+        // Feature items - after two dividers
+        indicatorY = (topSectionItems.length * MENU_ITEM_GAP_PX)
+            + (dynamicMenuItems.length * MENU_ITEM_GAP_PX)
+            + DIVIDER_OFFSET
+            + (middleSectionItems.length * MENU_ITEM_GAP_PX)
+            + DIVIDER_OFFSET
+            + (activeFeatureIndex * MENU_ITEM_GAP_PX);
     }
 
     const sidebarClasses = cn(
         "z-11 fixed transition-[box-shadow,border-color] duration-300 ease-out border border-sidebar-border shadow-lg ml-2 h-[98vh] mt-[1vh] transition-all",
-        "rounded-3xl"
+        "rounded-3xl select-none"
     );
 
     return (
         <>
-        {/* Hidden file input for import */}
-        <input
-            ref={fileInputRef}
-            type="file"
-            accept=".viable,.vil,.json"
-            className="hidden"
-            onChange={handleFileImport}
-        />
+            {/* Hidden file input for import */}
 
-        {/* Export dialog */}
-        <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Export Keyboard Configuration</DialogTitle>
-                    <DialogDescription>
-                        Choose the format and options for exporting your keyboard configuration.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="format" className="text-right">Format</Label>
-                        <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as "viable" | "vil")}>
-                            <SelectTrigger className="col-span-3">
-                                <SelectValue placeholder="Select format" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="viable">.viable (Recommended)</SelectItem>
-                                <SelectItem value="vil">.vil (Vial compatible)</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="macros" className="text-right">Include Macros</Label>
-                        <Switch
-                            id="macros"
-                            checked={includeMacros}
-                            onCheckedChange={setIncludeMacros}
-                        />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsExportOpen(false)}>Cancel</Button>
-                    <Button onClick={handleExport}>Export</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
 
-        <Sidebar rounded name="primary-nav" defaultOpen={false} collapsible="icon" hideGap className={sidebarClasses} onClick={handleBackgroundClick}>
-            <SidebarContent className={cn("py-4 overflow-y-auto overflow-x-hidden flex flex-col", isCollapsed && "scrollbar-none")}>
-                {/* Header section - Logo, Connect, Import/Export */}
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild size="nav" className="transition-colors">
-                            <button
-                                type="button"
-                                className="flex w-full items-center justify-start"
-                                onClick={(e) => {
-                                    e.stopPropagation();
 
-                                    const isPanelOpen = open;
-                                    const isMatrixTesterActive = activePanel === "matrixtester";
-
-                                    handleCloseDetails();
-                                    if (isMatrixTesterActive) {
-                                        setActivePanel(null);
-                                    }
-
-                                    if (!isCollapsed) {
+            <Sidebar rounded name="primary-nav" defaultOpen={false} collapsible="icon" hideGap className={sidebarClasses}>
+                <SidebarContent className={cn("py-4 overflow-y-auto overflow-x-hidden flex flex-col", isCollapsed && "scrollbar-none")}>
+                    {/* Header section - Logo, Connect, Import/Export */}
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild size="nav" className="transition-colors">
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center justify-start"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
                                         toggleSidebar();
-                                    } else if (!isPanelOpen && !isMatrixTesterActive) {
-                                        toggleSidebar();
-                                    }
-                                }}
-                            >
-                                <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getLogoPadding(isCollapsed))}>
-                                    <Logo />
-                                </div>
-                                <span className={cn("text-[22px] font-semibold truncate", isCollapsed && "hidden")}>keybard</span>
-                            </button>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild size="nav" className="text-gray-400 transition-colors hover:text-sidebar-foreground">
-                            <button type="button" onClick={(e) => { e.stopPropagation(); connect(); }} className="flex w-full items-center justify-start">
-                                <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
-                                    {isConnected ? <Zap className="h-4 w-4 shrink-0 fill-black text-black" /> : <Unplug className="h-4 w-4 shrink-0" />}
-                                </div>
-                                <span className={cn("truncate", isCollapsed && "hidden")}>{isConnected ? "Connected" : "Connect"}</span>
-                            </button>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    {/* Import */}
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild size="nav" tooltip={isCollapsed ? "Import" : undefined} sidebarName="primary-nav" className="text-gray-400 transition-colors">
-                            <button type="button" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className={cn("flex w-full items-center", isCollapsed ? "justify-center" : "justify-start pr-2")}>
-                                <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
-                                    <Download className="h-4 w-4 shrink-0" />
-                                </div>
-                                <span className={cn("truncate", isCollapsed && "hidden")}>Import</span>
-                            </button>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    {/* Export */}
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild size="nav" tooltip={isCollapsed ? "Export" : undefined} sidebarName="primary-nav" className="text-gray-400 transition-colors">
-                            <button type="button" onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }} className={cn("flex w-full items-center disabled:opacity-50", isCollapsed ? "justify-center" : "justify-start pr-2")} disabled={!keyboard}>
-                                <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
-                                    <Upload className="h-4 w-4 shrink-0" />
-                                </div>
-                                <span className={cn("truncate", isCollapsed && "hidden")}>Export</span>
-                            </button>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-
-                {/* Main navigation - vertically centered in available space */}
-                <div className="flex-1 flex flex-col justify-center py-2">
-                    <SidebarMenu className="relative">
-                        {indicatorY !== -1 && <SlidingIndicator y={indicatorY} />}
-                        {primarySidebarItems.map((item) => (
-                            <SidebarNavItem
-                                key={item.url}
-                                item={item}
-                                isActive={activePanel === item.url}
-                                isPreviousPanel={panelToGoBack === item.url}
-                                alternativeHeader={alternativeHeader}
-                                isCollapsed={isCollapsed}
-                                onClick={handleItemSelect}
-                            />
-                        ))}
-
-                        <div className="mx-4 my-2 h-[1px] bg-slate-200" />
-
-                        {featureSidebarItems.map((item) => (
-                            <SidebarNavItem
-                                key={item.url}
-                                item={item}
-                                isActive={activePanel === item.url}
-                                isPreviousPanel={panelToGoBack === item.url}
-                                alternativeHeader={alternativeHeader}
-                                isCollapsed={isCollapsed}
-                                onClick={handleItemSelect}
-                            />
-                        ))}
-
-                        {/* Dynamic menu items from keyboard definition */}
-                        {dynamicMenuItems.length > 0 && (
-                            <>
-                                <div className="mx-4 my-2 h-[1px] bg-slate-200" />
-                                {dynamicMenuItems.map((item) => (
-                                    <SidebarNavItem
-                                        key={item.url}
-                                        item={item}
-                                        isActive={activePanel === item.url}
-                                        isPreviousPanel={panelToGoBack === item.url}
-                                        alternativeHeader={alternativeHeader}
-                                        isCollapsed={isCollapsed}
-                                        onClick={handleItemSelect}
-                                    />
-                                ))}
-                            </>
-                        )}
+                                    }}
+                                >
+                                    <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getLogoPadding(isCollapsed))}>
+                                        <Logo />
+                                    </div>
+                                    <span className={cn("text-[22px] font-semibold truncate", isCollapsed && "hidden")}>keybard</span>
+                                </button>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
                     </SidebarMenu>
-                </div>
 
-                {/* Footer section - About, Matrix Tester, Settings */}
-                <div className="py-2 mb-3">
-                    <SidebarMenu className="relative">
-                        {activeFooterIndex !== -1 && <SlidingIndicator y={activeFooterIndex * MENU_ITEM_GAP_PX} />}
-                        {footerItems.map((item) => (
-                            <SidebarNavItem
-                                key={item.url}
-                                item={item}
-                                isActive={activePanel === item.url}
-                                isCollapsed={isCollapsed}
-                                onClick={handleItemSelect}
-                            />
-                        ))}
-                    </SidebarMenu>
-                    {/* Branch indicator for dev environment */}
-                    {import.meta.env.DEV && (
-                        <div className="px-3 pt-2 pb-1 text-[10px] text-slate-400 font-mono truncate group-data-[state=collapsed]:hidden" title={__GIT_BRANCH__}>
-                            {__GIT_BRANCH__}
-                        </div>
-                    )}
-                </div>
-            </SidebarContent>
-        </Sidebar>
+                    {/* Main navigation - vertically centered in available space */}
+                    <div className="flex-1 flex flex-col justify-center py-2">
+                        <SidebarMenu className="relative">
+                            {indicatorY !== -1 && <SlidingIndicator y={indicatorY} />}
+
+                            {/* Top section items (Keyboard, Pointing Devices) */}
+                            {topSectionItems.map((item) => (
+                                <SidebarNavItem
+                                    key={item.url}
+                                    item={item}
+                                    isActive={activePanel === item.url}
+                                    isPreviousPanel={panelToGoBack === item.url}
+                                    alternativeHeader={alternativeHeader}
+                                    isCollapsed={isCollapsed}
+                                    onClick={handleItemSelect}
+                                />
+                            ))}
+
+                            {/* Dynamic menu items from keyboard definition - right after Pointing Devices */}
+                            {dynamicMenuItems.map((item) => (
+                                <SidebarNavItem
+                                    key={item.url}
+                                    item={item}
+                                    isActive={activePanel === item.url}
+                                    isPreviousPanel={panelToGoBack === item.url}
+                                    alternativeHeader={alternativeHeader}
+                                    isCollapsed={isCollapsed}
+                                    onClick={handleItemSelect}
+                                />
+                            ))}
+
+                            {/* Divider between top section and middle section */}
+                            <div className="mx-4 my-2 h-[1px] bg-slate-400" />
+
+                            {/* Middle section items (Special, Layer Keys, Mouse Keys, Tap Dances, Macros) */}
+                            {middleSectionItems.map((item) => (
+                                <SidebarNavItem
+                                    key={item.url}
+                                    item={item}
+                                    isActive={activePanel === item.url}
+                                    isPreviousPanel={panelToGoBack === item.url}
+                                    alternativeHeader={alternativeHeader}
+                                    isCollapsed={isCollapsed}
+                                    onClick={handleItemSelect}
+                                />
+                            ))}
+
+                            <div className="mx-4 my-2 h-[1px] bg-slate-400" />
+
+                            {featureSidebarItems.map((item) => (
+                                <SidebarNavItem
+                                    key={item.url}
+                                    item={item}
+                                    isActive={activePanel === item.url}
+                                    isPreviousPanel={panelToGoBack === item.url}
+                                    alternativeHeader={alternativeHeader}
+                                    isCollapsed={isCollapsed}
+                                    onClick={handleItemSelect}
+                                />
+                            ))}
+                        </SidebarMenu>
+                    </div>
+
+                    {/* Footer section - About, Matrix Tester, Settings */}
+                    <div className="py-2 mb-3">
+                        <SidebarMenu className="relative">
+                            {activeFooterIndex !== -1 && <SlidingIndicator y={activeFooterIndex * MENU_ITEM_GAP_PX} />}
+                            {footerItems.map((item) => (
+                                <SidebarNavItem
+                                    key={item.url}
+                                    item={item}
+                                    isActive={activePanel === item.url}
+                                    isCollapsed={isCollapsed}
+                                    onClick={handleItemSelect}
+                                />
+                            ))}
+                        </SidebarMenu>
+
+                    </div>
+                </SidebarContent>
+            </Sidebar>
         </>
     );
 };

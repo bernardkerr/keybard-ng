@@ -4,28 +4,28 @@
  */
 
 export const PENDING_CHANGE_STYLES = {
-    // Ring/outline style
+    // Ring/outline style (outer ring around the key)
     ring: {
-        enabled: true,
-        className: "ring-2 ring-yellow-400/60 ring-offset-1 ring-offset-transparent",
+        enabled: false,
+        className: "ring-2 ring-red-500/70 ring-offset-1 ring-offset-transparent",
     },
 
     // Shadow glow style (alternative or combined with ring)
     shadow: {
         enabled: false,
-        className: "shadow-[0_0_8px_2px_rgba(250,204,21,0.4)]",
+        className: "shadow-[0_0_8px_2px_rgba(239,68,68,0.4)]",
     },
 
     // Background tint style
     backgroundTint: {
         enabled: false,
-        className: "bg-yellow-100/20",
+        className: "bg-red-100/20",
     },
 
-    // Border color override
+    // Border color override (uses the key's own border, like hover effect)
     border: {
-        enabled: false,
-        className: "border-yellow-400",
+        enabled: true,
+        className: "border-red-500",
     },
 
     // Pulsing animation

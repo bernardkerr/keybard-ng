@@ -130,10 +130,7 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
 
     return (
         <section className="h-full flex flex-col overflow-hidden">
-            <div className="flex-shrink-0 px-4 py-3 border-b">
-                <h2 className="text-lg font-semibold">{menu.label}</h2>
-            </div>
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto pb-4">
                 <CustomUIRenderer
                     items={menu.content as CustomUIMenuItem[]}
                     values={values}
