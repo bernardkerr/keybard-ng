@@ -2,7 +2,7 @@ import LayersActiveIcon from "@/components/icons/LayersActive";
 import LayersDefaultIcon from "@/components/icons/LayersDefault";
 import { LayoutImport } from "@/components/icons/LayoutImport";
 import { LayoutExport } from "@/components/icons/LayoutExport";
-import MatrixTesterIcon from "@/components/icons/MatrixTesterSvg";
+import MatrixTesterIcon from "@/components/icons/MatrixTester";
 import { LayerNameBadge } from "@/components/LayerNameBadge";
 import { ArrowLeft, ChevronDown, Unplug, Undo2, Zap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
