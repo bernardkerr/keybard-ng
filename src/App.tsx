@@ -70,7 +70,9 @@ function AppContent() {
                     <ExploreLayoutsPage onBack={goBack} />
                 </DragProvider>
             ) : currentPage === "proof-sheet" ? (
-                <ProofSheetPage onBack={goBack} />
+                <DragProvider>
+                    <ProofSheetPage onBack={goBack} />
+                </DragProvider>
             ) : null}
         </>
     );
