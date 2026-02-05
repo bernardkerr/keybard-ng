@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ArrowRight, Plus, X } from "lucide-react";
 
+import OnOffToggle from "@/components/ui/OnOffToggle";
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -30,6 +31,7 @@ const LeadersPanel: React.FC = () => {
     } = usePanels();
     const [savingTimeout, setSavingTimeout] = useState(false);
     const [savingPerKey, setSavingPerKey] = useState(false);
+    const [timeoutInput, setTimeoutInput] = useState<string>("");
 
     const isHorizontal = layoutMode === "bottombar";
 
@@ -43,11 +45,20 @@ const LeadersPanel: React.FC = () => {
     const leaderTimeout = keyboard.settings?.[LEADER_TIMEOUT_QSID] ?? 300;
     const perKeyTiming = (keyboard.settings?.[LEADER_PER_KEY_QSID] ?? 0) !== 0;
 
-    const handleTimeoutChange = async (value: number) => {
+    // Sync local input state when keyboard state changes externally
+    useEffect(() => {
+        setTimeoutInput(String(leaderTimeout));
+    }, [leaderTimeout]);
+
+    const handleTimeoutBlur = async () => {
         if (!isConnected) return;
+        const newVal = parseInt(timeoutInput) || 50;
+        const clamped = Math.max(50, Math.min(5000, newVal));
+        setTimeoutInput(String(clamped));
+        if (clamped === leaderTimeout) return;
+
         setSavingTimeout(true);
         try {
-            const clamped = Math.max(50, Math.min(5000, value));
             const updated = {
                 ...keyboard,
                 settings: { ...keyboard.settings, [LEADER_TIMEOUT_QSID]: clamped }
@@ -135,8 +146,8 @@ const LeadersPanel: React.FC = () => {
         return (options & LeaderOptions.ENABLED) !== 0;
     };
 
-    const handleToggleEnabled = async (index: number, e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleToggleEnabled = async (index: number, e?: React.MouseEvent) => {
+        e?.stopPropagation();
         if (!keyboard.leaders) return;
 
         const entry = keyboard.leaders[index];
@@ -324,13 +335,11 @@ const LeadersPanel: React.FC = () => {
                             </div>
                             <Input
                                 type="number"
-                                value={leaderTimeout}
+                                value={timeoutInput}
                                 min={50}
                                 max={5000}
-                                onChange={(e) => {
-                                    const newVal = parseInt(e.target.value) || 50;
-                                    handleTimeoutChange(newVal);
-                                }}
+                                onChange={(e) => setTimeoutInput(e.target.value)}
+                                onBlur={handleTimeoutBlur}
                                 disabled={savingTimeout}
                                 className={cn("w-24 text-right", savingTimeout && "opacity-50")}
                             />
@@ -384,37 +393,11 @@ const LeadersPanel: React.FC = () => {
                             </div>
 
                             {isDefined && (
-                                <div
-                                    className="ml-auto mr-2 flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <button
-                                        onClick={(e) => {
-                                            if (!enabled) handleToggleEnabled(i, e);
-                                        }}
-                                        className={cn(
-                                            "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[3px] transition-all font-bold border",
-                                            enabled
-                                                ? "bg-black text-white shadow-sm border-black"
-                                                : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                                        )}
-                                    >
-                                        ON
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            if (enabled) handleToggleEnabled(i, e);
-                                        }}
-                                        className={cn(
-                                            "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[3px] transition-all font-bold border",
-                                            !enabled
-                                                ? "bg-black text-white shadow-sm border-black"
-                                                : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                                        )}
-                                    >
-                                        OFF
-                                    </button>
-                                </div>
+                                <OnOffToggle
+                                    value={enabled}
+                                    onToggle={() => handleToggleEnabled(i)}
+                                    className="ml-auto mr-2"
+                                />
                             )}
                         </div>
                     );
@@ -429,6 +412,7 @@ const LeadersPanel: React.FC = () => {
                             label={i.toString()}
                             keyContents={keyContents}
                             onEdit={handleEdit}
+                            onDelete={isDefined ? clearLeader : undefined}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}

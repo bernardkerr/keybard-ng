@@ -1,4 +1,4 @@
-import { Switch } from "@/components/ui/switch";
+import OnOffToggle from "@/components/ui/OnOffToggle";
 import type { CustomUIMenuItem } from "@/types/vial.types";
 import { cn } from "@/lib/utils";
 
@@ -16,9 +16,9 @@ export const ToggleControl: React.FC<ToggleControlProps> = ({ item, value, onCha
             compact ? "py-0.5" : "p-2 panel-layer-item"
         )}>
             <span className={compact ? "text-xs" : "text-md"}>{item.label}</span>
-            <Switch
-                checked={value === 1}
-                onCheckedChange={(checked) => onChange(checked ? 1 : 0)}
+            <OnOffToggle
+                value={value === 1}
+                onToggle={(checked) => onChange(checked ? 1 : 0)}
                 className={compact ? "scale-75" : ""}
             />
         </div>

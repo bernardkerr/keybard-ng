@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ArrowRight, Plus, X } from "lucide-react";
 
 import ComboIcon from "@/components/ComboIcon";
+import OnOffToggle from "@/components/ui/OnOffToggle";
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { Input } from "@/components/ui/input";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -28,6 +29,7 @@ const CombosPanel: React.FC = () => {
         setAlternativeHeader,
     } = usePanels();
     const [saving, setSaving] = useState(false);
+    const [timeoutInput, setTimeoutInput] = useState<string>("");
 
     const isHorizontal = layoutMode === "bottombar";
 
@@ -76,11 +78,20 @@ const CombosPanel: React.FC = () => {
     const isTimeoutSupported = keyboard.settings?.[COMBO_TIMEOUT_QSID] !== undefined;
     const comboTimeout = keyboard.settings?.[COMBO_TIMEOUT_QSID] ?? 50;
 
-    const handleTimeoutChange = async (value: number) => {
+    // Sync local input state when keyboard state changes externally
+    useEffect(() => {
+        setTimeoutInput(String(comboTimeout));
+    }, [comboTimeout]);
+
+    const handleTimeoutBlur = async () => {
         if (!isConnected) return;
+        const newVal = parseInt(timeoutInput) || 0;
+        const clamped = Math.max(0, Math.min(10000, newVal));
+        setTimeoutInput(String(clamped));
+        if (clamped === comboTimeout) return;
+
         setSaving(true);
         try {
-            const clamped = Math.max(0, Math.min(10000, value));
             const updated = {
                 ...keyboard,
                 settings: { ...keyboard.settings, [COMBO_TIMEOUT_QSID]: clamped }
@@ -112,8 +123,8 @@ const CombosPanel: React.FC = () => {
         return (options & ComboOptions.ENABLED) !== 0;
     };
 
-    const handleToggleEnabled = async (index: number, e: React.MouseEvent) => {
-        e.stopPropagation();
+    const handleToggleEnabled = async (index: number, e?: React.MouseEvent) => {
+        e?.stopPropagation();
         if (!keyboard.combos) return;
 
         const entry = keyboard.combos[index];
@@ -155,6 +166,7 @@ const CombosPanel: React.FC = () => {
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
                     onClick={() => handleEdit(comboIndex)}
+                    disableTooltip={true}
                 />
             </div>
         );
@@ -206,29 +218,11 @@ const CombosPanel: React.FC = () => {
                                     <ComboIcon />
                                 </div>
                                 <span className="text-xs font-bold text-slate-600">Combo {i}</span>
-                                <div
-                                    className="ml-auto flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <button
-                                        onClick={(e) => { if (!enabled) handleToggleEnabled(i, e); }}
-                                        className={cn(
-                                            "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[3px] transition-all font-bold border",
-                                            enabled
-                                                ? "bg-black text-white shadow-sm border-black"
-                                                : "text-gray-400 border-transparent hover:text-gray-600"
-                                        )}
-                                    >ON</button>
-                                    <button
-                                        onClick={(e) => { if (enabled) handleToggleEnabled(i, e); }}
-                                        className={cn(
-                                            "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[3px] transition-all font-bold border",
-                                            !enabled
-                                                ? "bg-black text-white shadow-sm border-black"
-                                                : "text-gray-400 border-transparent hover:text-gray-600"
-                                        )}
-                                    >OFF</button>
-                                </div>
+                                <OnOffToggle
+                                    value={enabled}
+                                    onToggle={() => handleToggleEnabled(i)}
+                                    className="ml-auto scale-75 origin-right"
+                                />
                             </div>
                             <div className="flex flex-row items-center justify-center gap-1 flex-wrap">
                                 {inputs.map((input, idx) => (
@@ -279,13 +273,11 @@ const CombosPanel: React.FC = () => {
                         </div>
                         <Input
                             type="number"
-                            value={comboTimeout}
+                            value={timeoutInput}
                             min={0}
                             max={10000}
-                            onChange={(e) => {
-                                const newVal = parseInt(e.target.value) || 0;
-                                handleTimeoutChange(newVal);
-                            }}
+                            onChange={(e) => setTimeoutInput(e.target.value)}
+                            onBlur={handleTimeoutBlur}
                             disabled={saving}
                             className={cn("w-24 text-right select-text", saving && "opacity-50")}
                         />
@@ -319,29 +311,11 @@ const CombosPanel: React.FC = () => {
                             ))}
                             <ArrowRight className="w-3 h-3 text-black mx-1" />
                             {renderSmallKey(result, 4, i)}
-                            <div
-                                className="ml-auto mr-2 flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <button
-                                    onClick={(e) => { if (!enabled) handleToggleEnabled(i, e); }}
-                                    className={cn(
-                                        "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[3px] transition-all font-bold border",
-                                        enabled
-                                            ? "bg-black text-white shadow-sm border-black"
-                                            : "text-gray-400 border-transparent hover:text-gray-600"
-                                    )}
-                                >ON</button>
-                                <button
-                                    onClick={(e) => { if (enabled) handleToggleEnabled(i, e); }}
-                                    className={cn(
-                                        "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[3px] transition-all font-bold border",
-                                        !enabled
-                                            ? "bg-black text-white shadow-sm border-black"
-                                            : "text-gray-400 border-transparent hover:text-gray-600"
-                                    )}
-                                >OFF</button>
-                            </div>
+                            <OnOffToggle
+                                value={enabled}
+                                onToggle={() => handleToggleEnabled(i)}
+                                className="ml-auto mr-2"
+                            />
                         </div>
                     ) : undefined;
 
@@ -356,6 +330,7 @@ const CombosPanel: React.FC = () => {
                             keycode={resultKeycode || "KC_NO"}
                             keyContents={keyContents}
                             onEdit={handleEdit}
+                            onDelete={hasAssignment ? clearCombo : undefined}
                             onAssignKeycode={assignKeycode}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}

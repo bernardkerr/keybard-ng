@@ -51,7 +51,7 @@ const getPanelTitle = (panel: string | null | undefined, menus?: CustomUIMenuIte
     }
 
     const titles: Record<string, string> = {
-        keyboard: "Keyboard Keys",
+        keyboard: "Standard Keys",
         layers: "Layer Keys",
         tapdances: "Tap Dances",
         macros: "Macros",

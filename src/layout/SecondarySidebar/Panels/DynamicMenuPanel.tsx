@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { CustomUIRenderer } from "@/components/CustomUI";
 import { customValueService } from "@/services/custom-value.service";
+import { useChanges } from "@/contexts/ChangesContext";
 import { useVial } from "@/contexts/VialContext";
 import type { CustomUIMenuItem } from "@/types/vial.types";
 
@@ -16,6 +17,7 @@ interface DynamicMenuPanelProps {
  */
 const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizontal = false }) => {
     const { keyboard, isConnected } = useVial();
+    const { queue } = useChanges();
     const [values, setValues] = useState<Map<string, number>>(new Map());
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -51,13 +53,21 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
     const handleValueChange = useCallback(async (key: string, value: number) => {
         if (!menu || !isConnected) return;
 
-        try {
-            await customValueService.setValue(key, value, [menu]);
-            setValues(prev => new Map(prev).set(key, value));
-        } catch (err) {
-            console.error(`Failed to set ${key}:`, err);
-        }
-    }, [menu, isConnected]);
+        // Optimistically update local state so UI reflects change immediately
+        setValues(prev => new Map(prev).set(key, value));
+
+        await queue(
+            `custom_ui_${key}`,
+            async () => {
+                try {
+                    await customValueService.setValue(key, value, [menu]);
+                } catch (err) {
+                    console.error(`Failed to set ${key}:`, err);
+                }
+            },
+            { type: "custom_ui" as any }
+        );
+    }, [menu, isConnected, queue]);
 
     // Handle button clicks (special actions)
     const handleButtonClick = useCallback(async (key: string) => {

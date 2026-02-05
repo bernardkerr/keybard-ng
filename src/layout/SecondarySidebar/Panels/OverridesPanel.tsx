@@ -1,6 +1,7 @@
 import React from "react";
 import { ArrowRight, Plus, X } from "lucide-react";
 
+import OnOffToggle from "@/components/ui/OnOffToggle";
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
@@ -111,6 +112,7 @@ const OverridesPanel: React.FC = () => {
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
                     onClick={() => handleEdit(overrideIndex)}
+                    disableTooltip={true}
                 />
             </div>
         );
@@ -151,33 +153,11 @@ const OverridesPanel: React.FC = () => {
                             </button>
                             <div className="flex flex-row items-center justify-between mb-1">
                                 <span className="text-xs font-bold text-slate-600">OR {i}</span>
-                                <div
-                                    className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <button
-                                        onClick={() => updateOverrideOption(i, ENABLED_BIT, true)}
-                                        className={cn(
-                                            "px-1.5 py-0 text-[8px] uppercase tracking-wide rounded-[2px] transition-all font-bold border",
-                                            isEnabled
-                                                ? "bg-black text-white shadow-sm border-black"
-                                                : "text-gray-400 border-transparent"
-                                        )}
-                                    >
-                                        ON
-                                    </button>
-                                    <button
-                                        onClick={() => updateOverrideOption(i, ENABLED_BIT, false)}
-                                        className={cn(
-                                            "px-1.5 py-0 text-[8px] uppercase tracking-wide rounded-[2px] transition-all font-bold border",
-                                            !isEnabled
-                                                ? "bg-black text-white shadow-sm border-black"
-                                                : "text-gray-400 border-transparent"
-                                        )}
-                                    >
-                                        OFF
-                                    </button>
-                                </div>
+                                <OnOffToggle
+                                    value={isEnabled}
+                                    onToggle={(val) => updateOverrideOption(i, ENABLED_BIT, val)}
+                                    className="scale-75 origin-right"
+                                />
                             </div>
                             <div className="flex flex-row items-center justify-center gap-1">
                                 {renderSmallKey(triggerContent, 0, i)}
@@ -225,33 +205,11 @@ const OverridesPanel: React.FC = () => {
                                 {renderSmallKey(replacementContent, 1, i)}
                             </div>
 
-                            <div
-                                className="ml-auto mr-2 flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <button
-                                    onClick={() => updateOverrideOption(i, ENABLED_BIT, true)}
-                                    className={cn(
-                                        "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[3px] transition-all font-bold border",
-                                        isEnabled
-                                            ? "bg-black text-white shadow-sm border-black"
-                                            : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                                    )}
-                                >
-                                    ON
-                                </button>
-                                <button
-                                    onClick={() => updateOverrideOption(i, ENABLED_BIT, false)}
-                                    className={cn(
-                                        "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[3px] transition-all font-bold border",
-                                        !isEnabled
-                                            ? "bg-black text-white shadow-sm border-black"
-                                            : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                                    )}
-                                >
-                                    OFF
-                                </button>
-                            </div>
+                            <OnOffToggle
+                                value={isEnabled}
+                                onToggle={(val) => updateOverrideOption(i, ENABLED_BIT, val)}
+                                className="ml-auto mr-2"
+                            />
                         </div>
                     ) : undefined;
 
@@ -266,6 +224,7 @@ const OverridesPanel: React.FC = () => {
                             label={i.toString()}
                             keyContents={keyContents}
                             onEdit={handleEdit}
+                            onDelete={isDefined ? clearOverride : undefined}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}

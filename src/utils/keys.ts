@@ -164,10 +164,28 @@ export function getKeyContents(KBINFO: KeyboardInfo, keystr: any) {
         };
     }
 
-    // Handle USER keys with custom keycodes
+    // Handle USER keys with custom keycodes (legacy Vial range: USER00-USER63)
     m = keystr.match(/^USER(\d+)$/);
     if (m) {
         const userIndex = parseInt(m[1], 10);
+        if (KBINFO.custom_keycodes && KBINFO.custom_keycodes[userIndex]) {
+            const custom = KBINFO.custom_keycodes[userIndex];
+            return {
+                type: "user",
+                str: custom.shortName.replace(/\\n/g, "\n"),
+                title: custom.title,
+                top: keystr,
+            };
+        }
+        // Fallback to default if not found
+        const def = keyService.define(keystr);
+        return def ? { ...def, top: keystr } : def;
+    }
+
+    // Handle QK_USER keys with custom keycodes (QMK/Viable range: QK_USER_0-QK_USER_31)
+    m = keystr.match(/^QK_USER(?:_(\d+))?$/);
+    if (m) {
+        const userIndex = m[1] ? parseInt(m[1], 10) : 0;
         if (KBINFO.custom_keycodes && KBINFO.custom_keycodes[userIndex]) {
             const custom = KBINFO.custom_keycodes[userIndex];
             return {

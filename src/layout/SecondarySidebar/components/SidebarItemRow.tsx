@@ -1,5 +1,5 @@
 import React from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, X } from "lucide-react";
 
 import { Key } from "@/components/Key";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ interface SidebarItemRowProps {
     hasCustomName?: boolean;
     customName?: string;
     onEdit?: (index: number) => void;
+    onDelete?: (index: number) => void;
     onAssignKeycode?: (keycode: string) => void;
     onColorChange?: (index: number, colorName: string) => void;
     onNameChange?: (index: number, newName: string) => void;
@@ -47,6 +48,7 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
         hasCustomName,
         customName,
         onEdit,
+        onDelete,
         onAssignKeycode,
         onColorChange,
         onNameChange,
@@ -265,6 +267,18 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                             title="Edit"
                         >
                             <Pencil className="w-4 h-4 text-gray-700" />
+                        </div>
+                    )}
+                    {onDelete && (
+                        <div
+                            className="flex items-center justify-center w-[30px] h-[30px] rounded-full bg-gray-100 hover:bg-red-500 cursor-pointer transition-all opacity-0 group-hover/item:opacity-100 ml-1 group/delete"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onDelete(index);
+                            }}
+                            title="Delete"
+                        >
+                            <X className="w-4 h-4 text-gray-700 group-hover/delete:text-white transition-colors" />
                         </div>
                     )}
                 </div>

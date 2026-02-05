@@ -19,7 +19,6 @@ import {
 // import { InfoIcon } from "./icons/InfoIcon";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useChanges } from "@/hooks/useChanges";
-import { LayerNameBadge } from "./LayerNameBadge";
 
 interface KeyboardProps {
     keyboard: KeyboardInfo;
@@ -206,13 +205,6 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                 className="keyboard-layout relative"
                 style={{ width: `${keyboardSize.width}px`, height: `${keyboardSize.height}px` }}
             >
-                {/* Layer Name Badge - centered between thumb clusters */}
-                <LayerNameBadge
-                    selectedLayer={selectedLayer}
-                    x={keyboardSize.badgeCenterX}
-                    y={keyboardSize.badgeCenterY}
-                />
-
                 {/* Keys */}
                 {Object.entries(keyboardLayout).map(([matrixPos, layout]) => {
                     const pos = Number(matrixPos);

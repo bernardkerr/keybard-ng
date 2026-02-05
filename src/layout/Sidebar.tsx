@@ -1,4 +1,4 @@
-import { HelpCircle, Keyboard, LayoutGrid, ListOrdered, LucideIcon, Mouse, Piano, Repeat, Settings } from "lucide-react";
+import { HelpCircle, Keyboard, ListOrdered, LucideIcon, Mouse, Piano, Repeat, Settings } from "lucide-react";
 import PointingDeviceBall01Icon from "@/components/icons/PointingDeviceBall01Icon";
 import LayoutLayersIcon from "@/components/icons/LayoutLayersIcon";
 import { useCallback, useMemo } from "react";
@@ -43,7 +43,7 @@ export type SidebarItem = {
 
 // Top section items (Keyboard and Pointing Devices, before the spacer)
 export const topSectionItems: SidebarItem[] = [
-    { title: "Keyboard Keys", url: "keyboard", icon: Keyboard },
+    { title: "Standard Keys", url: "keyboard", icon: Keyboard },
     { title: "Pointing Devices", url: "pointing", icon: PointingDeviceBall01Icon },
 ];
 
@@ -76,7 +76,6 @@ const featureSidebarItems: SidebarItem[] = [
     { title: "Overrides", url: "overrides", icon: OverridesIcon },
     ...(SHOW_ALT_REPEAT ? [{ title: "Alt-Repeat", url: "altrepeat", icon: Repeat }] : []),
     ...(SHOW_LEADERS ? [{ title: "Leaders", url: "leaders", icon: ListOrdered }] : []),
-    { title: "Fragments", url: "fragments", icon: LayoutGrid },
 ];
 
 const footerItems: SidebarItem[] = [

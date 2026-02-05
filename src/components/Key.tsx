@@ -30,6 +30,7 @@ export interface KeyProps {
     hoverBackgroundColor?: string;
     hoverLayerColor?: string;
     disableHover?: boolean;
+    disableTooltip?: boolean;
     hasPendingChange?: boolean;
 }
 
@@ -218,7 +219,7 @@ export const Key: React.FC<KeyProps> = (props) => {
                 onMouseLeave={drag.handleMouseLeave}
                 onMouseDown={drag.handleMouseDown}
                 onMouseUp={drag.handleMouseUp}
-                title={keycode}
+                title={props.disableTooltip ? undefined : keycode}
             >
                 <span className={headerClass}>{keyContents?.layertext}</span>
                 <div className={cn("flex flex-row h-full w-full items-center justify-center", isSmall ? "gap-1" : isMedium ? "gap-1.5" : "gap-2")}>
@@ -244,7 +245,7 @@ export const Key: React.FC<KeyProps> = (props) => {
                 onMouseLeave={drag.handleMouseLeave}
                 onMouseDown={drag.handleMouseDown}
                 onMouseUp={drag.handleMouseUp}
-                title={keycode}
+                title={props.disableTooltip ? undefined : keycode}
             >
                 {/* Header - clicking selects the full key */}
                 <span

@@ -4,6 +4,8 @@ import PlusIcon from "@/components/icons/Plus";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
+import { useChanges } from "@/hooks/useChanges";
+import { vialService } from "@/services/vial.service";
 import { ArrowDown } from "lucide-react";
 import MacroEditorKey from "./MacroEditorKey";
 import MacroEditorText from "./MacroEditorText";
@@ -14,6 +16,7 @@ const MacroEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
     const { itemToEdit, setPanelToGoBack, setAlternativeHeader } = usePanels();
     const { selectComboKey: _selectComboKey, selectMacroKey, selectedTarget, clearSelection } = useKeyBinding();
+    const { queue } = useChanges();
 
     useEffect(() => {
         setPanelToGoBack("macros");
@@ -77,6 +80,21 @@ const MacroEditor: FC = () => {
             actions: newActions,
         };
         setKeyboard(updatedKeyboard);
+
+        // Queue the change for the Update Changes button
+        const macroId = itemToEdit;
+        queue(
+            `macro_${macroId}`,
+            async () => {
+                try {
+                    await vialService.updateMacros(updatedKeyboard);
+                    await vialService.saveViable();
+                } catch (err) {
+                    console.error("Failed to update macro:", err);
+                }
+            },
+            { type: "macro" }
+        );
     };
 
     const handleAddItem = (type: string) => {

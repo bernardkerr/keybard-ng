@@ -248,6 +248,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                             customName={keyboard.cosmetic?.macros?.[i.toString()]}
                             keyContents={keyContents}
                             onEdit={isPicker ? undefined : handleEdit}
+                            onDelete={isPicker ? undefined : (hasActions ? clearMacro : undefined)}
                             onAssignKeycode={assignKeycode}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
