@@ -30,7 +30,7 @@ interface DragContextType {
     markDropConsumed: () => void;
 }
 
-const DragContext = createContext<DragContextType | undefined>(undefined);
+export const DragContext = createContext<DragContextType | undefined>(undefined);
 
 interface DragProviderProps {
     children: React.ReactNode;

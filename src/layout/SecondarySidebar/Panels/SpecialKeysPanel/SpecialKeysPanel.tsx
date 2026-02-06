@@ -19,8 +19,8 @@ const SpecialKeysPanel = ({ isPicker }: Props) => {
                 <OtherKeys variant="medium" />
                 <MediaKeys variant="medium" />
                 <AudioKeys variant="medium" />
-                <StenoKeys variant="medium" />
                 <BacklightsKeys variant="medium" />
+                <StenoKeys variant="medium" />
             </div>
         );
     }
@@ -35,8 +35,8 @@ const SpecialKeysPanel = ({ isPicker }: Props) => {
             <OtherKeys />
             <MediaKeys />
             <AudioKeys />
-            <StenoKeys />
             <BacklightsKeys />
+            <StenoKeys />
         </div>
     );
 };

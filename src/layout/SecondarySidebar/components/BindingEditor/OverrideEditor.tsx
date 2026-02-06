@@ -131,6 +131,15 @@ const OverrideEditor: FC<Props> = () => {
         setKeyboard(updatedKeyboard);
     };
 
+    const updateOverrideAssignment = (slot: "trigger" | "replacement", keycode: string) => {
+        if (!keyboard || !override) return;
+        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+        const ovr = updatedKeyboard.key_overrides[overrideIndex];
+        if (slot === "trigger") ovr.trigger = keycode;
+        else ovr.replacement = keycode;
+        setKeyboard(updatedKeyboard);
+    };
+
     const currentMask = getActiveMask();
 
     const renderOverrideKey = (label: string, slot: "trigger" | "replacement") => {
@@ -146,6 +155,7 @@ const OverrideEditor: FC<Props> = () => {
                     selected={isSelected}
                     onClick={() => selectOverrideKey(overrideIndex, slot)}
                     onClear={() => clearKey(slot)}
+                    onDrop={(item) => updateOverrideAssignment(slot, item.keycode)}
                     size="w-[60px] h-[60px]"
                     // OverrideEditor renders trash at "-left-10" which is default for EditorKey
                     trashOffset="-left-10"
@@ -161,7 +171,7 @@ const OverrideEditor: FC<Props> = () => {
     if (!override) return <div className="p-5">Override not found</div>;
 
     return (
-        <div className="flex flex-col gap-2 py-6 pl-[84px] pr-5 pb-4">
+        <div className="flex flex-col gap-2 py-6 pl-[84px] pr-5 pb-16">
             {/* Active Switch */}
             {/* Active Toggle */}
 

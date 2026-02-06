@@ -1,4 +1,4 @@
-import { FC, useEffect } from "react";
+import { FC, useEffect, useState } from "react";
 import { ArrowRight, Trash2 } from "lucide-react";
 import OnOffToggle from "@/components/ui/OnOffToggle";
 
@@ -6,6 +6,7 @@ import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
+import { useDrag } from "@/contexts/DragContext";
 import { getKeyContents } from "@/utils/keys";
 import { AltRepeatKeyOptions } from "@/types/vial.types";
 import { vialService } from "@/services/vial.service";
@@ -96,12 +97,30 @@ const AltRepeatEditor: FC = () => {
         }
     };
 
+    const [dragHoverSlot, setDragHoverSlot] = useState<"keycode" | "alt_keycode" | null>(null);
+    const { isDragging, draggedItem, markDropConsumed } = useDrag();
+
+    const handleDrop = async (slot: "keycode" | "alt_keycode", item: any) => {
+        if (!keyboard || !altRepeatEntry) return;
+        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+        updatedKeyboard.alt_repeat_keys[altRepeatIndex][slot] = item.keycode;
+        setKeyboard(updatedKeyboard);
+
+        try {
+            await vialService.updateAltRepeatKey(updatedKeyboard, altRepeatIndex);
+            await vialService.saveViable();
+        } catch (err) {
+            console.error("Failed to update alt-repeat key:", err);
+        }
+    };
+
     const renderKey = (label: string, slot: "keycode" | "alt_keycode") => {
         if (!altRepeatEntry) return null;
         const keycode = altRepeatEntry[slot];
         const keyContents = getKeyContents(keyboard!, keycode || "KC_NO");
         const isSelected = isSlotSelected(slot);
         const hasContent = keycode && keycode !== "KC_NO";
+        const isDragHover = dragHoverSlot === slot;
 
         let keyColor: string | undefined;
         let keyClassName: string;
@@ -111,6 +130,11 @@ const AltRepeatEditor: FC = () => {
             keyColor = undefined;
             keyClassName = "border-2 border-red-600";
             headerClass = "bg-black/20";
+        } else if (isDragHover && isDragging) {
+            // Drag Hover State: Double Border effect
+            keyColor = undefined;
+            keyClassName = "bg-red-500 border-kb-gray ring-2 ring-red-500 ring-offset-1 ring-offset-background";
+            headerClass = "bg-red-600 text-white";
         } else if (hasContent) {
             keyColor = "sidebar";
             keyClassName = "border-kb-gray";
@@ -124,7 +148,18 @@ const AltRepeatEditor: FC = () => {
         return (
             <div className="flex flex-col items-center gap-2 relative">
                 <span className="text-sm font-bold text-slate-600">{label}</span>
-                <div className="relative w-[60px] h-[60px] group/altrepeat-key">
+                <div
+                    className="relative w-[60px] h-[60px] group/altrepeat-key"
+                    onMouseEnter={() => isDragging && setDragHoverSlot(slot)}
+                    onMouseLeave={() => setDragHoverSlot(null)}
+                    onMouseUp={() => {
+                        if (isDragging && isDragHover && draggedItem) {
+                            markDropConsumed();
+                            handleDrop(slot, draggedItem);
+                            setDragHoverSlot(null);
+                        }
+                    }}
+                >
                     <Key
                         isRelative
                         x={0}
@@ -142,6 +177,7 @@ const AltRepeatEditor: FC = () => {
                         className={keyClassName}
                         headerClassName={headerClass}
                         disableTooltip={true}
+                        disableHover={isDragging}
                     />
                     {hasContent && (
                         <div className="absolute -left-10 top-0 h-full flex items-center justify-center opacity-0 group-hover/altrepeat-key:opacity-100 group-hover/altrepeat-key:pointer-events-auto pointer-events-none transition-opacity">
@@ -167,7 +203,7 @@ const AltRepeatEditor: FC = () => {
 
 
     return (
-        <div className="flex flex-col gap-2 py-6 pl-[84px] pr-5 pb-4">
+        <div className="flex flex-col gap-2 py-6 pl-[84px] pr-5 pb-20">
 
 
             {/* Key Slots */}

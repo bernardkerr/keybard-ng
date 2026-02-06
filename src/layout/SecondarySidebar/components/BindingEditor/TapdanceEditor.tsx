@@ -24,7 +24,7 @@ const TapdanceEditor: FC<Props> = () => {
     const effectiveVariant = isHorizontal ? "medium" : keyVariant;
     const keySizeClass = effectiveVariant === 'small' ? 'w-[30px] h-[30px]' : effectiveVariant === 'medium' ? 'w-[45px] h-[45px]' : 'w-[60px] h-[60px]';
     const gapClass = isHorizontal ? 'gap-6' : (effectiveVariant === 'small' ? 'gap-3' : effectiveVariant === 'medium' ? 'gap-4' : 'gap-6');
-    const paddingClass = isHorizontal ? 'px-6 py-4' : (effectiveVariant === 'small' ? 'pl-10 py-4' : effectiveVariant === 'medium' ? 'pl-14 py-6' : 'pl-[84px] py-8');
+    const paddingClass = isHorizontal ? 'px-6 py-4' : (effectiveVariant === 'small' ? 'pl-10 pb-20 pt-4' : effectiveVariant === 'medium' ? 'pl-14 pb-20 pt-6' : 'pl-[84px] pb-20 pt-8');
     const labelClass = effectiveVariant === 'small' ? 'text-xs' : effectiveVariant === 'medium' ? 'text-sm' : 'text-sm';
 
     const isSlotSelected = (slot: string) => {
@@ -105,6 +105,10 @@ const TapdanceEditor: FC<Props> = () => {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [selectedTarget, itemToEdit]);
 
+    const handleDrop = (slot: string, item: any) => {
+        updateKeyAssignment(slot, item.keycode);
+    };
+
     const renderTapdanceKey = (label: string, keycode: string, type: "tap" | "hold" | "doubletap" | "taphold") => {
         const isSelected = isSlotSelected(type);
         const trashOffset = effectiveVariant === 'small' ? '-left-6' : effectiveVariant === 'medium' ? '-left-8' : '-left-10';
@@ -120,6 +124,7 @@ const TapdanceEditor: FC<Props> = () => {
                         selected={isSelected}
                         onClick={() => selectTapdanceKey(itemToEdit!, type)}
                         onClear={() => updateKeyAssignment(type, "KC_NO")}
+                        onDrop={(item) => handleDrop(type, item)}
                         size={keySizeClass}
                         trashOffset="-bottom-5 left-1/2 -translate-x-1/2" // Custom offset for bottom center trash
                         // Note: EditorKey defaults to left-side trash. Overriding trashOffset might need wrapper adjustment or CSS.
@@ -151,6 +156,7 @@ const TapdanceEditor: FC<Props> = () => {
                         selected={isSelected}
                         onClick={() => selectTapdanceKey(itemToEdit!, type)}
                         onClear={() => updateKeyAssignment(type, "KC_NO")}
+                        onDrop={(item) => handleDrop(type, item)}
                         size={keySizeClass}
                         trashOffset={trashOffset}
                         trashSize={trashSize}

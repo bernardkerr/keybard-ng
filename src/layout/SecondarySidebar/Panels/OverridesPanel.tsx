@@ -13,6 +13,7 @@ import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
 import { KeyContent } from "@/types/vial.types";
 import { cn } from "@/lib/utils";
+import { getLabelForKeycode } from "@/components/Keyboards/layouts";
 
 const ENABLED_BIT = 1 << 7;
 
@@ -98,13 +99,20 @@ const OverridesPanel: React.FC = () => {
 
     const renderSmallKey = (content: KeyContent, idx: number, overrideIndex: number) => {
         const hasContent = (content?.top && content.top !== "KC_NO") || (content?.str && content.str !== "KC_NO" && content.str !== "");
+
+        // Calculate the correct label for display, respecting international layout overrides
+        const { internationalLayout } = useLayoutSettings();
+        const keycode = content?.top || "KC_NO";
+        const internationalLabel = getLabelForKeycode(keycode, internationalLayout);
+        const displayLabel = internationalLabel || content?.str || "";
+
         return (
             <div key={idx} className="relative w-[30px] h-[30px]">
                 <Key
                     isRelative
                     x={0} y={0} w={1} h={1} row={-1} col={-1}
-                    keycode={content?.top || "KC_NO"}
-                    label={content?.str || ""}
+                    keycode={keycode}
+                    label={displayLabel}
                     keyContents={content}
                     layerColor={hasContent ? "sidebar" : undefined}
                     className={hasContent ? "border-kb-gray" : "bg-transparent border border-kb-gray-border"}

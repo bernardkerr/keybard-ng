@@ -1,6 +1,8 @@
 import * as React from "react"
 import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 
+import { DragContext } from "@/contexts/DragContext"
+
 import { cn } from "@/lib/utils"
 
 function TooltipProvider({
@@ -29,7 +31,33 @@ function Tooltip({
 function TooltipTrigger({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+  const { isDragging } = React.useContext(DragContext) || {};
+
+  return <TooltipPrimitive.Trigger
+    data-slot="tooltip-trigger"
+    {...props}
+    onPointerEnter={(e) => {
+      if (isDragging) {
+        e.preventDefault();
+        return;
+      }
+      props.onPointerEnter?.(e);
+    }}
+    onMouseEnter={(e) => {
+      if (isDragging) {
+        e.preventDefault();
+        return;
+      }
+      props.onMouseEnter?.(e);
+    }}
+    onFocus={(e) => {
+      if (isDragging) {
+        e.preventDefault();
+        return;
+      }
+      props.onFocus?.(e);
+    }}
+  />
 }
 
 function TooltipContent({
@@ -38,6 +66,9 @@ function TooltipContent({
   children,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+  const dragContext = React.useContext(DragContext)
+  if (dragContext?.isDragging) return null
+
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content

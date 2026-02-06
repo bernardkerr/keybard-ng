@@ -84,43 +84,12 @@ const StenoKeys = ({ compact, variant: variantOverride }: Props) => {
         ...group2Keys
     ];
 
-    if (compact) {
-        return (
-            <div className="flex flex-col gap-1">
-                <span className="text-[9px] font-bold text-slate-500 uppercase">Steno</span>
-                <div className="flex flex-row gap-1 flex-wrap">
-                    {keys.map((k) => (
-                        <Key
-                            key={k.keycode}
-                            x={0}
-                            y={0}
-                            w={1}
-                            h={1}
-                            row={0}
-                            col={0}
-                            keycode={k.keycode}
-                            label={keyService.define(k.keycode)?.str || k.label}
-                            layerColor="sidebar"
-                            headerClassName={`bg-kb-sidebar-dark ${hoverHeaderClass}`}
-                            isRelative
-                            variant={effectiveVariant}
-                            className={keySizeClass}
-                            hoverBorderColor={hoverBorderColor}
-                            hoverBackgroundColor={hoverBackgroundColor}
-                            hoverLayerColor={layerColorName}
-                            onClick={() => assignKeycode(k.keycode)}
-                            disableTooltip={true}
-                        />
-                    ))}
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="flex flex-col gap-2">
-            <span className="font-semibold text-lg text-black">Steno Keys</span>
-            <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-1">
+            <span className={compact ? "text-[9px] font-bold text-slate-500 uppercase" : "font-semibold text-lg text-black"}>
+                {compact ? "Steno" : "Steno Keys"}
+            </span>
+            <div className="flex flex-wrap gap-1">
                 {keys.map((k) => (
                     <Key
                         key={k.keycode}

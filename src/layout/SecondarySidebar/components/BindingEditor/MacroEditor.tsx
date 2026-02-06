@@ -109,16 +109,24 @@ const MacroEditor: FC = () => {
     const AddButton = ({ type, label }: { type: string; label: string }) => {
         return (
             <button
-                className="bg-black cursor-pointer text-white pl-[19px] pr-[22px] py-2 rounded-md hover:bg-gray-600 transition flex flex-row gap-2 items-center"
+                className="bg-black cursor-pointer text-white pl-[19px] pr-[22px] py-2 rounded-full hover:bg-gray-600 transition flex flex-row gap-2 items-center"
                 onClick={() => handleAddItem(type)}
             >
                 <PlusIcon className="h-5 w-5" /> {label}
             </button>
         );
     };
+    const handleDrop = (index: number, item: any) => {
+        const newActions = [...actions];
+        if (newActions[index]) {
+            newActions[index][1] = item.keycode;
+            updateActions(newActions);
+        }
+    };
+
     return (
         <div
-            className="flex flex-col items-start pl-[84px] pr-5 gap-1 pt-5 w-full max-h-[600px] overflow-y-auto"
+            className="flex flex-col items-start pl-[84px] pr-5 gap-1 pt-5 pb-20 w-full max-h-[600px] overflow-y-auto"
             onClick={(e) => {
                 // Should only clear if clicking the background, not a child element
                 if (e.target === e.currentTarget) {
@@ -153,13 +161,14 @@ const MacroEditor: FC = () => {
                                 index={index}
                                 label={item[0].charAt(0).toUpperCase() + item[0].slice(1)}
                                 onDelete={() => handleDeleteItem(index)}
+                                onDrop={(draggedItem) => handleDrop(index, draggedItem)}
                             />
                         )}
                         {index < actions.length - 1 && <ArrowDown className="w-6 h-6 text-black ml-[18px]" />}
                     </div>
                 ))}
             </div>
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-[14px]">
                 {actions.length > 0 && <ArrowDown className="w-6 h-6 text-black ml-[18px]" />}
                 <AddButton type="tap" label="Key Tap" />
                 <AddButton type="down" label="Key Down" />

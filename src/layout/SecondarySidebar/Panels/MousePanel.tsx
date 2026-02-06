@@ -48,12 +48,12 @@ const MOUSE_KEYS: readonly MouseKeyDefinition[] = [
     { keycode: "KC_ACL2", label: "Mouse Accelerate 2" },
 
     // Custom Mouse Features
-    { keycode: "SV_SNIPER_2", label: "Mouse Sniper 2x" },
-    { keycode: "SV_SNIPER_3", label: "Mouse Sniper 3x" },
-    { keycode: "SV_SNIPER_5", label: "Mouse Sniper 5x" },
-    { keycode: "SV_SNIPER_2_TG", label: "Sniper 2x Toggle" },
-    { keycode: "SV_SNIPER_3_TG", label: "Sniper 3x Toggle" },
-    { keycode: "SV_SNIPER_5_TG", label: "Sniper 5x Toggle" },
+    { keycode: "SV_SNIPER_2", label: "2X" },
+    { keycode: "SV_SNIPER_3", label: "3X" },
+    { keycode: "SV_SNIPER_5", label: "5X" },
+    { keycode: "SV_SNIPER_2_TG", label: "2XTG" },
+    { keycode: "SV_SNIPER_3_TG", label: "3XTG" },
+    { keycode: "SV_SNIPER_5_TG", label: "5XTG" },
     { keycode: "SV_MH_CHANGE_TIMEOUTS", label: "Mouse Key Timer" },
     { keycode: "SV_RECALIBRATE_POINTER", label: "Fix Drift" },
     { keycode: "SV_CAPS_WORD", label: "Caps Word" },
@@ -184,6 +184,7 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
                             hoverLayerColor={hoverStyles.layerColorName}
                             hoverHeaderClass={hoverStyles.hoverHeaderClass}
                             showIndex={false}
+                            className="py-2"
                         />
                     );
                 })}

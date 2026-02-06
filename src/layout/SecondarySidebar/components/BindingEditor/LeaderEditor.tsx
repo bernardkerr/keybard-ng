@@ -66,6 +66,23 @@ const LeaderEditor: FC = () => {
         );
     };
 
+    const updateLeaderAssignment = (slot: "sequence" | "output", keycode: string, seqIndex?: number) => {
+        if (!keyboard || !leaderEntry) return;
+        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+        const entry = updatedKeyboard.leaders[leaderIndex];
+
+        if (slot === "sequence" && seqIndex !== undefined) {
+            entry.sequence[seqIndex] = keycode;
+        } else if (slot === "output") {
+            entry.output = keycode;
+        }
+
+        setKeyboard(updatedKeyboard);
+
+        vialService.updateLeader(updatedKeyboard, leaderIndex)
+            .catch(err => console.error("Failed to update leader:", err));
+    };
+
     const clearKey = async (slot: "sequence" | "output", seqIndex?: number) => {
         if (!keyboard || !leaderEntry) return;
         const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
@@ -105,6 +122,7 @@ const LeaderEditor: FC = () => {
                     selected={isSelected}
                     onClick={() => selectLeaderKey(leaderIndex, "sequence", seqIndex)}
                     onClear={() => clearKey("sequence", seqIndex)}
+                    onDrop={(item) => updateLeaderAssignment("sequence", item.keycode, seqIndex)}
                     size={seqKeySize}
                     // LeaderEditor sets trash top -2 right -2 which is different from default EditorKey
                     // EditorKey uses top-0 left-offset. 
@@ -154,11 +172,12 @@ const LeaderEditor: FC = () => {
                     selected={isSelected}
                     onClick={() => selectLeaderKey(leaderIndex, "output")}
                     onClear={() => clearKey("output")}
+                    onDrop={(item) => updateLeaderAssignment("output", item.keycode)}
                     size={outputKeySize}
                     trashOffset={trashOffset}
                     trashSize={trashSize}
-                    variant={keyVariant}
                     wrapperClassName={`relative ${outputKeySize} group/leader-output`}
+                    variant={keyVariant}
                     label={undefined}
                     labelClassName={undefined}
                 />
@@ -210,7 +229,7 @@ const LeaderEditor: FC = () => {
     // VERTICAL LAYOUT (Sidebar Mode)
     // ==========================================
     return (
-        <div className="flex flex-col gap-8 py-6 pl-[84px] pr-5 pb-4">
+        <div className="flex flex-col gap-8 py-6 pl-[84px] pr-5 pb-20">
             {/* Sequence & Output Keys */}
             <div className="flex flex-col gap-3">
                 <span className="font-semibold text-sm text-slate-600">Sequence (up to 5 keys)</span>

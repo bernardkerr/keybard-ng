@@ -24,6 +24,7 @@ export interface UseKeyDragProps {
     variant: "default" | "medium" | "small";
     onClick?: (row: number, col: number) => void;
     disableHover?: boolean;
+    disableDrag?: boolean;
 }
 
 /**
@@ -32,11 +33,11 @@ export interface UseKeyDragProps {
 export const useKeyDrag = (props: UseKeyDragProps) => {
     const {
         uniqueId, keycode, label, row, col, layerIndex, layerColor,
-        isRelative, keyContents, w, h, dragW, dragH, variant, onClick, disableHover
+        isRelative, keyContents, w, h, dragW, dragH, variant, onClick, disableHover, disableDrag
     } = props;
 
     const { startDrag, dragSourceId, isDragging, draggedItem, markDropConsumed } = useDrag();
-    const { assignKeycode, selectKeyboardKey, swapKeys, setHoveredKey, clearSelection } = useKeyBinding();
+    const { assignKeycodeTo, selectKeyboardKey, swapKeys, setHoveredKey, clearSelection } = useKeyBinding();
     const { keyboard } = useVial();
     const { keyVariant } = useLayoutSettings();
 
@@ -83,7 +84,7 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
     }, [canDrop, disableHover, setHoveredKey, clearSelection]);
 
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (e.button !== 0) return;
+        if (e.button !== 0 || disableDrag) return;
 
         startPosRef.current = { x: e.clientX, y: e.clientY };
 
@@ -176,23 +177,24 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
 
                     if (isModCategory(dragType) && isModCategory(existingType)) {
                         // Combine plain modifiers (preserving existing base key)
-                        assignKeycode((dragNumeric | existingNumeric) & 0x1FFF);
+                        assignKeycodeTo({ type: "keyboard", layer: layerIndex, row, col }, (dragNumeric | existingNumeric) & 0x1FFF);
                     } else if (isModTapCategory(dragType) && isModTapCategory(existingType)) {
                         // Combine mod-tap modifiers (preserving existing base key)
-                        assignKeycode((dragNumeric | existingNumeric) & 0x3FFF);
+                        assignKeycodeTo({ type: "keyboard", layer: layerIndex, row, col }, (dragNumeric | existingNumeric) & 0x3FFF);
                     } else {
                         // Mixed types or first-time assignment: wrap existing base key with new modifier/type
                         // This handles LT(layer, basePart), MT(mods, basePart), etc.
-                        assignKeycode((dragNumeric & 0xFF00) | basePart);
+                        assignKeycodeTo({ type: "keyboard", layer: layerIndex, row, col }, (dragNumeric & 0xFF00) | basePart);
                     }
                 } else {
-                    assignKeycode(dragKc);
+                    const dragKc = draggedItem.keycode;
+                    assignKeycodeTo({ type: "keyboard", layer: layerIndex, row, col }, dragKc);
                 }
             }
 
             setIsDragHover(false);
         }
-    }, [canDrop, isDragHover, draggedItem, markDropConsumed, row, col, layerIndex, swapKeys, assignKeycode, keyboard]);
+    }, [canDrop, isDragHover, draggedItem, markDropConsumed, row, col, layerIndex, swapKeys, assignKeycodeTo, keyboard]);
 
     return {
         isDragSource,

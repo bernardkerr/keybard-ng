@@ -4,7 +4,7 @@ import { colorClasses, hoverContainerTextClasses } from "@/utils/colors";
 import { KeyContent } from "@/types/vial.types";
 import { getHeaderIcons, getCenterContent, getTypeIcon } from "@/utils/key-icons";
 import { useKeyDrag } from "@/hooks/useKeyDrag";
-import { getPendingChangeClassName } from "@/constants/pending-change-styles";
+
 
 export interface KeyProps {
     x: number;
@@ -17,9 +17,7 @@ export interface KeyProps {
     col: number;
     layerIndex?: number;
     selected?: boolean;
-    selectedSubsection?: "full" | "inner" | null;
     onClick?: (row: number, col: number) => void;
-    onSubsectionClick?: (row: number, col: number, subsection: "full" | "inner") => void;
     keyContents?: KeyContent;
     layerColor?: string;
     isRelative?: boolean;
@@ -35,6 +33,7 @@ export interface KeyProps {
     forceLabel?: boolean;
     dragW?: number;
     dragH?: number;
+    disableDrag?: boolean;
 }
 
 /**
@@ -43,16 +42,16 @@ export interface KeyProps {
 export const Key: React.FC<KeyProps> = (props) => {
     const {
         x, y, w, h, keycode, label, row, col, layerIndex = 0, layerColor = "primary",
-        selected = false, selectedSubsection = null, onClick, onSubsectionClick, keyContents,
+        selected = false, onClick, keyContents,
         isRelative = false, className = "", headerClassName = "bg-black/30", variant = "default",
         hoverBorderColor, hoverBackgroundColor, hoverLayerColor, disableHover = false,
-        hasPendingChange = false, forceLabel = false, dragW, dragH
+        hasPendingChange = false, forceLabel = false, dragW, dragH, disableDrag = false
     } = props;
 
     const uniqueId = React.useId();
     const drag = useKeyDrag({
         uniqueId, keycode, label, row, col, layerIndex, layerColor,
-        isRelative, keyContents, w, h, dragW, dragH, variant, onClick, disableHover
+        isRelative, keyContents, w, h, dragW, dragH, variant, onClick, disableHover, disableDrag
     });
 
     const isSmall = variant === "small";
@@ -101,36 +100,36 @@ export const Key: React.FC<KeyProps> = (props) => {
         const effectiveHoverColor = hoverLayerColor || layerColor;
         const hoverTextClass = hoverContainerTextClasses[effectiveHoverColor] || hoverContainerTextClasses["primary"];
 
-        // Get pending change styling if applicable
-        const pendingChangeClass = hasPendingChange ? getPendingChangeClassName() : "";
+
 
         // For subsection keys, only highlight container if "full" is selected
         // For "inner" selection, the container should not be red
-        const isSubsectionKeyType = keyContents?.type === "layerhold" || keyContents?.type === "modtap";
-        const shouldHighlightContainer = selected && (!isSubsectionKeyType || selectedSubsection === "full");
+        const shouldHighlightContainer = selected;
 
         const containerClasses = cn(
             "flex flex-col items-center justify-start cursor-pointer transition-all duration-200 ease-in-out uppercase group overflow-hidden select-none", // Changed justify-between to justify-start
             !isRelative && "absolute",
-            isSmall ? "rounded-[5px] border" : isMedium ? "rounded-[5px] border-2" : "rounded-md border-2",
+            // 1. Regular Key: 1px border stroke (border instead of border-2)
+            isSmall ? "rounded-[5px] border" : isMedium ? "rounded-[5px] border" : "rounded-md border",
+
             (shouldHighlightContainer || drag.isDragHover)
-                ? "bg-red-500 text-white border-kb-gray"
+                ? "bg-red-500 text-white border-kb-gray ring-2 ring-red-500 ring-offset-1 ring-offset-background" // Selected: Red BG + Red Ring
                 : drag.isDragSource
                     ? cn(colorClass, "bg-kb-light-grey border-kb-light-grey opacity-60")
                     : cn(
                         colorClass, "border-kb-gray",
-                        // For subsection keys with inner selected, still show selection border
-                        selected && isSubsectionKeyType && selectedSubsection === "inner" && "border-red-500",
-                        !disableHover && (hoverBorderColor || "hover:border-red-500"),
+                        // Hover: Use ring-inset instead of border-2 to prevent shifting
+                        !disableHover && (hoverBorderColor || "hover:border-red-500 hover:ring-2 hover:ring-inset hover:ring-red-500"),
                         !disableHover && hoverBackgroundColor,
                         !disableHover && hoverTextClass
                     ),
-            pendingChangeClass,
+            // Pending: Thicker Red Border (2px) - Only if NOT selected/active
+            hasPendingChange && (!shouldHighlightContainer && !drag.isDragHover) && "border-2 border-red-500",
             className
         );
 
         return { boxStyle, textStyle, bottomTextStyle, containerClasses };
-    }, [x, y, w, h, drag, isRelative, isSmall, isMedium, keyContents, keyData, layerColor, hoverLayerColor, selected, selectedSubsection, disableHover, hoverBorderColor, hoverBackgroundColor, hasPendingChange, className]);
+    }, [x, y, w, h, drag, isRelative, isSmall, isMedium, keyContents, keyData, layerColor, hoverLayerColor, selected, disableHover, hoverBorderColor, hoverBackgroundColor, hasPendingChange, className]);
 
     // Forced height logic for strict grid alignment without !important
     const forcedHeight = isSmall ? "10px" : isMedium ? "14px" : "18px";
@@ -155,28 +154,6 @@ export const Key: React.FC<KeyProps> = (props) => {
         onClick?.(row, col);
     };
 
-    // Subsection click handlers for compound keys (LT, mod-tap)
-    const handleFullClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (onSubsectionClick) {
-            onSubsectionClick(row, col, "full");
-        } else if (onClick) {
-            onClick(row, col);
-        }
-    };
-
-    const handleInnerClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (onSubsectionClick) {
-            onSubsectionClick(row, col, "inner");
-        } else if (onClick) {
-            onClick(row, col);
-        }
-    };
-
-    // Check if this is a compound key that supports subsection selection
-    const isSubsectionKey = keyContents?.type === "layerhold" || keyContents?.type === "modtap";
-
     // --- Sub-renderer for layer keys ---
     if (keyContents?.type === "layer") {
         const targetLayer = keyContents?.top?.split("(")[1]?.replace(")", "") || "";
@@ -198,59 +175,6 @@ export const Key: React.FC<KeyProps> = (props) => {
                     </div>
                     {getTypeIcon("layer", variant)}
                 </div>
-            </div>
-        );
-    }
-
-    // --- Render compound keys with subsection support (LT, mod-tap) ---
-    if (isSubsectionKey) {
-        const isHeaderSelected = selected && selectedSubsection === "full";
-        const isInnerSelected = selected && selectedSubsection === "inner";
-
-        return (
-            <div
-                className={styles.containerClasses}
-                style={styles.boxStyle}
-                onMouseEnter={drag.handleMouseEnter}
-                onMouseLeave={drag.handleMouseLeave}
-                onMouseDown={drag.handleMouseDown}
-                onMouseUp={drag.handleMouseUp}
-                title={props.disableTooltip ? undefined : keycode}
-            >
-                {/* Header - clicking selects the full key */}
-                <span
-                    className={cn(
-                        headerClass,
-                        "cursor-pointer",
-                        isHeaderSelected && "bg-red-600 ring-1 ring-red-400"
-                    )}
-                    style={headerStyle}
-                    onClick={handleFullClick}
-                >
-                    {keyData.topLabel}
-                </span>
-
-                {keyContents && getTypeIcon(keyContents.type || "", variant)}
-
-                {/* Center - clicking selects just the inner keycode */}
-                <div
-                    className={cn(
-                        "text-center w-full flex-1 justify-center items-center flex font-semibold cursor-pointer",
-                        // Base sizes (will be overridden by style.textStyle if crowded logic applies)
-                        isSmall ? "text-[10px] px-0.5" : isMedium ? "text-[12px] px-1" : (typeof keyData.centerContent === 'string' && keyData.centerContent.length === 1 ? "text-[16px]" : "text-[15px]"),
-                        isInnerSelected && "bg-red-500/50 ring-1 ring-red-400"
-                    )}
-                    style={styles.textStyle}
-                    onClick={handleInnerClick}
-                >
-                    {keyData.centerContent}
-                </div>
-
-                {keyData.bottomStr !== "" && (
-                    <span className={cn(headerClass, "rounded-t-none rounded-b-sm")} style={{ ...styles.bottomTextStyle, ...headerStyle }}>
-                        {keyData.bottomStr}
-                    </span>
-                )}
             </div>
         );
     }
@@ -318,10 +242,6 @@ function processKeyData(keycode: string, label: string, keyContents: KeyContent 
             displayLabel = `Mouse ${btnMatch[1]}`;
         }
 
-        // If forceLabel is true, use the provided label instead of the derived one
-        if (forceLabel) {
-            displayLabel = label;
-        }
 
         // Show modifier on bottom (e.g., "LGUI" from "LGUI(TAB)")
         const modMatch = keycode.match(/^([A-Z]+)\(/);
@@ -394,6 +314,11 @@ function processKeyData(keycode: string, label: string, keyContents: KeyContent 
     } else if (keyContents?.type === "OSM") {
         topLabel = "OSM";
         displayLabel = keyContents.str || "";
+    }
+
+    // If forceLabel is true, use the provided label instead of the derived one
+    if (forceLabel) {
+        displayLabel = label;
     }
 
     if (displayLabel === "KC_NO") displayLabel = "";

@@ -10,6 +10,7 @@ import { useVial } from "@/contexts/VialContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { KeyContent } from "@/types/vial.types";
+import { getLabelForKeycode } from "@/components/Keyboards/layouts";
 
 const TapdancePanel: React.FC = () => {
     const { keyboard } = useVial();
@@ -45,6 +46,12 @@ const TapdancePanel: React.FC = () => {
             (content?.top && content?.top !== "KC_NO") ||
             (content?.str && content?.str !== "" && content?.str !== "KC_NO");
 
+        // Calculate the correct label for display, respecting international layout overrides
+        const { internationalLayout } = useLayoutSettings();
+        const keycode = content?.top || "KC_NO";
+        const internationalLabel = getLabelForKeycode(keycode, internationalLayout);
+        const displayLabel = internationalLabel || content?.str || "";
+
         return (
             <div className="w-[30px] h-[30px] relative" key={idx}>
                 <Key
@@ -55,8 +62,8 @@ const TapdancePanel: React.FC = () => {
                     h={1}
                     row={-1}
                     col={-1}
-                    keycode={content?.top || "KC_NO"}
-                    label={content?.str || ""}
+                    keycode={keycode}
+                    label={displayLabel}
                     keyContents={content}
                     variant="small"
                     layerColor={hasContent ? "sidebar" : undefined}

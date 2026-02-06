@@ -1,6 +1,6 @@
 import MacrosIcon from "@/components/icons/MacrosIcon";
-import { FC, useRef, useId } from "react";
-import { useDrag } from "@/contexts/DragContext";
+import { FC, useRef, useId, useState } from "react";
+import { DragItem, useDrag } from "@/contexts/DragContext";
 import { cn } from "@/lib/utils";
 
 export interface EditorKeyProps {
@@ -8,6 +8,7 @@ export interface EditorKeyProps {
     binding?: any;
     onClick?: () => void;
     selected?: boolean;
+    onDrop?: (item: DragItem) => void;
 }
 
 const classes = {
@@ -16,11 +17,13 @@ const classes = {
         "bg-kb-green text-white w-12 h-12 rounded-md cursor-pointer hover:border-2 border-2 border border-transparent hover:border-red-600 transition-all flex items-center justify-center text-wrap text-center text-xs flex-col select-none",
     selectedKey: "!bg-red-600 border-2 border-red-600 text-white",
     dragSource: "!bg-kb-light-grey border-kb-light-grey text-transparent opacity-65 select-none",
+    dragHover: "!border-red-500 !bg-red-50 !border-2",
 };
 
-const EditorKey: FC<EditorKeyProps> = ({ label, binding, onClick, selected }) => {
-    const { startDrag, dragSourceId } = useDrag();
+const EditorKey: FC<EditorKeyProps> = ({ label, binding, onClick, selected, onDrop }) => {
+    const { startDrag, dragSourceId, isDragging, draggedItem, markDropConsumed } = useDrag();
     const uniqueId = useId();
+    const [isDragHover, setIsDragHover] = useState(false);
 
     // We need to keep track of the start position to determine dragged threshold
     const startPosRef = useRef<{ x: number, y: number } | null>(null);
@@ -36,7 +39,9 @@ const EditorKey: FC<EditorKeyProps> = ({ label, binding, onClick, selected }) =>
     // If it is the source, apply specific styles
     const effectiveClass = isDragSource
         ? cn(keyClass, classes.dragSource)
-        : selected ? `${keyClass} ${classes.selectedKey}` : keyClass;
+        : isDragHover && isDragging && !isDragSource
+            ? cn(keyClass, classes.dragHover)
+            : selected ? `${keyClass} ${classes.selectedKey}` : keyClass;
 
     const handleMouseDown = (e: React.MouseEvent) => {
         if (e.button !== 0) return; // Only left click
@@ -90,13 +95,33 @@ const EditorKey: FC<EditorKeyProps> = ({ label, binding, onClick, selected }) =>
         window.addEventListener("mouseup", handleUp);
     };
 
-    console.log("rendering editor key", binding, effectiveClass);
+    const handleMouseEnter = () => {
+        if (isDragging && !isDragSource && onDrop) {
+            setIsDragHover(true);
+        }
+    };
+
+    const handleMouseLeave = () => {
+        setIsDragHover(false);
+    };
+
+    const handleMouseUp = () => {
+        if (isDragging && !isDragSource && isDragHover && draggedItem && onDrop) {
+            markDropConsumed();
+            onDrop(draggedItem);
+            setIsDragHover(false);
+        }
+    };
+
     return (
         <div className="flex flex-row justify-start items-center">
             <div
                 className={effectiveClass}
                 onClick={onClick}
                 onMouseDown={handleMouseDown}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                onMouseUp={handleMouseUp}
             >
                 {binding?.type === "macro" && <MacrosIcon className=" mt-2 h-8" />}
                 {displayText && <span style={{ whiteSpace: "pre-line" }}>{displayText}</span>}

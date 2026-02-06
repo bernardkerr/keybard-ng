@@ -16,6 +16,7 @@ import { Key } from "@/components/Key";
 import { KeyContent, LeaderOptions } from "@/types/vial.types";
 import { vialService } from "@/services/vial.service";
 import { cn } from "@/lib/utils";
+import { getLabelForKeycode } from "@/components/Keyboards/layouts";
 
 const LeadersPanel: React.FC = () => {
     const { keyboard, setKeyboard, isConnected } = useVial();
@@ -168,13 +169,18 @@ const LeadersPanel: React.FC = () => {
         const hasContent = keycode !== "KC_NO" && keycode !== "";
         const isSelected = isEditing && itemToEdit === index;
 
+        // Calculate the correct label for display, respecting international layout overrides
+        const { internationalLayout } = useLayoutSettings();
+        const internationalLabel = getLabelForKeycode(keycode, internationalLayout);
+        const displayLabel = internationalLabel || content?.str || "";
+
         return (
             <div className="relative w-[30px] h-[30px]">
                 <Key
                     isRelative
                     x={0} y={0} w={1} h={1} row={-1} col={-1}
                     keycode={keycode}
-                    label={content?.str || ""}
+                    label={displayLabel}
                     keyContents={content}
                     layerColor={hasContent ? "sidebar" : undefined}
                     className={cn(

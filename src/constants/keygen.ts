@@ -1893,73 +1893,73 @@ export const KEYMAP: KeyMap = {
   "KC_MINUS": {
     "code": 0x002d,
     "qmkid": "KC_MINUS",
-    "str": "_\n-",
+    "str": "-",
     "title": "KC_MINUS"
   },
   "KC_EQUAL": {
     "code": 0x002e,
     "qmkid": "KC_EQUAL",
-    "str": "+\n=",
+    "str": "=",
     "title": "KC_EQUAL"
   },
   "KC_LBRACKET": {
     "code": 0x002f,
     "qmkid": "KC_LBRACKET",
-    "str": "{\n[",
+    "str": "[",
     "title": "KC_LBRACKET"
   },
   "KC_RBRACKET": {
     "code": 0x0030,
     "qmkid": "KC_RBRACKET",
-    "str": "}\n]",
+    "str": "]",
     "title": "KC_RBRACKET"
   },
   "KC_BSLASH": {
     "code": 0x0031,
     "qmkid": "KC_BSLASH",
-    "str": "|\n\\",
+    "str": "\\",
     "title": "KC_BSLASH"
   },
   "KC_NONUS_HASH": {
     "code": 0x0032,
     "qmkid": "KC_NONUS_HASH",
-    "str": "~\n#",
+    "str": "#",
     "title": "Non-US # and ~"
   },
   "KC_SCOLON": {
     "code": 0x0033,
     "qmkid": "KC_SCOLON",
-    "str": ":\n;",
+    "str": ";",
     "title": "KC_SCOLON"
   },
   "KC_QUOTE": {
     "code": 0x0034,
     "qmkid": "KC_QUOTE",
-    "str": "\"\n'",
+    "str": "'",
     "title": "KC_QUOTE"
   },
   "KC_GRAVE": {
     "code": 0x0035,
     "qmkid": "KC_GRAVE",
-    "str": "~\n`",
+    "str": "`",
     "title": "KC_GRAVE"
   },
   "KC_COMMA": {
     "code": 0x0036,
     "qmkid": "KC_COMMA",
-    "str": "<\n,",
+    "str": ",",
     "title": "KC_COMMA"
   },
   "KC_DOT": {
     "code": 0x0037,
     "qmkid": "KC_DOT",
-    "str": ">\n.",
+    "str": ".",
     "title": "KC_DOT"
   },
   "KC_SLASH": {
     "code": 0x0038,
     "qmkid": "KC_SLASH",
-    "str": "?\n/",
+    "str": "/",
     "title": "KC_SLASH"
   },
   "KC_CAPSLOCK": {

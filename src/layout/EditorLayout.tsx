@@ -74,7 +74,7 @@ const EditorLayoutInner = () => {
 
     // Track if we're dragging a layer over the keyboard area
     const [isLayerDragOver, setIsLayerDragOver] = React.useState(false);
-    const isDraggingLayer = isDragging && draggedItem?.type === "layer";
+    const isDraggingLayer = isDragging && draggedItem?.type === "layer" && draggedItem?.component === "Layer";
 
     // Ref for measuring container dimensions
     const contentContainerRef = React.useRef<HTMLDivElement>(null);
