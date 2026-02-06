@@ -9,6 +9,7 @@ import { ChangesProvider } from "./contexts/ChangesContext";
 import { DragProvider } from "./contexts/DragContext";
 import { KeyBindingProvider } from "./contexts/KeyBindingContext";
 import { LayoutLibraryProvider } from "./contexts/LayoutLibraryContext";
+import { LayoutSettingsProvider } from "./contexts/LayoutSettingsContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { VialProvider, useVial } from "./contexts/VialContext";
 
@@ -66,13 +67,17 @@ function AppContent() {
                     <PrintableKeymapWrapper />
                 </>
             ) : currentPage === "explore" ? (
-                <DragProvider>
-                    <ExploreLayoutsPage onBack={goBack} />
-                </DragProvider>
+                <LayoutSettingsProvider>
+                    <DragProvider>
+                        <ExploreLayoutsPage onBack={goBack} />
+                    </DragProvider>
+                </LayoutSettingsProvider>
             ) : currentPage === "proof-sheet" ? (
-                <DragProvider>
-                    <ProofSheetPage onBack={goBack} />
-                </DragProvider>
+                <LayoutSettingsProvider>
+                    <DragProvider>
+                        <ProofSheetPage onBack={goBack} />
+                    </DragProvider>
+                </LayoutSettingsProvider>
             ) : null}
         </>
     );
