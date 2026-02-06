@@ -182,7 +182,7 @@ const OneShotComposerPanel = ({ isPicker }: Props) => {
         <div className="flex flex-col gap-4 py-4 px-5">
             {isPicker && (
                 <div className="pb-1">
-                    <span className="font-semibold text-xl text-slate-700">One-Shot / Mod-Tap</span>
+                    <span className="font-semibold text-xl text-black">One-Shot / Mod-Tap</span>
                 </div>
             )}
 

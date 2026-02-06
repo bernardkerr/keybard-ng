@@ -50,7 +50,7 @@ const getPanelTitle = (panel: string | null | undefined, menus?: CustomUIMenuIte
     }
 
     const titles: Record<string, string> = {
-        keyboard: "Keyboard Keys",
+        keyboard: "Standard Keys",
         layers: "Layer Keys",
         tapdances: "Tap Dances",
         macros: "Macros",
@@ -96,7 +96,7 @@ const AlternativeHeader = ({ onBack, menus }: AlternativeHeaderProps) => {
                 <ArrowLeft className="h-6 w-6 text-gray-500" />
             </button>
             <div>
-                <h2 className="text-[22px] font-semibold leading-none text-slate-700">
+                <h2 className="text-[22px] font-semibold leading-none text-black">
                     {title}
                 </h2>
             </div>
@@ -205,7 +205,7 @@ const SecondarySidebar = () => {
                 ) : (
                     <div className="flex items-center justify-between gap-4">
                         <div>
-                            <h2 className="text-[22px] font-semibold leading-none text-slate-700">
+                            <h2 className="text-[22px] font-semibold leading-none text-black">
                                 {getPanelTitle(activePanel, keyboard?.menus)}
                             </h2>
                         </div>

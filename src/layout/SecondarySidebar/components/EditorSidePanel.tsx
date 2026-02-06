@@ -14,7 +14,7 @@ const iconsToShow: { icon: React.ReactNode; panel: PickerMode; title: string }[]
     {
         icon: <Keyboard className="w-4 h-4" />,
         panel: "keyboard",
-        title: "Keyboard Keys",
+        title: "Standard Keys",
     },
     {
         icon: <Piano className="w-4 h-4" />,

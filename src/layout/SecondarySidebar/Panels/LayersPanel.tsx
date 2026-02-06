@@ -160,7 +160,7 @@ const LayersPanel = ({ isPicker }: Props) => {
         <section className="space-y-3 h-full max-h-full flex flex-col">
             {isPicker && (
                 <div className="pb-2">
-                    <span className="font-semibold text-xl text-slate-700">Layer Keys</span>
+                    <span className="font-semibold text-xl text-black">Layer Keys</span>
                 </div>
             )}
             {/* Layer Modifier Selection Tabs */}

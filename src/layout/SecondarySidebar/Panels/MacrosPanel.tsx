@@ -217,7 +217,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
         <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
             {isPicker && (
                 <div className="pb-2">
-                    <span className="font-semibold text-xl text-slate-700">Macros</span>
+                    <span className="font-semibold text-xl text-black">Macros</span>
                 </div>
             )}
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">

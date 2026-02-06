@@ -60,7 +60,7 @@ const BacklightsKeys = ({ compact, variant: variantOverride }: Props) => {
 
     return (
         <div className="flex flex-col gap-1">
-            <span className={compact ? "text-[9px] font-bold text-slate-500 uppercase" : "font-semibold text-lg text-slate-700"}>
+            <span className={compact ? "text-[9px] font-bold text-slate-500 uppercase" : "font-semibold text-lg text-black"}>
                 {compact ? "RGB" : "Backlight and RGB Keys"}
             </span>
             <div className="flex flex-wrap gap-1">

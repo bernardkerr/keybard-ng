@@ -43,7 +43,7 @@ export type SidebarItem = {
 
 // Top section items (Keyboard and Pointing Devices, before the spacer)
 export const topSectionItems: SidebarItem[] = [
-    { title: "Keyboard Keys", url: "keyboard", icon: Keyboard },
+    { title: "Standard Keys", url: "keyboard", icon: Keyboard },
     { title: "Pointing Devices", url: "pointing", icon: PointingDeviceBall01Icon },
 ];
 

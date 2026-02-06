@@ -72,10 +72,29 @@ export const Key: React.FC<KeyProps> = (props) => {
             height: `${h * drag.currentUnitSize}px`,
         };
 
+        // Check if the key is "crowded" (has both top label/icon AND bottom badge)
+        // usage: keyData.topLabel can be a ReactNode (icon) or string
+        const hasTop = !!keyData.topLabel;
+        const hasBottom = keyData.bottomStr !== "";
+        const isCrowded = hasTop && hasBottom;
+
         const shouldShrinkText = ["user", "OSM"].includes(keyContents?.type || "") ||
             (typeof keyData.centerContent === "string" && (keyData.centerContent.length > 5 || (keyData.centerContent.length === 5 && keyData.centerContent.toUpperCase().includes("W"))));
 
-        const textStyle: React.CSSProperties = shouldShrinkText ? { whiteSpace: "pre-line", fontSize: "0.6rem", wordWrap: "break-word" } : {};
+        // Dynamic center text sizing based on crowding and variant
+        let fontSize: string | undefined;
+        if (isCrowded) {
+            fontSize = isSmall ? "0.5rem" : isMedium ? "0.6rem" : "13px";
+        } else if (shouldShrinkText) {
+            fontSize = "0.6rem";
+        }
+
+        const textStyle: React.CSSProperties = {
+            whiteSpace: shouldShrinkText ? "pre-line" : undefined,
+            fontSize,
+            wordWrap: shouldShrinkText ? "break-word" : undefined
+        };
+
         const bottomTextStyle: React.CSSProperties = keyData.bottomStr.length > 4 ? { whiteSpace: "pre-line", fontSize: "0.6rem", wordWrap: "break-word" } : {};
 
         const colorClass = colorClasses[layerColor] || colorClasses["primary"];
@@ -91,7 +110,7 @@ export const Key: React.FC<KeyProps> = (props) => {
         const shouldHighlightContainer = selected && (!isSubsectionKeyType || selectedSubsection === "full");
 
         const containerClasses = cn(
-            "flex flex-col items-center justify-between cursor-pointer transition-all duration-200 ease-in-out uppercase group overflow-hidden select-none",
+            "flex flex-col items-center justify-start cursor-pointer transition-all duration-200 ease-in-out uppercase group overflow-hidden select-none", // Changed justify-between to justify-start
             !isRelative && "absolute",
             isSmall ? "rounded-[5px] border" : isMedium ? "rounded-[5px] border-2" : "rounded-md border-2",
             (shouldHighlightContainer || drag.isDragHover)
@@ -113,10 +132,22 @@ export const Key: React.FC<KeyProps> = (props) => {
         return { boxStyle, textStyle, bottomTextStyle, containerClasses };
     }, [x, y, w, h, drag, isRelative, isSmall, isMedium, keyContents, keyData, layerColor, hoverLayerColor, selected, selectedSubsection, disableHover, hoverBorderColor, hoverBackgroundColor, hasPendingChange, className]);
 
+    // Forced height logic for strict grid alignment without !important
+    const forcedHeight = isSmall ? "10px" : isMedium ? "14px" : "18px";
+    const headerStyle: React.CSSProperties = {
+        height: forcedHeight,
+        flexShrink: 0,
+        flexGrow: 0
+    };
+
     const headerClass = cn(
-        "whitespace-nowrap w-full text-center font-semibold py-0 transition-colors duration-200 text-white",
-        isSmall ? "text-[10px] rounded-t-[4px]" : isMedium ? "text-[11px] rounded-t-[4px]" : "text-sm rounded-t-sm",
-        headerClassName
+        headerClassName, // Move to start so local classes override it
+        "whitespace-nowrap w-full text-center font-semibold py-0 transition-colors duration-200 text-white flex items-center justify-center leading-none",
+        isSmall
+            ? "text-[10px] rounded-t-[4px]"
+            : isMedium
+                ? "text-[11px] rounded-t-[4px]"
+                : "text-sm rounded-t-sm"
     );
 
     const handleClick = (e: React.MouseEvent) => {
@@ -160,8 +191,8 @@ export const Key: React.FC<KeyProps> = (props) => {
                 onMouseUp={drag.handleMouseUp}
                 title={props.disableTooltip ? undefined : keycode}
             >
-                <span className={headerClass}>{keyContents?.layertext}</span>
-                <div className={cn("flex flex-row h-full w-full items-center justify-center", isSmall ? "gap-1" : isMedium ? "gap-1.5" : "gap-2")}>
+                <span className={headerClass} style={headerStyle}>{keyContents?.layertext}</span>
+                <div className={cn("flex flex-row flex-1 w-full items-center justify-center", isSmall ? "gap-1" : isMedium ? "gap-1.5" : "gap-2")}>
                     <div className={cn("text-center justify-center items-center flex font-semibold", isSmall ? "text-[13px]" : (isMedium || targetLayer.length > 1) ? "text-[14px]" : "text-[16px]")}>
                         {targetLayer}
                     </div>
@@ -190,10 +221,10 @@ export const Key: React.FC<KeyProps> = (props) => {
                 <span
                     className={cn(
                         headerClass,
-                        "flex items-center justify-center cursor-pointer",
-                        isSmall ? "text-[8px] min-h-[10px]" : isMedium ? "text-[10px] min-h-[14px]" : "min-h-[1.2rem]",
+                        "cursor-pointer",
                         isHeaderSelected && "bg-red-600 ring-1 ring-red-400"
                     )}
+                    style={headerStyle}
                     onClick={handleFullClick}
                 >
                     {keyData.topLabel}
@@ -204,7 +235,8 @@ export const Key: React.FC<KeyProps> = (props) => {
                 {/* Center - clicking selects just the inner keycode */}
                 <div
                     className={cn(
-                        "text-center w-full h-full justify-center items-center flex font-semibold cursor-pointer",
+                        "text-center w-full flex-1 justify-center items-center flex font-semibold cursor-pointer",
+                        // Base sizes (will be overridden by style.textStyle if crowded logic applies)
                         isSmall ? "text-[10px] px-0.5" : isMedium ? "text-[12px] px-1" : (typeof keyData.centerContent === 'string' && keyData.centerContent.length === 1 ? "text-[16px]" : "text-[15px]"),
                         isInnerSelected && "bg-red-500/50 ring-1 ring-red-400"
                     )}
@@ -215,7 +247,7 @@ export const Key: React.FC<KeyProps> = (props) => {
                 </div>
 
                 {keyData.bottomStr !== "" && (
-                    <span className={cn(headerClass, "flex items-center justify-center rounded-t-none", isSmall ? "text-[8px] min-h-[10px] rounded-b-[4px]" : isMedium ? "text-[10px] min-h-[14px] rounded-b-[4px]" : "min-h-5 rounded-b-sm")} style={styles.bottomTextStyle}>
+                    <span className={cn(headerClass, "rounded-t-none rounded-b-sm")} style={{ ...styles.bottomTextStyle, ...headerStyle }}>
                         {keyData.bottomStr}
                     </span>
                 )}
@@ -236,7 +268,7 @@ export const Key: React.FC<KeyProps> = (props) => {
             title={props.disableTooltip ? undefined : keycode}
         >
             {keyData.topLabel && (
-                <span className={cn(headerClass, "flex items-center justify-center", isSmall ? "text-[8px] min-h-[10px]" : isMedium ? "text-[10px] min-h-[14px]" : "min-h-[1.2rem]")}>
+                <span className={cn(headerClass)} style={headerStyle}>
                     {keyData.topLabel}
                 </span>
             )}
@@ -244,14 +276,14 @@ export const Key: React.FC<KeyProps> = (props) => {
             {keyContents && getTypeIcon(keyContents.type || "", variant)}
 
             <div
-                className={cn("text-center w-full h-full justify-center items-center flex font-semibold", isSmall ? "text-[10px] px-0.5" : isMedium ? "text-[12px] px-1" : (typeof keyData.centerContent === 'string' && keyData.centerContent.length === 1 ? "text-[16px]" : "text-[15px]"))}
+                className={cn("text-center w-full flex-1 justify-center items-center flex font-semibold", isSmall ? "text-[10px] px-0.5" : isMedium ? "text-[12px] px-1" : (typeof keyData.centerContent === 'string' && keyData.centerContent.length === 1 ? "text-[16px]" : "text-[15px]"))}
                 style={styles.textStyle}
             >
                 {keyData.centerContent}
             </div>
 
             {keyData.bottomStr !== "" && (
-                <span className={cn(headerClass, "flex items-center justify-center rounded-t-none", isSmall ? "text-[8px] min-h-[10px] rounded-b-[4px]" : isMedium ? "text-[10px] min-h-[14px] rounded-b-[4px]" : "min-h-5 rounded-b-sm")} style={styles.bottomTextStyle}>
+                <span className={cn(headerClass, "rounded-t-none rounded-b-sm")} style={{ ...styles.bottomTextStyle, ...headerStyle }}>
                     {keyData.bottomStr}
                 </span>
             )}
@@ -269,10 +301,22 @@ function processKeyData(keycode: string, label: string, keyContents: KeyContent 
     if (keyContents?.type === "modmask") {
         // Modifier+key combo (e.g., LGUI(TAB))
         const keysArr = keyContents.str?.split("\n") || [];
-        const keyStr = keysArr[0] || "";
+        let keyStr = keysArr[0] || "";
+
+        // Handle "Mouse\n1" case where split gives keysArr=["Mouse", "1"]
+        // We want keyStr to be "Mouse 1" so getCenterContent can parse it correctly
+        if (keyStr === "Mouse" && keysArr[1]) {
+            keyStr = `Mouse ${keysArr[1]}`;
+        }
 
         // Show the key in center (blank if no base key)
         displayLabel = (keyStr === "" || keyStr === "KC_NO") ? "" : keyStr;
+
+        // Auto-fix for KC_BTN codes that didn't resolve to "Mouse X" strings
+        const btnMatch = displayLabel.match(/KC_BTN(\d+)/);
+        if (btnMatch) {
+            displayLabel = `Mouse ${btnMatch[1]}`;
+        }
 
         // If forceLabel is true, use the provided label instead of the derived one
         if (forceLabel) {
@@ -282,6 +326,8 @@ function processKeyData(keycode: string, label: string, keyContents: KeyContent 
         // Show modifier on bottom (e.g., "LGUI" from "LGUI(TAB)")
         const modMatch = keycode.match(/^([A-Z]+)\(/);
         bottomStr = modMatch ? modMatch[1] : (keyContents.top || "MOD");
+
+
 
         // Smart Override for International Keys
         if (shouldOverrideForInternational(label, keyStr, displayLabel, bottomStr)) {
@@ -297,8 +343,20 @@ function processKeyData(keycode: string, label: string, keyContents: KeyContent 
     } else if (keyContents?.type === "modtap") {
         // Modifier-tap key (e.g., LGUI_T(KC_TAB))
         const keysArr = keyContents.str?.split("\n") || [];
-        const keyStr = keysArr[0] || "";
+        let keyStr = keysArr[0] || "";
+
+        // Handle "Mouse\n1" case
+        if (keyStr === "Mouse" && keysArr[1]) {
+            keyStr = `Mouse ${keysArr[1]}`;
+        }
+
         displayLabel = (keyStr === "" || keyStr === "KC_NO") ? "" : keyStr;
+
+        // Auto-fix for KC_BTN codes
+        const btnMatch = displayLabel.match(/KC_BTN(\d+)/);
+        if (btnMatch) {
+            displayLabel = `Mouse ${btnMatch[1]}`;
+        }
 
         // Extract modifier prefix from keycode
         const modMatch = keycode.match(/^(\w+_T)\(/);
@@ -308,8 +366,23 @@ function processKeyData(keycode: string, label: string, keyContents: KeyContent 
         // Layer-tap key (e.g., LT1(KC_ENTER))
         const ltMatch = keycode.match(/^LT(\d+)/);
         topLabel = ltMatch ? `LT${ltMatch[1]}` : "LT";
+
         const keysArr = keyContents.str?.split("\n") || [];
-        displayLabel = keysArr[0] || "";
+        let keyStr = keysArr[0] || "";
+
+        // Handle "Mouse\n1" case
+        if (keyStr === "Mouse" && keysArr[1]) {
+            keyStr = `Mouse ${keysArr[1]}`;
+        }
+
+        displayLabel = keyStr;
+
+        // Auto-fix for KC_BTN codes
+        const btnMatch = displayLabel.match(/KC_BTN(\d+)/);
+        if (btnMatch) {
+            displayLabel = `Mouse ${btnMatch[1]}`;
+        }
+
         if (displayLabel === "KC_NO") displayLabel = "";
 
     } else if (keyContents?.type === "tapdance") {

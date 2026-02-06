@@ -197,7 +197,7 @@ const OverrideEditor: FC<Props> = () => {
 
             {/* Layers Section */}
             <div className="flex flex-col gap-1.5">
-                <span className="font-semibold text-lg text-slate-700">Layers</span>
+                <span className="font-semibold text-lg text-black">Layers</span>
                 <div className="grid grid-cols-8 gap-2 w-fit">
                     {Array.from({ length: 16 }).map((_, i) => {
                         const isActive = (override.layers & (1 << i)) !== 0;

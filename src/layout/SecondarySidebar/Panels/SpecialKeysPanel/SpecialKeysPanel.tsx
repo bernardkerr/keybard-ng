@@ -29,7 +29,7 @@ const SpecialKeysPanel = ({ isPicker }: Props) => {
         <div className="flex flex-col gap-4">
             {isPicker && (
                 <div className="pb-2">
-                    <span className="font-semibold text-xl text-slate-700">Special Keys</span>
+                    <span className="font-semibold text-xl text-black">Special Keys</span>
                 </div>
             )}
             <OtherKeys />

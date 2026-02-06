@@ -119,7 +119,7 @@ const StenoKeys = ({ compact, variant: variantOverride }: Props) => {
 
     return (
         <div className="flex flex-col gap-2">
-            <span className="font-semibold text-lg text-slate-700">Steno Keys</span>
+            <span className="font-semibold text-lg text-black">Steno Keys</span>
             <div className="flex flex-wrap gap-2">
                 {keys.map((k) => (
                     <Key

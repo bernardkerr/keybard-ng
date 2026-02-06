@@ -181,7 +181,7 @@ const AltRepeatEditor: FC = () => {
 
             {/* Options Switches */}
             <div className="flex flex-col gap-1 mt-2">
-                <span className="font-semibold text-lg text-slate-700">Options</span>
+                <span className="font-semibold text-lg text-black">Options</span>
                 {OPTIONS.map((opt) => (
                     <div key={opt.bit} className="flex flex-row items-center justify-between py-1">
                         <div className="flex flex-col gap-0.5">
