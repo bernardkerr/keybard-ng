@@ -102,13 +102,24 @@ const OverridesPanel: React.FC = () => {
 
     const renderSmallKey = (content: KeyContent, idx: number, overrideIndex: number) => {
         const hasContent = (content?.top && content.top !== "KC_NO") || (content?.str && content.str !== "KC_NO" && content.str !== "");
+        const keycode = content?.top || "";
+        const label = (() => {
+            const str = content?.str;
+            if (!str) return "";
+            const parts = str.split('\n');
+            if (parts.length === 1) return parts[0];
+            if (content?.type === 'modmask' && (keycode.includes("S(") || keycode.includes("LSFT") || keycode.includes("RSFT"))) {
+                return parts[0];
+            }
+            return parts[parts.length - 1];
+        })();
         return (
             <div key={idx} className="relative w-[30px] h-[30px]">
                 <Key
                     isRelative
                     x={0} y={0} w={1} h={1} row={-1} col={-1}
                     keycode={content?.top || "KC_NO"}
-                    label={content?.str || ""}
+                    label={label}
                     keyContents={content}
                     layerColor={hasContent ? "sidebar" : undefined}
                     className={hasContent ? "border-kb-gray" : "bg-transparent border border-kb-gray-border"}

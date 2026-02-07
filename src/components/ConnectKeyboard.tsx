@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 
 import { useVial } from "@/contexts/VialContext";
 
@@ -175,9 +176,9 @@ const ConnectKeyboard = () => {
                                     <button
                                         onClick={handleLoadDemo}
                                         disabled={loading}
-                                        className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-black text-gray-200 hover:bg-gray-800 px-5 py-1.5 rounded-full w-full"
+                                        className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-gray text-black hover:bg-kb-gray-medium px-5 py-1.5 rounded-full w-full border border-gray-300"
                                     >
-                                        {loading ? "Loading..." : "Sval-QWERTY Example"}
+                                        {loading ? "Loading..." : "QWERTY Example"}
                                     </button>
                                 </>
                             )}
@@ -186,8 +187,14 @@ const ConnectKeyboard = () => {
                 )}
 
                 {error && (
-                    <div className="error-message">
-                        <p>❌ {error}</p>
+                    <div
+                        onClick={handleConnect}
+                        className="mt-8 flex flex-row items-center justify-center gap-2 text-kb-red cursor-pointer hover:opacity-80 transition-opacity"
+                        role="button"
+                        title="Click to retry connection"
+                    >
+                        <AlertTriangle className="w-5 h-5" />
+                        <p className="font-medium">{error}</p>
                     </div>
                 )}
             </div>

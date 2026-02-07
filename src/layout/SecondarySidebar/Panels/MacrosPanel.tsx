@@ -92,10 +92,6 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                 <div
                     className="w-[30px] h-[30px] relative flex-shrink-0 cursor-pointer"
                     key={idx}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(macroIndex, idx);
-                    }}
                 >
                     <Key
                         isRelative
@@ -121,6 +117,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                         layerColor="sidebar"
                         className="border-kb-gray"
                         headerClassName="bg-kb-sidebar-dark"
+                        onClick={() => handleEdit(macroIndex, idx)}
                         disableTooltip={true}
                     />
                 </div>
@@ -166,7 +163,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
 
                     if (!hasActions) return null;
 
-                    const macroKeycode = `M${i}`;
+                    const macroKeycode = `M${i} `;
                     const macroKeyContents = getKeyContents(keyboard, macroKeycode) as KeyContent;
 
                     return (
@@ -209,7 +206,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                                     />
                                 </div>
                                 <span className="text-xs font-bold text-slate-600 truncate">
-                                    {customName || `Macro ${i}`}
+                                    {customName || `Macro ${i} `}
                                 </span>
                             </div>
                             <div className="flex flex-row items-center gap-0.5 flex-wrap justify-center">
@@ -255,14 +252,14 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
             )}
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
                 {macros.map((macroEntry, i) => {
-                    const keycode = `M${i}`;
+                    const keycode = `M${i} `;
                     const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
 
                     const actions = macroEntry?.actions || [];
                     const hasActions = actions.length > 0;
 
                     const rowChildren = hasActions ? (
-                        <div className="flex flex-row items-center gap-1 w-full overflow-hidden mask-linear-fade">
+                        <div className="flex flex-row items-center gap-1 ml-4 overflow-hidden">
                             {actions.map((action, idx) => (
                                 <React.Fragment key={idx}>
                                     {idx > 0 && <ArrowRight className="w-3 h-3 text-gray-400 flex-shrink-0" />}

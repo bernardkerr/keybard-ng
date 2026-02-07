@@ -1,7 +1,7 @@
 import { Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { FC } from "react";
+import { FC, useEffect, useRef } from "react";
 import { DelayedTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props {
@@ -13,13 +13,36 @@ interface Props {
 }
 
 const MacroEditorText: FC<Props> = ({ type, value, onChange, onDelete, autoFocus }) => {
+    const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        if (autoFocus && inputRef.current) {
+            inputRef.current.focus();
+            // Optional: Move cursor to end of text
+            if (inputRef.current instanceof HTMLTextAreaElement || inputRef.current.type === 'text') {
+                const len = String(value).length;
+                inputRef.current.setSelectionRange(len, len);
+            }
+        }
+    }, [autoFocus]);
+
     return (
         <div className="relative w-full">
             <div className="flex flex-row justify-start items-center w-full peer">
                 {type === "text" ? (
-                    <Textarea value={value} onChange={(e) => onChange(e.target.value)} className="bg-white text-black border-input w-[180px] flex-grow-0 select-text" autoFocus={autoFocus} />
+                    <Textarea
+                        ref={inputRef as any}
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="bg-white text-black border-input w-[180px] flex-grow-0 select-text"
+                    />
                 ) : (
-                    <Input value={value} onChange={(e) => onChange(e.target.value)} className="bg-white text-black border-input w-[180px] flex-grow-0 select-text" autoFocus={autoFocus} />
+                    <Input
+                        ref={inputRef as any}
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="bg-white text-black border-input w-[180px] flex-grow-0 select-text"
+                    />
                 )}
                 <div className="flex flex-row items-center ml-5">
                     {type && <div className="font-medium text-gray-600">{type === "delay" ? "Delay (ms)" : type.charAt(0).toUpperCase() + type.slice(1)}</div>}

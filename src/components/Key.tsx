@@ -353,8 +353,10 @@ function shouldOverrideForInternational(label: string, keyStr: string, displayLa
 function shouldHideShiftBadge(displayLabel: string, bottomStr: string, keycode: string) {
     // Clean Shifted Characters: If just Shift modifier and single char label that is likely a symbol (not a letter), hide the badge
     // EXCLUDE Numpad keys
+    // Note: bottomStr can be "LSFT", "RSFT", "LSft", "RSft" depending on source
+    const normalizedBottomStr = bottomStr.toUpperCase();
     return (
-        (bottomStr === "LSFT" || bottomStr === "RSFT") &&
+        (normalizedBottomStr === "LSFT" || normalizedBottomStr === "RSFT") &&
         displayLabel.length === 1 &&
         !/[a-zA-Z]/.test(displayLabel) &&
         !keycode.includes("KC_P") && !keycode.includes("KC_KP")

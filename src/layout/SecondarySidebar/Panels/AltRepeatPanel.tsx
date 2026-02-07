@@ -119,13 +119,24 @@ const AltRepeatPanel: React.FC = () => {
         const hasContent = keycode !== "KC_NO" && keycode !== "";
         const isSelected = isEditing && itemToEdit === index;
 
+        const label = (() => {
+            const str = content?.str;
+            if (!str) return "";
+            const parts = str.split('\n');
+            if (parts.length === 1) return parts[0];
+            if (content?.type === 'modmask' && (keycode.includes("S(") || keycode.includes("LSFT") || keycode.includes("RSFT"))) {
+                return parts[0];
+            }
+            return parts[parts.length - 1];
+        })();
+
         return (
             <div className="relative w-[40px] h-[40px] flex items-center justify-center">
                 <Key
                     isRelative
                     x={0} y={0} w={1} h={1} row={-1} col={-1}
                     keycode={keycode}
-                    label={content?.str || ""}
+                    label={label}
                     keyContents={content}
                     layerColor={hasContent ? "sidebar" : undefined}
                     className={cn(

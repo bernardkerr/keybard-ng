@@ -181,6 +181,7 @@ const MacroEditor: FC = () => {
                 // Should only clear if clicking the background, not a child element
                 if (e.target === e.currentTarget) {
                     clearSelection();
+                    setFocusIndex(null);
                 }
             }}
         >
@@ -212,6 +213,10 @@ const MacroEditor: FC = () => {
                                 label={item[0].charAt(0).toUpperCase() + item[0].slice(1)}
                                 onDelete={() => handleDeleteItem(index)}
                                 onDrop={(draggedItem) => handleDrop(index, draggedItem)}
+                                onClick={() => {
+                                    selectMacroKey(itemToEdit!, index);
+                                    setFocusIndex(null);
+                                }}
                             />
                         )}
                         {index < actions.length - 1 && <ArrowDown className="w-6 h-6 text-black ml-[18px]" />}
