@@ -13,7 +13,7 @@ interface Props { }
 
 const TapdanceEditor: FC<Props> = () => {
     const { keyboard, setKeyboard } = useVial();
-    const { setPanelToGoBack, setAlternativeHeader, itemToEdit } = usePanels();
+    const { setPanelToGoBack, setAlternativeHeader, itemToEdit, initialEditorSlot } = usePanels();
     const { keyVariant, layoutMode } = useLayoutSettings();
     const currTapDance = (keyboard as any).tapdances?.[itemToEdit!];
     const { selectTapdanceKey, selectedTarget } = useKeyBinding();
@@ -55,9 +55,9 @@ const TapdanceEditor: FC<Props> = () => {
     // Auto-select first slot when editor opens
     useEffect(() => {
         if (itemToEdit !== null && itemToEdit !== undefined) {
-            selectTapdanceKey(itemToEdit, "tap");
+            selectTapdanceKey(itemToEdit, initialEditorSlot || "tap");
         }
-    }, [itemToEdit, selectTapdanceKey]);
+    }, [itemToEdit, selectTapdanceKey, initialEditorSlot]);
 
     const updateTapMs = (ms: number) => {
         if (keyboard && (keyboard as any).tapdances && itemToEdit !== null) {

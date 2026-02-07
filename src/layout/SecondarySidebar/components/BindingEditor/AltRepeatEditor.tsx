@@ -17,7 +17,7 @@ const OPTIONS = [
 
 const AltRepeatEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
-    const { itemToEdit, setPanelToGoBack, setAlternativeHeader } = usePanels();
+    const { itemToEdit, setPanelToGoBack, setAlternativeHeader, initialEditorSlot } = usePanels();
     const { selectAltRepeatKey, selectedTarget } = useKeyBinding();
 
     const altRepeatIndex = itemToEdit!;
@@ -51,10 +51,10 @@ const AltRepeatEditor: FC = () => {
                 .catch(err => console.error("Failed to auto-enable alt repeat:", err));
         }
 
-        selectAltRepeatKey(altRepeatIndex, "keycode");
+        selectAltRepeatKey(altRepeatIndex, initialEditorSlot || "keycode");
         setPanelToGoBack("altrepeat");
         setAlternativeHeader(true);
-    }, [altRepeatIndex, selectAltRepeatKey, setPanelToGoBack, setAlternativeHeader]);
+    }, [altRepeatIndex, selectAltRepeatKey, setPanelToGoBack, setAlternativeHeader, initialEditorSlot]);
 
     const isSlotSelected = (slot: "keycode" | "alt_keycode") => {
         return (

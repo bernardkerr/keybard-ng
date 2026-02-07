@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 const AltRepeatPanel: React.FC = () => {
     const { keyboard, setKeyboard } = useVial();
-    const { selectAltRepeatKey, assignKeycode, isBinding } = useKeyBinding();
+    const { assignKeycode, isBinding } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
     const {
@@ -25,6 +25,7 @@ const AltRepeatPanel: React.FC = () => {
         setBindingTypeToEdit,
         setAlternativeHeader,
         itemToEdit,
+        setInitialEditorSlot,
     } = usePanels();
 
     const isHorizontal = layoutMode === "bottombar";
@@ -38,10 +39,13 @@ const AltRepeatPanel: React.FC = () => {
 
     const altRepeatKeys = keyboard.alt_repeat_keys || [];
 
-    const handleEdit = (index: number) => {
+    const handleEdit = (index: number, slot?: "keycode" | "alt_keycode") => {
         setItemToEdit(index);
         setBindingTypeToEdit("altrepeat");
         setAlternativeHeader(true);
+        if (slot) {
+            setInitialEditorSlot(slot);
+        }
     };
 
     const clearAltRepeat = async (index: number) => {
@@ -109,10 +113,6 @@ const AltRepeatPanel: React.FC = () => {
         }
     };
 
-    const handleKeyClick = (index: number, slot: "keycode" | "alt_keycode") => {
-        handleEdit(index);
-        selectAltRepeatKey(index, slot);
-    };
 
     const renderSmallKey = (keycode: string, index: number, slot: "keycode" | "alt_keycode", isEditing: boolean) => {
         const content = getKeyContents(keyboard, keycode) as KeyContent;
@@ -134,7 +134,7 @@ const AltRepeatPanel: React.FC = () => {
                     )}
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
-                    onClick={() => handleKeyClick(index, slot)}
+                    onClick={() => handleEdit(index, slot)}
                     disableTooltip={true}
                 />
             </div>

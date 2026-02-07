@@ -55,12 +55,12 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
 
     // Row 2: 6 sniper keys
     const sniperKeys = [
-        { keycode: "SV_SNIPER_2", label: "Sniper 2X" },
-        { keycode: "SV_SNIPER_3", label: "Sniper 3X" },
-        { keycode: "SV_SNIPER_5", label: "Sniper 5X" },
-        { keycode: "SV_SNIPER_2_TG", label: "Sniper 2XTG" },
-        { keycode: "SV_SNIPER_3_TG", label: "Sniper 3XTG" },
-        { keycode: "SV_SNIPER_5_TG", label: "Sniper 5XTG" },
+        { keycode: "SV_SNIPER_2", label: "Sniper 2x" },
+        { keycode: "SV_SNIPER_3", label: "Sniper 3x" },
+        { keycode: "SV_SNIPER_5", label: "Sniper 5x" },
+        { keycode: "SV_SNIPER_2_TG", label: "Sniper 2x Toggle" },
+        { keycode: "SV_SNIPER_3_TG", label: "Sniper 3x Toggle" },
+        { keycode: "SV_SNIPER_5_TG", label: "Sniper 5x Toggle" },
     ];
 
     const renderKey = (k: { keycode: string; label: string }, withModifiers: boolean = false) => {

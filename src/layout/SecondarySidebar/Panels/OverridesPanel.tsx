@@ -24,6 +24,7 @@ const OverridesPanel: React.FC = () => {
         setItemToEdit,
         setBindingTypeToEdit,
         setAlternativeHeader,
+        setInitialEditorSlot,
     } = usePanels();
 
     const isHorizontal = layoutMode === "bottombar";
@@ -37,10 +38,13 @@ const OverridesPanel: React.FC = () => {
 
     const overrides = keyboard.key_overrides || [];
 
-    const handleEdit = (index: number) => {
+    const handleEdit = (index: number, slot?: "trigger" | "replacement") => {
         setItemToEdit(index);
         setBindingTypeToEdit("overrides");
         setAlternativeHeader(true);
+        if (slot) {
+            setInitialEditorSlot(slot);
+        }
     };
 
     const clearOverride = async (index: number) => {
@@ -110,7 +114,7 @@ const OverridesPanel: React.FC = () => {
                     className={hasContent ? "border-kb-gray" : "bg-transparent border border-kb-gray-border"}
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
-                    onClick={() => handleEdit(overrideIndex)}
+                    onClick={() => handleEdit(overrideIndex, idx === 0 ? "trigger" : "replacement")}
                     disableTooltip={true}
                 />
             </div>

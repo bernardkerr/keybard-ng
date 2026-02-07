@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 const LeadersPanel: React.FC = () => {
     const { keyboard, setKeyboard, isConnected } = useVial();
-    const { selectLeaderKey, assignKeycode, isBinding } = useKeyBinding();
+    const { assignKeycode, isBinding } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
     const {
@@ -27,6 +27,7 @@ const LeadersPanel: React.FC = () => {
         setBindingTypeToEdit,
         setAlternativeHeader,
         itemToEdit,
+        setInitialEditorSlot,
     } = usePanels();
     const [savingTimeout, setSavingTimeout] = useState(false);
     const [savingPerKey, setSavingPerKey] = useState(false);
@@ -87,10 +88,13 @@ const LeadersPanel: React.FC = () => {
 
     const leaders = keyboard.leaders || [];
 
-    const handleEdit = (index: number) => {
+    const handleEdit = (index: number, slot?: { type: "sequence" | "keycode"; index?: number }) => {
         setItemToEdit(index);
         setBindingTypeToEdit("leaders");
         setAlternativeHeader(true);
+        if (slot) {
+            setInitialEditorSlot(slot);
+        }
     };
 
     const clearLeader = async (index: number) => {
@@ -158,23 +162,29 @@ const LeadersPanel: React.FC = () => {
         }
     };
 
-    const handleKeyClick = (index: number, slot: "sequence" | "output", seqIndex?: number) => {
-        handleEdit(index);
-        selectLeaderKey(index, slot, seqIndex);
-    };
 
     const renderSmallKey = (keycode: string, index: number, slot: "sequence" | "output", seqIndex: number | undefined, isEditing: boolean) => {
         const content = getKeyContents(keyboard, keycode) as KeyContent;
         const hasContent = keycode !== "KC_NO" && keycode !== "";
         const isSelected = isEditing && itemToEdit === index;
 
+        const label = (() => {
+            const str = content?.str;
+            if (!str) return "";
+            const parts = str.split('\n');
+            if (parts.length === 1) return parts[0];
+            if (content?.type === 'modmask' && (keycode.includes("S(") || keycode.includes("LSFT") || keycode.includes("RSFT"))) {
+                return parts[0];
+            }
+            return parts[parts.length - 1];
+        })();
         return (
             <div className="relative w-[30px] h-[30px]">
                 <Key
                     isRelative
                     x={0} y={0} w={1} h={1} row={-1} col={-1}
                     keycode={keycode}
-                    label={content?.str || ""}
+                    label={label}
                     keyContents={content}
                     layerColor={hasContent ? "sidebar" : undefined}
                     className={cn(
@@ -183,7 +193,7 @@ const LeadersPanel: React.FC = () => {
                     )}
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
-                    onClick={() => handleKeyClick(index, slot, seqIndex)}
+                    onClick={() => handleEdit(index, { type: slot === "sequence" ? "sequence" : "keycode", index: seqIndex })}
                     disableTooltip={true}
                 />
             </div>
@@ -256,7 +266,7 @@ const LeadersPanel: React.FC = () => {
                                         if (keycode === "KC_NO" || keycode === "") return null;
                                         return (
                                             <React.Fragment key={seqIdx}>
-                                                {seqIdx > 0 && <ArrowRight className="w-2 h-2 text-black" />}
+                                                {seqIdx > 0 && <ArrowRight className="w-3 h-3 text-black" />}
                                                 {renderSmallKey(keycode, i, "sequence", seqIdx, false)}
                                             </React.Fragment>
                                         );
@@ -372,7 +382,7 @@ const LeadersPanel: React.FC = () => {
                                     if (keycode === "KC_NO" || keycode === "") return null;
                                     return (
                                         <React.Fragment key={seqIdx}>
-                                            {seqIdx > 0 && <ArrowRight className="w-3 h-3 text-black mx-0.5" />}
+                                            {seqIdx > 0 && <ArrowRight className="w-4 h-4 text-black mx-0.5" />}
                                             {renderSmallKey(keycode, i, "sequence", seqIdx, isEditing)}
                                         </React.Fragment>
                                     );

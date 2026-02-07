@@ -14,7 +14,7 @@ interface Props { }
 
 const ComboEditor: FC<Props> = () => {
     const { keyboard, setKeyboard } = useVial();
-    const { setPanelToGoBack, setAlternativeHeader, itemToEdit } = usePanels();
+    const { setPanelToGoBack, setAlternativeHeader, itemToEdit, initialEditorSlot } = usePanels();
     const { selectComboKey, selectedTarget } = useKeyBinding();
     const { layoutMode } = useLayoutSettings();
     const isHorizontal = layoutMode === "bottombar";
@@ -37,9 +37,9 @@ const ComboEditor: FC<Props> = () => {
     // Auto-select the first key slot whenever the itemToEdit changes
     useEffect(() => {
         if (itemToEdit !== null) {
-            selectComboKey(itemToEdit, 0);
+            selectComboKey(itemToEdit, initialEditorSlot ?? 0);
         }
-    }, [itemToEdit, selectComboKey]);
+    }, [itemToEdit, selectComboKey, initialEditorSlot]);
 
     const handleDrop = (slot: number, item: any) => {
         if (!keyboard || itemToEdit === null) return;

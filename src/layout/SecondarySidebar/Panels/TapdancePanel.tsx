@@ -20,6 +20,7 @@ const TapdancePanel: React.FC = () => {
         setItemToEdit,
         setBindingTypeToEdit,
         setAlternativeHeader,
+        setInitialEditorSlot,
     } = usePanels();
 
     const isHorizontal = layoutMode === "bottombar";
@@ -33,17 +34,32 @@ const TapdancePanel: React.FC = () => {
 
     const tapdances = keyboard.tapdances || [];
 
-    const handleEdit = (index: number) => {
+    const handleEdit = (index: number, slot?: string) => {
         setItemToEdit(index);
         setBindingTypeToEdit("tapdances");
         setAlternativeHeader(true);
+        if (slot) {
+            setInitialEditorSlot(slot);
+        }
     };
 
     // Shared small key renderer
-    const renderSmallKey = (content: KeyContent, idx: number, tdIndex: number) => {
+    const renderSmallKey = (content: KeyContent, idx: number, tdIndex: number, slotName: string) => {
         const hasContent =
             (content?.top && content?.top !== "KC_NO") ||
             (content?.str && content?.str !== "" && content?.str !== "KC_NO");
+
+        const label = (() => {
+            const str = content?.str;
+            if (!str) return "";
+            const parts = str.split('\n');
+            if (parts.length === 1) return parts[0];
+            const keycode = content?.top || "";
+            if (content?.type === 'modmask' && (keycode.includes("S(") || keycode.includes("LSFT") || keycode.includes("RSFT"))) {
+                return parts[0];
+            }
+            return parts[parts.length - 1];
+        })();
 
         return (
             <div className="w-[30px] h-[30px] relative" key={idx}>
@@ -56,7 +72,7 @@ const TapdancePanel: React.FC = () => {
                     row={-1}
                     col={-1}
                     keycode={content?.top || "KC_NO"}
-                    label={content?.str || ""}
+                    label={label}
                     keyContents={content}
                     variant="small"
                     layerColor={hasContent ? "sidebar" : undefined}
@@ -64,7 +80,7 @@ const TapdancePanel: React.FC = () => {
                         !hasContent ? "bg-transparent border border-kb-gray-border" : "border-kb-gray"
                     }
                     headerClassName={!hasContent ? "hidden" : "bg-kb-sidebar-dark"}
-                    onClick={() => handleEdit(tdIndex)}
+                    onClick={() => handleEdit(tdIndex, slotName)}
                     disableTooltip={true}
                 />
             </div>
@@ -124,12 +140,15 @@ const TapdancePanel: React.FC = () => {
                                 <span className="text-xs font-bold text-slate-600">TD {i}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-1">
-                                {stateContents.map((content, idx) => (
-                                    <div key={idx} className="flex flex-col items-center">
-                                        <span className="text-[8px] text-gray-400 mb-0.5">{states[idx].label}</span>
-                                        {renderSmallKey(content, idx, i)}
-                                    </div>
-                                ))}
+                                {stateContents.map((content, idx) => {
+                                    const slotName = idx === 0 ? "tap" : idx === 1 ? "hold" : idx === 2 ? "taphold" : "doubletap";
+                                    return (
+                                        <div key={idx} className="flex flex-col items-center">
+                                            <span className="text-[8px] text-gray-400 mb-0.5">{states[idx].label}</span>
+                                            {renderSmallKey(content, idx, i, slotName)}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     );
@@ -182,7 +201,10 @@ const TapdancePanel: React.FC = () => {
 
                     const rowChildren = hasAssignment ? (
                         <div className="flex flex-row gap-4 w-full max-w-[240px] ml-6 justify-between">
-                            {stateContents.map((content, idx) => renderSmallKey(content, idx, i))}
+                            {stateContents.map((content, idx) => {
+                                const slotName = idx === 0 ? "tap" : idx === 1 ? "hold" : idx === 2 ? "taphold" : "doubletap";
+                                return renderSmallKey(content, idx, i, slotName);
+                            })}
                         </div>
                     ) : undefined;
 

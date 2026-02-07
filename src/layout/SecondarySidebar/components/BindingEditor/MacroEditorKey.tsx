@@ -104,7 +104,25 @@ const MacroEditorKey: FC<Props> = ({ label, binding, index, onDelete, onDrop }) 
                         row={-1}
                         col={-1}
                         keycode={keycode}
-                        label={keyContents?.str || ""}
+                        label={(() => {
+                            if (label) return label; // Explicit label prop overrides everything
+
+                            const str = keyContents?.str;
+                            if (!str) return "";
+
+                            const parts = str.split('\n');
+                            if (parts.length === 1) return parts[0];
+
+                            // For Modmask with Shift, prefer Top char
+                            // Macro binding usually raw keycode?
+                            if (typeof binding === 'string' && (binding.includes("S(") || binding.includes("LSFT") || binding.includes("RSFT"))) {
+                                return parts[0];
+                            }
+
+                            // Default: prefer bottom/base
+                            return parts[parts.length - 1];
+                        })()}
+                        forceLabel={true}
                         keyContents={keyContents}
                         layerColor={keyColor}
                         headerClassName={isSelected ? headerClass : (hasContent ? `bg-kb-sidebar-dark ${hoverHeaderClass}` : headerClass)}

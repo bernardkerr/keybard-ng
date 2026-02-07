@@ -7,12 +7,15 @@ import { useVial } from "@/contexts/VialContext";
 import { ArrowDown } from "lucide-react";
 import MacroEditorKey from "./MacroEditorKey";
 import MacroEditorText from "./MacroEditorText";
+import { vialService } from "@/services/vial.service";
+import { useRef } from "react";
 
 const MacroEditor: FC = () => {
     const [actions, setActions] = useState<any[]>([]);
     const [focusIndex, setFocusIndex] = useState<number | null>(null);
+    const hasAppliedInitialSelection = useRef(false);
     const { keyboard, setKeyboard } = useVial();
-    const { itemToEdit, setPanelToGoBack, setAlternativeHeader } = usePanels();
+    const { itemToEdit, setPanelToGoBack, setAlternativeHeader, initialEditorSlot } = usePanels();
     const { selectComboKey: _selectComboKey, selectMacroKey, selectedTarget, clearSelection } = useKeyBinding();
 
     useEffect(() => {
@@ -56,8 +59,32 @@ const MacroEditor: FC = () => {
         }
     }, [itemToEdit, keyboard]);
 
+    // Reset initial selection flag when itemToEdit changes
+    useEffect(() => {
+        hasAppliedInitialSelection.current = false;
+    }, [itemToEdit]);
+
+    // Handle initial selection
+    useEffect(() => {
+        if (initialEditorSlot !== null && initialEditorSlot !== undefined && actions.length > 0 && !hasAppliedInitialSelection.current) {
+            const index = initialEditorSlot;
+            const action = actions[index];
+            if (action) {
+                hasAppliedInitialSelection.current = true;
+                const [type] = action;
+                if (["text", "delay"].includes(type)) {
+                    setFocusIndex(index);
+                    selectMacroKey(itemToEdit!, -1) // Clear key selection if any
+                } else {
+                    selectMacroKey(itemToEdit!, index);
+                    setFocusIndex(null);
+                }
+            }
+        }
+    }, [initialEditorSlot, actions, itemToEdit, selectMacroKey]);
+
     // Manual helper to update both local state and keyboard context
-    const updateActions = (newActions: any[]) => {
+    const updateActions = async (newActions: any[]) => {
         setActions(newActions);
 
         if (!keyboard || itemToEdit === null) return;
@@ -77,6 +104,13 @@ const MacroEditor: FC = () => {
             actions: newActions,
         };
         setKeyboard(updatedKeyboard);
+
+        try {
+            await vialService.updateMacros(updatedKeyboard);
+            await vialService.saveViable();
+        } catch (err) {
+            console.error("Failed to update macros:", err);
+        }
     };
 
     const handleAddItem = (type: string) => {

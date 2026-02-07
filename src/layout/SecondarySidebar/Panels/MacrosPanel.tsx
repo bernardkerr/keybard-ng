@@ -27,6 +27,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
         setBindingTypeToEdit,
         setAlternativeHeader,
         setPanelToGoBack,
+        setInitialEditorSlot,
     } = usePanels();
 
     const isHorizontal = layoutMode === "bottombar";
@@ -70,11 +71,14 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
 
     const macros = keyboard.macros || [];
 
-    const handleEdit = (index: number) => {
+    const handleEdit = (index: number, actionIndex?: number) => {
         setItemToEdit(index);
         setBindingTypeToEdit("macros");
         setAlternativeHeader(true);
         setPanelToGoBack("macros");
+        if (actionIndex !== undefined) {
+            setInitialEditorSlot(actionIndex);
+        }
     };
 
     const renderAction = (action: any, idx: number, macroIndex: number) => {
@@ -85,7 +89,14 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
             const actionKeyContents = getKeyContents(keyboard!, actionKeycode);
 
             return (
-                <div className="w-[30px] h-[30px] relative flex-shrink-0" key={idx}>
+                <div
+                    className="w-[30px] h-[30px] relative flex-shrink-0 cursor-pointer"
+                    key={idx}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(macroIndex, idx);
+                    }}
+                >
                     <Key
                         isRelative
                         x={0}
@@ -95,26 +106,48 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                         row={-1}
                         col={-1}
                         keycode={actionKeycode}
-                        label={actionKeyContents?.str || ""}
+                        label={(() => {
+                            const str = actionKeyContents?.str;
+                            if (!str) return "";
+                            const parts = str.split('\n');
+                            if (parts.length === 1) return parts[0];
+                            if (actionKeyContents?.type === 'modmask' && (actionKeycode.includes("S(") || actionKeycode.includes("LSFT") || actionKeycode.includes("RSFT"))) {
+                                return parts[0];
+                            }
+                            return parts[parts.length - 1];
+                        })()}
                         keyContents={actionKeyContents}
                         variant="small"
                         layerColor="sidebar"
                         className="border-kb-gray"
                         headerClassName="bg-kb-sidebar-dark"
-                        onClick={() => handleEdit(macroIndex)}
                         disableTooltip={true}
                     />
                 </div>
             );
         } else if (type === "text") {
             return (
-                <div key={idx} className="flex items-center justify-center bg-black border border-black rounded text-[10px] px-2 h-[30px] whitespace-nowrap max-w-[100px] overflow-hidden text-ellipsis shadow-sm font-medium text-white">
+                <div
+                    key={idx}
+                    className="flex items-center justify-center bg-black border border-black rounded text-[10px] px-2 h-[30px] whitespace-nowrap max-w-[100px] overflow-hidden text-ellipsis shadow-sm font-medium text-white cursor-pointer"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(macroIndex, idx);
+                    }}
+                >
                     "{value}"
                 </div>
             );
         } else if (type === "delay") {
             return (
-                <div key={idx} className="flex items-center justify-center bg-black border border-black rounded text-[10px] px-2 h-[30px] shadow-sm font-medium text-white">
+                <div
+                    key={idx}
+                    className="flex items-center justify-center bg-black border border-black rounded text-[10px] px-2 h-[30px] shadow-sm font-medium text-white cursor-pointer"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(macroIndex, idx);
+                    }}
+                >
                     {value}ms
                 </div>
             );

@@ -103,7 +103,21 @@ const EditorKey: FC<EditorKeyProps> = ({
     };
 
     // Calculate the correct label for display, respecting international layout overrides
-    const displayLabel = label || ((!keyContents?.type || keyContents.type === 'key') && keyContents?.str?.includes('\n') ? keyContents.str.split('\n').pop() : keyContents?.str) || "";
+    const displayLabel = label || (() => {
+        if (!keyContents?.str) return "";
+        const parts = keyContents.str.split('\n');
+        if (parts.length === 1) return parts[0];
+
+        // For Modmask with Shift, prefer Top char
+        if (keyContents.type === 'modmask') {
+            if (keycode.includes("S(") || keycode.includes("LSFT") || keycode.includes("RSFT")) {
+                return parts[0];
+            }
+        }
+
+        // Default: prefer bottom/base
+        return parts[parts.length - 1];
+    })() || "";
 
     return (
         <div className={wrapperClassName}>
@@ -119,6 +133,7 @@ const EditorKey: FC<EditorKeyProps> = ({
                     x={0} y={0} w={1} h={1} row={-1} col={-1}
                     keycode={keycode || "KC_NO"}
                     label={displayLabel}
+                    forceLabel={!!displayLabel}
                     keyContents={keyContents}
                     selected={selected}
                     onClick={() => {

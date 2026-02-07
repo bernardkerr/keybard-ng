@@ -32,7 +32,7 @@ import EditorKey from "./EditorKey";
 
 const OverrideEditor: FC<Props> = () => {
     const { keyboard, setKeyboard } = useVial();
-    const { itemToEdit, setPanelToGoBack, setAlternativeHeader } = usePanels();
+    const { itemToEdit, setPanelToGoBack, setAlternativeHeader, initialEditorSlot } = usePanels();
     const { selectOverrideKey, selectedTarget } = useKeyBinding();
     const [activeTab, setActiveTab] = useState<TabType>("Trigger");
 
@@ -69,7 +69,7 @@ const OverrideEditor: FC<Props> = () => {
     }, [itemToEdit]);
 
     useEffect(() => {
-        selectOverrideKey(overrideIndex, "trigger");
+        selectOverrideKey(overrideIndex, initialEditorSlot || "trigger");
         setPanelToGoBack("overrides");
         setAlternativeHeader(true);
     }, []);

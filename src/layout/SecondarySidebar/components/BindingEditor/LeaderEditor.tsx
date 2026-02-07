@@ -12,7 +12,7 @@ import EditorKey from "./EditorKey";
 
 const LeaderEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
-    const { itemToEdit, setPanelToGoBack, setAlternativeHeader } = usePanels();
+    const { itemToEdit, setPanelToGoBack, setAlternativeHeader, initialEditorSlot } = usePanels();
     const { selectLeaderKey, selectedTarget } = useKeyBinding();
     const { layoutMode } = useLayoutSettings();
 
@@ -52,10 +52,18 @@ const LeaderEditor: FC = () => {
                 .catch(err => console.error("Failed to auto-enable leader:", err));
         }
 
-        selectLeaderKey(leaderIndex, "sequence", 0);
+        if (initialEditorSlot) {
+            if (initialEditorSlot.type === "sequence") {
+                selectLeaderKey(leaderIndex, "sequence", initialEditorSlot.index ?? 0);
+            } else {
+                selectLeaderKey(leaderIndex, "output");
+            }
+        } else {
+            selectLeaderKey(leaderIndex, "sequence", 0);
+        }
         setPanelToGoBack("leaders");
         setAlternativeHeader(true);
-    }, [leaderIndex, selectLeaderKey, setPanelToGoBack, setAlternativeHeader]);
+    }, [leaderIndex, selectLeaderKey, setPanelToGoBack, setAlternativeHeader, initialEditorSlot]);
 
     const isSlotSelected = (slot: "sequence" | "output", seqIndex?: number) => {
         return (
