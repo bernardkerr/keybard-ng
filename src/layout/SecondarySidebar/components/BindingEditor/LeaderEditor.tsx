@@ -66,6 +66,41 @@ const LeaderEditor: FC = () => {
         );
     };
 
+    const handleDrop = (slot: "sequence" | "output", item: any, seqIndex?: number) => {
+        if (item.editorType === "leader" && item.editorId === itemToEdit) {
+            const sourceSlot = item.editorSlot; // "output" or number (index)
+            const targetSlot = slot === "output" ? "output" : seqIndex!;
+
+            if (sourceSlot === targetSlot) return;
+
+            if (!keyboard || !leaderEntry) return;
+            const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+            const entry = updatedKeyboard.leaders[leaderIndex];
+
+            // Helper to get/set value
+            const getValue = (s: string | number) => {
+                if (s === "output") return entry.output;
+                return entry.sequence[s as number];
+            };
+            const setValue = (s: string | number, val: string) => {
+                if (s === "output") entry.output = val;
+                else entry.sequence[s as number] = val;
+            };
+
+            const sourceVal = getValue(sourceSlot);
+            const targetVal = getValue(targetSlot);
+
+            setValue(sourceSlot, targetVal);
+            setValue(targetSlot, sourceVal);
+
+            setKeyboard(updatedKeyboard);
+            vialService.updateLeader(updatedKeyboard, leaderIndex)
+                .catch(err => console.error("Failed to update leader:", err));
+        } else {
+            updateLeaderAssignment(slot, item.keycode, seqIndex);
+        }
+    };
+
     const updateLeaderAssignment = (slot: "sequence" | "output", keycode: string, seqIndex?: number) => {
         if (!keyboard || !leaderEntry) return;
         const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
@@ -122,7 +157,7 @@ const LeaderEditor: FC = () => {
                     selected={isSelected}
                     onClick={() => selectLeaderKey(leaderIndex, "sequence", seqIndex)}
                     onClear={() => clearKey("sequence", seqIndex)}
-                    onDrop={(item) => updateLeaderAssignment("sequence", item.keycode, seqIndex)}
+                    onDrop={(item) => handleDrop("sequence", item, seqIndex)}
                     size={seqKeySize}
                     // LeaderEditor sets trash top -2 right -2 which is different from default EditorKey
                     // EditorKey uses top-0 left-offset. 
@@ -152,6 +187,9 @@ const LeaderEditor: FC = () => {
                     // We render label externally to control styling
                     label={undefined}
                     labelClassName={undefined}
+                    editorType="leader"
+                    editorId={itemToEdit!}
+                    editorSlot={seqIndex}
                 />
             </div>
         );
@@ -172,7 +210,7 @@ const LeaderEditor: FC = () => {
                     selected={isSelected}
                     onClick={() => selectLeaderKey(leaderIndex, "output")}
                     onClear={() => clearKey("output")}
-                    onDrop={(item) => updateLeaderAssignment("output", item.keycode)}
+                    onDrop={(item) => handleDrop("output", item)}
                     size={outputKeySize}
                     trashOffset={trashOffset}
                     trashSize={trashSize}
@@ -180,6 +218,9 @@ const LeaderEditor: FC = () => {
                     variant={keyVariant}
                     label={undefined}
                     labelClassName={undefined}
+                    editorType="leader"
+                    editorId={itemToEdit!}
+                    editorSlot="output"
                 />
             </div>
         );
@@ -229,7 +270,7 @@ const LeaderEditor: FC = () => {
     // VERTICAL LAYOUT (Sidebar Mode)
     // ==========================================
     return (
-        <div className="flex flex-col gap-8 py-6 pl-[84px] pr-5 pb-20">
+        <div className="flex flex-col gap-8 py-6 pl-[84px] pb-20">
             {/* Sequence & Output Keys */}
             <div className="flex flex-col gap-3">
                 <span className="font-semibold text-sm text-slate-600">Sequence (up to 5 keys)</span>

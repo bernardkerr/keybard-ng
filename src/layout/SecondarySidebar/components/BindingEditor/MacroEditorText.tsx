@@ -2,6 +2,7 @@ import { Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FC } from "react";
+import { DelayedTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Props {
     type: string;
@@ -25,14 +26,21 @@ const MacroEditorText: FC<Props> = ({ type, value, onChange, onDelete, autoFocus
                 </div>
             </div>
             {onDelete && (
-                <div className="absolute -left-10 top-0 h-full flex items-center justify-center opacity-0 peer-hover:opacity-100 hover:opacity-100 transition-opacity">
-                    <button
-                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
-                        onClick={onDelete}
-                        title="Delete item"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </button>
+                <div className="absolute -left-10 top-1/2 -translate-y-1/2 flex items-center justify-center opacity-0 peer-hover:opacity-100 hover:opacity-100 transition-opacity z-10">
+                    <DelayedTooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                className="p-2 text-gray-400 hover:bg-red-500 hover:text-white rounded-full bg-kb-gray-medium"
+                                onClick={onDelete}
+                                type="button"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Delete item</p>
+                        </TooltipContent>
+                    </DelayedTooltip>
                 </div>
             )}
         </div>

@@ -19,6 +19,11 @@ export interface DragItem {
     layer?: number;
     /** Layer data when dragging an entire layer */
     layerData?: LayerEntry;
+
+    // Editor context for internal swapping
+    editorType?: string;
+    editorId?: number | string;
+    editorSlot?: number | string;
 }
 
 interface DragContextType {

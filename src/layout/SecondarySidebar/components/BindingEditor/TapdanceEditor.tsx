@@ -106,7 +106,30 @@ const TapdanceEditor: FC<Props> = () => {
     }, [selectedTarget, itemToEdit]);
 
     const handleDrop = (slot: string, item: any) => {
-        updateKeyAssignment(slot, item.keycode);
+        if (item.editorType === "tapdance" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
+            const sourceSlot = item.editorSlot;
+            const targetSlot = slot;
+            if (sourceSlot === targetSlot) return;
+
+            if (!keyboard || itemToEdit === null) return;
+            const updatedKeyboard = { ...keyboard };
+            const tapdances = [...(updatedKeyboard as any).tapdances];
+
+            if (tapdances[itemToEdit]) {
+                const td = { ...tapdances[itemToEdit] };
+                const sourceVal = td[sourceSlot];
+                const targetVal = td[targetSlot];
+
+                td[sourceSlot] = targetVal;
+                td[targetSlot] = sourceVal;
+
+                tapdances[itemToEdit] = td;
+            }
+            (updatedKeyboard as any).tapdances = tapdances;
+            setKeyboard(updatedKeyboard);
+        } else {
+            updateKeyAssignment(slot, item.keycode);
+        }
     };
 
     const renderTapdanceKey = (label: string, keycode: string, type: "tap" | "hold" | "doubletap" | "taphold") => {
@@ -142,6 +165,9 @@ const TapdanceEditor: FC<Props> = () => {
                         wrapperClassName={`relative ${keySizeClass}`}
                         label={undefined}
                         labelClassName={undefined}
+                        editorType="tapdance"
+                        editorId={itemToEdit!}
+                        editorSlot={type}
                     />
                 </div>
             );
@@ -164,6 +190,9 @@ const TapdanceEditor: FC<Props> = () => {
                         wrapperClassName={`relative ${keySizeClass}`}
                         label={undefined}
                         labelClassName={undefined}
+                        editorType="tapdance"
+                        editorId={itemToEdit!}
+                        editorSlot={type}
                     />
                     <span className={`${labelClass} font-medium text-slate-600`}>{label}</span>
                 </div>

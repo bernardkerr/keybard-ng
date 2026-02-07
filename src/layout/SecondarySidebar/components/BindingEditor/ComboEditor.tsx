@@ -15,7 +15,7 @@ interface Props { }
 const ComboEditor: FC<Props> = () => {
     const { keyboard, setKeyboard } = useVial();
     const { setPanelToGoBack, setAlternativeHeader, itemToEdit } = usePanels();
-    const { selectComboKey, selectedTarget, assignKeycode } = useKeyBinding();
+    const { selectComboKey, selectedTarget } = useKeyBinding();
     const { layoutMode } = useLayoutSettings();
     const isHorizontal = layoutMode === "bottombar";
     const keySize = isHorizontal ? "w-[45px] h-[45px]" : "w-[50px] h-[50px]";
@@ -41,29 +41,67 @@ const ComboEditor: FC<Props> = () => {
         }
     }, [itemToEdit, selectComboKey]);
 
-    const updateComboAssignment = (slot: number, keycode: string) => {
+    const handleDrop = (slot: number, item: any) => {
         if (!keyboard || itemToEdit === null) return;
-        const updatedKeyboard = { ...keyboard };
-        const combos = [...(updatedKeyboard as any).combos];
-        if (combos[itemToEdit]) {
-            // Slot 0-3: keys array. Slot 4: output
-            const combo = { ...combos[itemToEdit] };
-            if (slot < 4) {
+
+        // Check if we should swap (dragging from same combo editor)
+        if (item.editorType === "combo" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
+            const sourceSlot = item.editorSlot;
+            const targetSlot = slot;
+
+            if (sourceSlot === targetSlot) return;
+
+            const updatedKeyboard = { ...keyboard };
+            const combos = [...(updatedKeyboard as any).combos];
+
+            if (combos[itemToEdit]) {
+                const combo = { ...combos[itemToEdit] };
                 const newKeys = [...combo.keys];
-                newKeys[slot] = keycode;
+
+                // Get values
+                const sourceVal = sourceSlot < 4 ? newKeys[sourceSlot] : combo.output;
+                const targetVal = targetSlot < 4 ? newKeys[targetSlot] : combo.output;
+
+                // Set values (Swap)
+                if (sourceSlot < 4) newKeys[sourceSlot] = targetVal;
+                else combo.output = targetVal;
+
+                if (targetSlot < 4) newKeys[targetSlot] = sourceVal;
+                else combo.output = sourceVal;
+
                 combo.keys = newKeys;
-            } else {
-                combo.output = keycode;
+                combos[itemToEdit] = combo;
             }
-            combos[itemToEdit] = combo;
+            (updatedKeyboard as any).combos = combos;
+            setKeyboard(updatedKeyboard);
+        } else {
+            // Standard assignment (replace)
+            const updatedKeyboard = { ...keyboard };
+            const combos = [...(updatedKeyboard as any).combos];
+            if (combos[itemToEdit]) {
+                const combo = { ...combos[itemToEdit] };
+                if (slot < 4) {
+                    const newKeys = [...combo.keys];
+                    newKeys[slot] = item.keycode;
+                    combo.keys = newKeys;
+                } else {
+                    combo.output = item.keycode;
+                }
+                combos[itemToEdit] = combo;
+            }
+            (updatedKeyboard as any).combos = combos;
+            setKeyboard(updatedKeyboard);
         }
-        (updatedKeyboard as any).combos = combos;
-        setKeyboard(updatedKeyboard);
+    };
+
+    const updateComboAssignment = (slot: number, keycode: string) => {
+        // Wrapper for compatibility if called directly (though handleDrop covers it)
+        handleDrop(slot, { keycode });
     };
 
     const renderComboKey = (keycode: string, slot: number) => {
         const isSelected = isSlotSelected(slot);
-        const trashOffset = isHorizontal ? "-left-8" : "-left-10";
+        const trashOffset = isHorizontal ? "-left-8" : "-left-9";
         const trashSize = isHorizontal ? "w-3 h-3" : "w-4 h-4";
 
         return (
@@ -74,19 +112,22 @@ const ComboEditor: FC<Props> = () => {
                     onClick={() => selectComboKey(itemToEdit!, slot)}
                     onClear={() => {
                         selectComboKey(itemToEdit!, slot);
-                        setTimeout(() => assignKeycode("KC_NO"), 0);
+                        setTimeout(() => updateComboAssignment(slot, "KC_NO"), 0);
                     }}
                     onDrop={(item) => {
-                        updateComboAssignment(slot, item.keycode);
+                        handleDrop(slot, item);
                     }}
                     size={keySize}
                     trashOffset={trashOffset}
                     trashSize={trashSize}
                     variant={keyVariant}
-                    wrapperClassName={`relative ${keySize} group/key`}
+                    wrapperClassName={`relative ${keySize} group/key z-20`}
                     // We don't use the built-in EditorKey label, we render it externally for consistent positioning in grid
                     label={undefined}
                     labelClassName={undefined}
+                    editorType="combo"
+                    editorId={itemToEdit!}
+                    editorSlot={slot}
                 />
             </div>
         );
@@ -121,7 +162,7 @@ const ComboEditor: FC<Props> = () => {
     // ==========================================
 
     return (
-        <div className="flex flex-col gap-8 py-6 pl-[84px] pr-5 pb-20">
+        <div className="flex flex-col gap-8 py-6 pl-[84px] pb-20">
             <div className="flex flex-col gap-3">
                 <div className="flex flex-row flex-wrap gap-4 items-end">
                     {[0, 1, 2, 3].map((slotIdx) => (

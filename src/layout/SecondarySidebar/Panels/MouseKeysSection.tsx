@@ -27,6 +27,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
     const layerColorName = keyboard?.cosmetic?.layer_colors?.[selectedLayer] || "primary";
     const hoverBorderColor = hoverBorderClasses[layerColorName] || hoverBorderClasses["primary"];
     const hoverBackgroundColor = hoverBackgroundClasses[layerColorName] || hoverBackgroundClasses["primary"];
+
     const hoverHeaderClass = hoverHeaderClasses[layerColorName] || hoverHeaderClasses["primary"];
     const effectiveVariant = variantOverride || (compact ? "small" : keyVariant);
     const keySizeClass = effectiveVariant === 'small' ? 'h-[30px] w-[30px]' : effectiveVariant === 'medium' ? 'h-[45px] w-[45px]' : 'h-[60px] w-[60px]';
@@ -54,12 +55,12 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
 
     // Row 2: 6 sniper keys
     const sniperKeys = [
-        { keycode: "SV_SNIPER_2", label: "Sniper 2x" },
-        { keycode: "SV_SNIPER_3", label: "Sniper 3x" },
-        { keycode: "SV_SNIPER_5", label: "Sniper 5x" },
-        { keycode: "SV_SNIPER_2_TG", label: "Sniper 2x Tgl" },
-        { keycode: "SV_SNIPER_3_TG", label: "Sniper 3x Tgl" },
-        { keycode: "SV_SNIPER_5_TG", label: "Sniper 5x Tgl" },
+        { keycode: "SV_SNIPER_2", label: "Sniper 2X" },
+        { keycode: "SV_SNIPER_3", label: "Sniper 3X" },
+        { keycode: "SV_SNIPER_5", label: "Sniper 5X" },
+        { keycode: "SV_SNIPER_2_TG", label: "Sniper 2XTG" },
+        { keycode: "SV_SNIPER_3_TG", label: "Sniper 3XTG" },
+        { keycode: "SV_SNIPER_5_TG", label: "Sniper 5XTG" },
     ];
 
     const renderKey = (k: { keycode: string; label: string }, withModifiers: boolean = false) => {

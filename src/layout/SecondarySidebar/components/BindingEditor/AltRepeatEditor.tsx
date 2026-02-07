@@ -1,15 +1,13 @@
-import { FC, useEffect, useState } from "react";
-import { ArrowRight, Trash2 } from "lucide-react";
+import { FC, useEffect } from "react";
+import { ArrowRight } from "lucide-react";
 import OnOffToggle from "@/components/ui/OnOffToggle";
 
-import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
-import { useDrag } from "@/contexts/DragContext";
-import { getKeyContents } from "@/utils/keys";
 import { AltRepeatKeyOptions } from "@/types/vial.types";
 import { vialService } from "@/services/vial.service";
+import EditorKey from "./EditorKey";
 
 const OPTIONS = [
     { label: "Default to alternate", bit: AltRepeatKeyOptions.DEFAULT_TO_ALT, description: "Use alternate key as default output" },
@@ -97,13 +95,26 @@ const AltRepeatEditor: FC = () => {
         }
     };
 
-    const [dragHoverSlot, setDragHoverSlot] = useState<"keycode" | "alt_keycode" | null>(null);
-    const { isDragging, draggedItem, markDropConsumed } = useDrag();
-
     const handleDrop = async (slot: "keycode" | "alt_keycode", item: any) => {
         if (!keyboard || !altRepeatEntry) return;
+
         const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-        updatedKeyboard.alt_repeat_keys[altRepeatIndex][slot] = item.keycode;
+
+        if (item.editorType === "altrepeat" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
+            const sourceSlot = item.editorSlot;
+            const targetSlot = slot;
+            if (sourceSlot === targetSlot) return;
+
+            const entry = updatedKeyboard.alt_repeat_keys[altRepeatIndex];
+            const sourceVal = entry[sourceSlot];
+            const targetVal = entry[targetSlot];
+
+            entry[sourceSlot] = targetVal;
+            entry[targetSlot] = sourceVal;
+        } else {
+            updatedKeyboard.alt_repeat_keys[altRepeatIndex][slot] = item.keycode;
+        }
+
         setKeyboard(updatedKeyboard);
 
         try {
@@ -114,105 +125,42 @@ const AltRepeatEditor: FC = () => {
         }
     };
 
-    const renderKey = (label: string, slot: "keycode" | "alt_keycode") => {
-        if (!altRepeatEntry) return null;
-        const keycode = altRepeatEntry[slot];
-        const keyContents = getKeyContents(keyboard!, keycode || "KC_NO");
-        const isSelected = isSlotSelected(slot);
-        const hasContent = keycode && keycode !== "KC_NO";
-        const isDragHover = dragHoverSlot === slot;
-
-        let keyColor: string | undefined;
-        let keyClassName: string;
-        let headerClass: string;
-
-        if (isSelected) {
-            keyColor = undefined;
-            keyClassName = "border-2 border-red-600";
-            headerClass = "bg-black/20";
-        } else if (isDragHover && isDragging) {
-            // Drag Hover State: Double Border effect
-            keyColor = undefined;
-            keyClassName = "bg-red-500 border-kb-gray ring-2 ring-red-500 ring-offset-1 ring-offset-background";
-            headerClass = "bg-red-600 text-white";
-        } else if (hasContent) {
-            keyColor = "sidebar";
-            keyClassName = "border-kb-gray";
-            headerClass = "bg-kb-sidebar-dark";
-        } else {
-            keyColor = undefined;
-            keyClassName = "bg-transparent border-2 border-black";
-            headerClass = "text-black";
-        }
-
-        return (
-            <div className="flex flex-col items-center gap-2 relative">
-                <span className="text-sm font-bold text-slate-600">{label}</span>
-                <div
-                    className="relative w-[60px] h-[60px] group/altrepeat-key"
-                    onMouseEnter={() => isDragging && setDragHoverSlot(slot)}
-                    onMouseLeave={() => setDragHoverSlot(null)}
-                    onMouseUp={() => {
-                        if (isDragging && isDragHover && draggedItem) {
-                            markDropConsumed();
-                            handleDrop(slot, draggedItem);
-                            setDragHoverSlot(null);
-                        }
-                    }}
-                >
-                    <Key
-                        isRelative
-                        x={0}
-                        y={0}
-                        w={1}
-                        h={1}
-                        row={-1}
-                        col={-1}
-                        keycode={keycode || "KC_NO"}
-                        label={keyContents?.str || ""}
-                        keyContents={keyContents}
-                        selected={isSelected}
-                        onClick={() => selectAltRepeatKey(altRepeatIndex, slot)}
-                        layerColor={keyColor}
-                        className={keyClassName}
-                        headerClassName={headerClass}
-                        disableTooltip={true}
-                        disableHover={isDragging}
-                    />
-                    {hasContent && (
-                        <div className="absolute -left-10 top-0 h-full flex items-center justify-center opacity-0 group-hover/altrepeat-key:opacity-100 group-hover/altrepeat-key:pointer-events-auto pointer-events-none transition-opacity">
-                            <button
-                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    clearKey(slot);
-                                }}
-                                title="Clear key"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-    };
-
     if (!altRepeatEntry) return <div className="p-5">Alt-repeat entry not found</div>;
 
-
-
     return (
-        <div className="flex flex-col gap-2 py-6 pl-[84px] pr-5 pb-20">
-
+        <div className="flex flex-col gap-2 py-6 pl-[84px] pb-20">
 
             {/* Key Slots */}
             <div className="flex flex-row gap-8 justify-start items-center">
-                {renderKey("Trigger", "keycode")}
+                <div className="flex flex-col items-center gap-2 relative">
+                    <span className="text-sm font-bold text-slate-600">Trigger</span>
+                    <EditorKey
+                        keycode={altRepeatEntry.keycode}
+                        selected={isSlotSelected("keycode")}
+                        onClick={() => selectAltRepeatKey(altRepeatIndex, "keycode")}
+                        onClear={() => clearKey("keycode")}
+                        onDrop={(item) => handleDrop("keycode", item)}
+                        editorType="altrepeat"
+                        editorId={itemToEdit!}
+                        editorSlot="keycode"
+                    />
+                </div>
                 <div className="pt-6 text-black -mr-1">
                     <ArrowRight className="w-6 h-6" />
                 </div>
-                {renderKey("Alternate", "alt_keycode")}
+                <div className="flex flex-col items-center gap-2 relative">
+                    <span className="text-sm font-bold text-slate-600">Alternate</span>
+                    <EditorKey
+                        keycode={altRepeatEntry.alt_keycode}
+                        selected={isSlotSelected("alt_keycode")}
+                        onClick={() => selectAltRepeatKey(altRepeatIndex, "alt_keycode")}
+                        onClear={() => clearKey("alt_keycode")}
+                        onDrop={(item) => handleDrop("alt_keycode", item)}
+                        editorType="altrepeat"
+                        editorId={itemToEdit!}
+                        editorSlot="alt_keycode"
+                    />
+                </div>
             </div>
 
             {/* Options Switches */}

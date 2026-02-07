@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { DragItem, useDrag } from "@/contexts/DragContext";
 
 import { Trash2 } from "lucide-react";
+import { DelayedTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 // ... (imports)
 
 interface Props {
@@ -115,6 +116,11 @@ const MacroEditorKey: FC<Props> = ({ label, binding, index, onDelete, onDrop }) 
                         onClick={() => selectMacroKey(mid!, index)}
                         disableTooltip={true}
                         disableHover={isDragging}
+                        dragItemData={{
+                            editorType: "macro",
+                            editorId: mid!,
+                            editorSlot: index
+                        }}
                     />
                 </div>
                 <div className="flex flex-row items-center flex-grow">
@@ -122,14 +128,21 @@ const MacroEditorKey: FC<Props> = ({ label, binding, index, onDelete, onDrop }) 
                 </div>
             </div>
             {onDelete && (
-                <div className="absolute -left-10 top-0 h-full flex items-center justify-center opacity-0 peer-hover:opacity-100 hover:opacity-100 transition-opacity">
-                    <button
-                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
-                        onClick={onDelete}
-                        title="Delete item"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </button>
+                <div className="absolute -left-10 top-1/2 -translate-y-1/2 flex items-center justify-center opacity-0 peer-hover:opacity-100 hover:opacity-100 transition-opacity z-10">
+                    <DelayedTooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                className="p-2 text-gray-400 hover:bg-red-500 hover:text-white rounded-full bg-kb-gray-medium"
+                                onClick={onDelete}
+                                type="button"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Delete item</p>
+                        </TooltipContent>
+                    </DelayedTooltip>
                 </div>
             )}
         </div>

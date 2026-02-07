@@ -13,8 +13,6 @@ import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "
 import { getKeyContents } from "@/utils/keys";
 import { KeyContent } from "@/types/vial.types";
 
-import { getLabelForKeycode } from "@/components/Keyboards/layouts";
-
 interface Props {
     isPicker?: boolean;
 }
@@ -23,7 +21,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
     const { keyboard, setKeyboard } = useVial();
     const { assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
-    const { layoutMode, internationalLayout } = useLayoutSettings();
+    const { layoutMode } = useLayoutSettings();
     const {
         setItemToEdit,
         setBindingTypeToEdit,
@@ -86,17 +84,6 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
             const actionKeycode = value || "KC_NO";
             const actionKeyContents = getKeyContents(keyboard!, actionKeycode);
 
-            // Calculate the correct label for display, respecting international layout overrides
-            // Note: renderAction is inside the component, so we can access hooks if we lift them or just use them here?
-            // Wait, renderAction is defined inside the component scope, so it can access `layoutMode` etc.
-            // But we need `internationalLayout` which isn't destructured yet in the component body.
-            // I'll add it to the destructuring in the main component body, then use it here.
-
-            // Actually, I'll assume I've added it to the main component body. 
-            // In the replacement below I'll just use `internationalLayout`.
-            const internationalLabel = getLabelForKeycode(actionKeycode, internationalLayout);
-            const displayLabel = internationalLabel || actionKeyContents?.str || "";
-
             return (
                 <div className="w-[30px] h-[30px] relative flex-shrink-0" key={idx}>
                     <Key
@@ -108,7 +95,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                         row={-1}
                         col={-1}
                         keycode={actionKeycode}
-                        label={displayLabel}
+                        label={actionKeyContents?.str || ""}
                         keyContents={actionKeyContents}
                         variant="small"
                         layerColor="sidebar"

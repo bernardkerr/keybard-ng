@@ -25,6 +25,7 @@ export interface UseKeyDragProps {
     onClick?: (row: number, col: number) => void;
     disableHover?: boolean;
     disableDrag?: boolean;
+    dragItemData?: Partial<DragItem>;
 }
 
 /**
@@ -33,7 +34,8 @@ export interface UseKeyDragProps {
 export const useKeyDrag = (props: UseKeyDragProps) => {
     const {
         uniqueId, keycode, label, row, col, layerIndex, layerColor,
-        isRelative, keyContents, w, h, dragW, dragH, variant, onClick, disableHover, disableDrag
+        isRelative, keyContents, w, h, dragW, dragH, variant, onClick, disableHover, disableDrag,
+        dragItemData
     } = props;
 
     const { startDrag, dragSourceId, isDragging, draggedItem, markDropConsumed } = useDrag();
@@ -119,7 +121,8 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
                     },
                     row: isRelative ? undefined : row,
                     col: isRelative ? undefined : col,
-                    layer: isRelative ? undefined : layerIndex
+                    layer: isRelative ? undefined : layerIndex,
+                    ...dragItemData // Merge custom drag data overrides
                 };
 
                 startDrag(dragPayload, moveEvent);
@@ -137,7 +140,7 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
 
         window.addEventListener("mousemove", checkDrag);
         window.addEventListener("mouseup", handleUp);
-    }, [keycode, label, keyContents, uniqueId, w, currentUnitSize, h, row, col, layerColor, variant, isRelative, layerIndex, startDrag, dragW, dragH]);
+    }, [keycode, label, keyContents, uniqueId, w, currentUnitSize, h, row, col, layerColor, variant, isRelative, layerIndex, startDrag, dragW, dragH, dragItemData]);
 
     const handleMouseUp = useCallback(() => {
         if (canDrop && isDragHover && draggedItem) {

@@ -7,8 +7,7 @@ import { getKeyContents } from "@/utils/keys";
 import { keyService } from "@/services/key.service";
 import { hoverBackgroundClasses, hoverBorderClasses } from "@/utils/colors";
 import { DragItem, useDrag } from "@/contexts/DragContext";
-import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-import { getLabelForKeycode } from "@/components/Keyboards/layouts";
+import { DelayedTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface EditorKeyProps {
     keycode: string;
@@ -24,6 +23,10 @@ interface EditorKeyProps {
     wrapperClassName?: string; // Class for the wrapper div
     showTrash?: boolean; // Whether the trash icon is enabled (defaults to true if onClear is provided)
     onDrop?: (item: DragItem) => void;
+    // Context for swapping
+    editorType?: string;
+    editorId?: number | string;
+    editorSlot?: number | string;
 }
 
 const EditorKey: FC<EditorKeyProps> = ({
@@ -39,13 +42,15 @@ const EditorKey: FC<EditorKeyProps> = ({
     labelClassName = "text-sm font-bold text-slate-600",
     wrapperClassName = "flex flex-col items-center gap-1 relative",
     showTrash = true,
-    onDrop
+    onDrop,
+    editorType,
+    editorId,
+    editorSlot
 }) => {
     const { keyboard } = useVial();
     const { selectedLayer } = useLayer();
     const { isDragging, draggedItem, markDropConsumed } = useDrag();
     const [isDragHover, setIsDragHover] = useState(false);
-    const { internationalLayout } = useLayoutSettings();
 
     const layerColorName = keyboard?.cosmetic?.layer_colors?.[selectedLayer] || "primary";
     const hoverBorderColor = hoverBorderClasses[layerColorName] || hoverBorderClasses["primary"];
@@ -98,11 +103,7 @@ const EditorKey: FC<EditorKeyProps> = ({
     };
 
     // Calculate the correct label for display, respecting international layout overrides
-    const internationalLabel = getLabelForKeycode(keycode, internationalLayout);
-    const fallbackLabel = ((!keyContents?.type || keyContents.type === 'key') && keyContents?.str?.includes('\n') ? keyContents.str.split('\n').pop() : keyContents?.str) || "";
-    // If internationalLabel is present, use it. But allow explicit 'label' prop to override everything.
-    // If no internationalLabel, fall back to default keyContents logic.
-    const displayLabel = label || internationalLabel || fallbackLabel;
+    const displayLabel = label || ((!keyContents?.type || keyContents.type === 'key') && keyContents?.str?.includes('\n') ? keyContents.str.split('\n').pop() : keyContents?.str) || "";
 
     return (
         <div className={wrapperClassName}>
@@ -132,21 +133,32 @@ const EditorKey: FC<EditorKeyProps> = ({
                     variant={variant}
                     disableTooltip={true}
                     disableHover={isDragging}
+                    dragItemData={{
+                        editorType,
+                        editorId,
+                        editorSlot
+                    }}
                 />
 
                 {hasContent && showTrash && onClear && (
-                    <div className={`absolute ${trashOffset} top-0 h-full flex items-center justify-center opacity-0 group-hover/editorkey:opacity-100 transition-opacity`}>
-                        <button
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onClear();
-                            }}
-                            title="Clear key"
-                            type="button"
-                        >
-                            <Trash2 className={trashSize} />
-                        </button>
+                    <div className={`absolute ${trashOffset} top-1/2 -translate-y-1/2 flex items-center justify-center opacity-0 group-hover/editorkey:opacity-100 transition-opacity z-10`}>
+                        <DelayedTooltip>
+                            <TooltipTrigger asChild>
+                                <button
+                                    className="p-1.5 text-gray-400 hover:bg-red-500 hover:text-white rounded-full bg-kb-gray-medium"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onClear();
+                                    }}
+                                    type="button"
+                                >
+                                    <Trash2 className={trashSize} />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Clear key</p>
+                            </TooltipContent>
+                        </DelayedTooltip>
                     </div>
                 )}
             </div>

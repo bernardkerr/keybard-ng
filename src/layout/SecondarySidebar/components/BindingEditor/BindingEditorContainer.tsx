@@ -13,6 +13,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { DelayedTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 
 import { LeaderOptions, AltRepeatKeyOptions } from "@/types/vial.types";
@@ -193,7 +194,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                         ...updatedKeyboard.key_overrides[itemToEdit],
                         trigger: "KC_NO",
                         replacement: "KC_NO",
-                        layers: 0,
+                        layers: 0xFFFF,
                         trigger_mods: 0,
                         negative_mod_mask: 0,
                         suppressed_mods: 0,
@@ -231,6 +232,23 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
         }
 
         await vialService.saveViable();
+    };
+
+    const getEditorTitle = () => {
+        if (!keyboard || itemToEdit === null || !bindingTypeToEdit) return "Data";
+
+        if (bindingTypeToEdit === "macros") {
+            return keyboard.cosmetic?.macros?.[itemToEdit.toString()] || `Macro Key ${itemToEdit}`;
+        }
+
+        switch (bindingTypeToEdit) {
+            case "combos": return `Combo ${itemToEdit}`;
+            case "tapdances": return `Tap Dance Key ${itemToEdit}`;
+            case "overrides": return `Override ${itemToEdit}`;
+            case "altrepeat": return `Alt-Repeat Key ${itemToEdit}`;
+            case "leaders": return `Leader Sequence ${itemToEdit}`;
+            default: return (labels as any)[bindingTypeToEdit] || "Data";
+        }
     };
 
     const getHasContent = () => {
@@ -413,7 +431,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                 <div className={inline ? "p-3 pt-0" : "p-5 pt-0"}>
                     <div className={cn(
                         "flex flex-row w-full items-start justify-between",
-                        inline ? "pr-3 pt-2 pb-2 pl-4" : "pr-5 pt-2 pb-[6px] pl-[84px]"
+                        inline ? "pr-3 pt-2 pb-2 pl-4" : "pt-2 pb-[6px] pl-[84px]"
                     )}>
                         <div className="flex flex-row items-start">
                             {renderHeaderIcon()}
@@ -438,21 +456,11 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                                 onClick={handleStartEditingTitle}
                                                 title="Click to rename"
                                             >
-                                                {keyboard?.cosmetic?.macros?.[itemToEdit!.toString()] || `Macro Key ${itemToEdit}`}
+                                                {getEditorTitle()}
                                             </div>
                                         )
-                                    ) : bindingTypeToEdit === "combos" ? (
-                                        `Combo ${itemToEdit}`
-                                    ) : bindingTypeToEdit === "tapdances" ? (
-                                        `Tap Dance Key ${itemToEdit}`
-                                    ) : bindingTypeToEdit === "overrides" ? (
-                                        `Override ${itemToEdit}`
-                                    ) : bindingTypeToEdit === "altrepeat" ? (
-                                        `Alt-Repeat Key ${itemToEdit}`
-                                    ) : bindingTypeToEdit === "leaders" ? (
-                                        `Leader Sequence ${itemToEdit}`
                                     ) : (
-                                        (labels as any)[bindingTypeToEdit!]
+                                        getEditorTitle()
                                     )}
                                 </div>
                             </div>
@@ -478,15 +486,21 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                     {bindingTypeToEdit === "leaders" && <LeaderEditor />}
 
                     {!inline && hasContent && (
-                        <div className="absolute bottom-[22px] right-5">
-                            <button
-                                type="button"
-                                onClick={() => setIsConfirmOpen(true)}
-                                className="rounded-full p-1 text-kb-gray-border transition-all hover:text-red-500 hover:bg-red-50 focus:outline-none cursor-pointer"
-                                title="Clear all data"
-                            >
-                                <Trash2 className="h-5 w-5" />
-                            </button>
+                        <div className="absolute bottom-[22px] right-5 z-10">
+                            <DelayedTooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsConfirmOpen(true)}
+                                        className="rounded-full p-1 text-kb-gray-border transition-all hover:bg-red-500 hover:text-white focus:outline-none cursor-pointer bg-kb-gray-medium"
+                                    >
+                                        <Trash2 className="h-5 w-5" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Clear all data</p>
+                                </TooltipContent>
+                            </DelayedTooltip>
                         </div>
                     )}
                 </div>
@@ -495,14 +509,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                         <DialogTitle className="text-xl font-bold">
-                            Clear {
-                                bindingTypeToEdit === "tapdances" ? "Tap Dance" :
-                                    bindingTypeToEdit === "macros" ? "Macro" :
-                                        bindingTypeToEdit === "combos" ? "Combo" :
-                                            bindingTypeToEdit === "overrides" ? "Override" :
-                                                bindingTypeToEdit === "altrepeat" ? "Alt-Repeat" :
-                                                    bindingTypeToEdit === "leaders" ? "Leader Sequence" : "Data"
-                            }
+                            Clear {getEditorTitle()}
                         </DialogTitle>
                     </DialogHeader>
                     <DialogFooter className="gap-3 sm:gap-4 mt-4">
@@ -523,7 +530,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     );
 };
 

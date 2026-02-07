@@ -117,16 +117,32 @@ const MacroEditor: FC = () => {
         );
     };
     const handleDrop = (index: number, item: any) => {
-        const newActions = [...actions];
-        if (newActions[index]) {
-            newActions[index][1] = item.keycode;
+        if (item.editorType === "macro" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
+            const sourceIndex = item.editorSlot;
+            const targetIndex = index;
+            if (sourceIndex === targetIndex) return;
+
+            const newActions = [...actions];
+            // Swap action values
+            const temp = newActions[sourceIndex];
+            newActions[sourceIndex] = newActions[targetIndex];
+            newActions[targetIndex] = temp;
+
             updateActions(newActions);
+            // Update selection to follow the swapped item if needed, 
+            // but usually simplistic swap is enough visually.
+        } else {
+            const newActions = [...actions];
+            if (newActions[index]) {
+                newActions[index][1] = item.keycode;
+                updateActions(newActions);
+            }
         }
     };
 
     return (
         <div
-            className="flex flex-col items-start pl-[84px] pr-5 gap-1 pt-5 pb-20 w-full max-h-[600px] overflow-y-auto"
+            className="flex flex-col items-start pl-[84px] gap-1 pt-5 pb-20 w-full max-h-[600px] overflow-y-auto"
             onClick={(e) => {
                 // Should only clear if clicking the background, not a child element
                 if (e.target === e.currentTarget) {

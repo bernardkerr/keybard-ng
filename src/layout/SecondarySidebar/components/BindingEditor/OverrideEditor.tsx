@@ -56,7 +56,8 @@ const OverrideEditor: FC<Props> = () => {
 
             updatedOverrides[itemToEdit] = {
                 ...entry,
-                options: newOptions
+                options: newOptions,
+                layers: 0xFFFF
             };
 
             const updatedKeyboard = { ...keyboard, key_overrides: updatedOverrides };
@@ -131,6 +132,31 @@ const OverrideEditor: FC<Props> = () => {
         setKeyboard(updatedKeyboard);
     };
 
+    const handleDrop = (slot: "trigger" | "replacement", item: any) => {
+        if (item.editorType === "override" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
+            const sourceSlot = item.editorSlot;
+            const targetSlot = slot;
+            if (sourceSlot === targetSlot) return;
+
+            if (!keyboard || !override) return;
+            const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+            const ovr = updatedKeyboard.key_overrides[overrideIndex];
+
+            const sourceVal = sourceSlot === "trigger" ? ovr.trigger : ovr.replacement;
+            const targetVal = targetSlot === "trigger" ? ovr.trigger : ovr.replacement;
+
+            if (sourceSlot === "trigger") ovr.trigger = targetVal;
+            else ovr.replacement = targetVal;
+
+            if (targetSlot === "trigger") ovr.trigger = sourceVal;
+            else ovr.replacement = sourceVal;
+
+            setKeyboard(updatedKeyboard);
+        } else {
+            updateOverrideAssignment(slot, item.keycode);
+        }
+    };
+
     const updateOverrideAssignment = (slot: "trigger" | "replacement", keycode: string) => {
         if (!keyboard || !override) return;
         const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
@@ -155,7 +181,7 @@ const OverrideEditor: FC<Props> = () => {
                     selected={isSelected}
                     onClick={() => selectOverrideKey(overrideIndex, slot)}
                     onClear={() => clearKey(slot)}
-                    onDrop={(item) => updateOverrideAssignment(slot, item.keycode)}
+                    onDrop={(item) => handleDrop(slot, item)}
                     size="w-[60px] h-[60px]"
                     // OverrideEditor renders trash at "-left-10" which is default for EditorKey
                     trashOffset="-left-10"
@@ -163,6 +189,9 @@ const OverrideEditor: FC<Props> = () => {
                     variant="default"
                     label={undefined}
                     labelClassName={undefined}
+                    editorType="override"
+                    editorId={itemToEdit!}
+                    editorSlot={slot}
                 />
             </div>
         );
@@ -171,7 +200,7 @@ const OverrideEditor: FC<Props> = () => {
     if (!override) return <div className="p-5">Override not found</div>;
 
     return (
-        <div className="flex flex-col gap-2 py-6 pl-[84px] pr-5 pb-16">
+        <div className="flex flex-col gap-2 py-6 pl-[84px] pb-16">
             {/* Active Switch */}
             {/* Active Toggle */}
 

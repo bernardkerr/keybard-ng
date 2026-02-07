@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { colorClasses, hoverContainerTextClasses } from "@/utils/colors";
 import { KeyContent } from "@/types/vial.types";
+import { DragItem } from "@/contexts/DragContext";
 import { getHeaderIcons, getCenterContent, getTypeIcon } from "@/utils/key-icons";
 import { useKeyDrag } from "@/hooks/useKeyDrag";
 
@@ -34,6 +35,7 @@ export interface KeyProps {
     dragW?: number;
     dragH?: number;
     disableDrag?: boolean;
+    dragItemData?: Partial<DragItem>;
 }
 
 /**
@@ -51,7 +53,8 @@ export const Key: React.FC<KeyProps> = (props) => {
     const uniqueId = React.useId();
     const drag = useKeyDrag({
         uniqueId, keycode, label, row, col, layerIndex, layerColor,
-        isRelative, keyContents, w, h, dragW, dragH, variant, onClick, disableHover, disableDrag
+        isRelative, keyContents, w, h, dragW, dragH, variant, onClick, disableHover, disableDrag,
+        dragItemData: props.dragItemData
     });
 
     const isSmall = variant === "small";
