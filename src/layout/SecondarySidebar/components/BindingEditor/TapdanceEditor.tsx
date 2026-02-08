@@ -6,16 +6,16 @@ import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useDebounce } from "@uidotdev/usehooks";
+import { TapdanceEntry } from "@/types/vial.types";
+import { DragItem } from "@/contexts/DragContext";
 
 import EditorKey from "./EditorKey";
 
-interface Props { }
-
-const TapdanceEditor: FC<Props> = () => {
+const TapdanceEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
     const { setPanelToGoBack, setAlternativeHeader, itemToEdit, initialEditorSlot } = usePanels();
     const { keyVariant, layoutMode } = useLayoutSettings();
-    const currTapDance = (keyboard as any).tapdances?.[itemToEdit!];
+    const currTapDance: TapdanceEntry | undefined = keyboard?.tapdances?.[itemToEdit!];
     const { selectTapdanceKey, selectedTarget } = useKeyBinding();
 
     const isHorizontal = layoutMode === "bottombar";
@@ -36,15 +36,15 @@ const TapdanceEditor: FC<Props> = () => {
 
     useEffect(() => {
         if (currTapDance) {
-            setTapMs(currTapDance.tapms);
+            setTapMs(currTapDance.tapping_term);
         }
     }, [itemToEdit]); // Use itemToEdit instead of currTapDance to avoid infinite loop
 
     const keys = {
-        tap: currTapDance?.tap,   // Pass keycode string directly (or whatever format it is)
-        doubletap: currTapDance?.doubletap,
-        hold: currTapDance?.hold,
-        taphold: currTapDance?.taphold,
+        tap: currTapDance?.tap ?? "KC_NO",
+        doubletap: currTapDance?.doubletap ?? "KC_NO",
+        hold: currTapDance?.hold ?? "KC_NO",
+        taphold: currTapDance?.taphold ?? "KC_NO",
     };
 
     useEffect(() => {
@@ -60,17 +60,15 @@ const TapdanceEditor: FC<Props> = () => {
     }, [itemToEdit, selectTapdanceKey, initialEditorSlot]);
 
     const updateTapMs = (ms: number) => {
-        if (keyboard && (keyboard as any).tapdances && itemToEdit !== null) {
-            const updatedKeyboard = { ...keyboard };
-            const tapdances = [...(updatedKeyboard as any).tapdances];
+        if (keyboard?.tapdances && itemToEdit !== null) {
+            const tapdances = [...keyboard.tapdances];
             if (tapdances[itemToEdit]) {
                 tapdances[itemToEdit] = {
                     ...tapdances[itemToEdit],
-                    tapms: ms,
+                    tapping_term: ms,
                 };
             }
-            (updatedKeyboard as any).tapdances = tapdances;
-            setKeyboard(updatedKeyboard);
+            setKeyboard({ ...keyboard, tapdances });
         }
     };
     useEffect(() => {
@@ -78,17 +76,15 @@ const TapdanceEditor: FC<Props> = () => {
     }, [debouncedTapMs]);
 
     const updateKeyAssignment = (slot: string, keycode: string) => {
-        if (!keyboard || itemToEdit === null) return;
-        const updatedKeyboard = { ...keyboard };
-        const tapdances = [...(updatedKeyboard as any).tapdances];
+        if (!keyboard?.tapdances || itemToEdit === null) return;
+        const tapdances = [...keyboard.tapdances];
         if (tapdances[itemToEdit]) {
             tapdances[itemToEdit] = {
                 ...tapdances[itemToEdit],
                 [slot]: keycode
             };
         }
-        (updatedKeyboard as any).tapdances = tapdances;
-        setKeyboard(updatedKeyboard);
+        setKeyboard({ ...keyboard, tapdances });
     };
 
     // Handle Delete/Backspace for selected key
@@ -105,28 +101,26 @@ const TapdanceEditor: FC<Props> = () => {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [selectedTarget, itemToEdit]);
 
-    const handleDrop = (slot: string, item: any) => {
+    const handleDrop = (slot: string, item: DragItem) => {
         if (item.editorType === "tapdance" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
-            const sourceSlot = item.editorSlot;
-            const targetSlot = slot;
+            const sourceSlot = item.editorSlot as keyof TapdanceEntry;
+            const targetSlot = slot as keyof TapdanceEntry;
             if (sourceSlot === targetSlot) return;
 
-            if (!keyboard || itemToEdit === null) return;
-            const updatedKeyboard = { ...keyboard };
-            const tapdances = [...(updatedKeyboard as any).tapdances];
+            if (!keyboard?.tapdances || itemToEdit === null) return;
+            const tapdances = [...keyboard.tapdances];
 
             if (tapdances[itemToEdit]) {
                 const td = { ...tapdances[itemToEdit] };
                 const sourceVal = td[sourceSlot];
                 const targetVal = td[targetSlot];
 
-                td[sourceSlot] = targetVal;
-                td[targetSlot] = sourceVal;
+                (td as Record<string, unknown>)[sourceSlot] = targetVal;
+                (td as Record<string, unknown>)[targetSlot] = sourceVal;
 
                 tapdances[itemToEdit] = td;
             }
-            (updatedKeyboard as any).tapdances = tapdances;
-            setKeyboard(updatedKeyboard);
+            setKeyboard({ ...keyboard, tapdances });
         } else {
             updateKeyAssignment(slot, item.keycode);
         }

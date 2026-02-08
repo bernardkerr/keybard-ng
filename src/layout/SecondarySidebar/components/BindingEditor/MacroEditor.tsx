@@ -1,17 +1,18 @@
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect, useState, useRef } from "react";
 
 import PlusIcon from "@/components/icons/Plus";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
+import { DragItem } from "@/contexts/DragContext";
+import { MacroAction } from "@/types/vial.types";
 import { ArrowDown } from "lucide-react";
 import MacroEditorKey from "./MacroEditorKey";
 import MacroEditorText from "./MacroEditorText";
 import { vialService } from "@/services/vial.service";
-import { useRef } from "react";
 
 const MacroEditor: FC = () => {
-    const [actions, setActions] = useState<any[]>([]);
+    const [actions, setActions] = useState<MacroAction[]>([]);
     const [focusIndex, setFocusIndex] = useState<number | null>(null);
     const hasAppliedInitialSelection = useRef(false);
     const { keyboard, setKeyboard } = useVial();
@@ -49,8 +50,8 @@ const MacroEditor: FC = () => {
 
     // Load macros
     useEffect(() => {
-        if (!keyboard || itemToEdit === null) return;
-        const currMacro = (keyboard as any).macros?.[itemToEdit];
+        if (!keyboard?.macros || itemToEdit === null) return;
+        const currMacro = keyboard.macros[itemToEdit];
         const newActions = currMacro?.actions || [];
 
         // Only update local state if different from keyboard state
@@ -84,7 +85,7 @@ const MacroEditor: FC = () => {
     }, [initialEditorSlot, actions, itemToEdit, selectMacroKey]);
 
     // Manual helper to update both local state and keyboard context
-    const updateActions = async (newActions: any[]) => {
+    const updateActions = async (newActions: MacroAction[]) => {
         setActions(newActions);
 
         if (!keyboard || itemToEdit === null) return;
@@ -114,7 +115,8 @@ const MacroEditor: FC = () => {
     };
 
     const handleAddItem = (type: string) => {
-        const newActions = [...actions, [type, ""]];
+        const newAction: MacroAction = [type, ""];
+        const newActions: MacroAction[] = [...actions, newAction];
         updateActions(newActions);
 
         if (["down", "up", "tap"].includes(type)) {
@@ -134,7 +136,7 @@ const MacroEditor: FC = () => {
         clearSelection();
     };
 
-    const handleTextChange = (index: number, value: any) => {
+    const handleTextChange = (index: number, value: string | number) => {
         const newActions = [...actions];
         newActions[index][1] = value;
         updateActions(newActions);
@@ -150,9 +152,9 @@ const MacroEditor: FC = () => {
             </button>
         );
     };
-    const handleDrop = (index: number, item: any) => {
+    const handleDrop = (index: number, item: DragItem) => {
         if (item.editorType === "macro" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
-            const sourceIndex = item.editorSlot;
+            const sourceIndex = item.editorSlot as number;
             const targetIndex = index;
             if (sourceIndex === targetIndex) return;
 
@@ -208,7 +210,7 @@ const MacroEditor: FC = () => {
                         )}
                         {["down", "up", "tap"].includes(item[0]) && (
                             <MacroEditorKey
-                                binding={item[1]}
+                                binding={item[1] as string}
                                 index={index}
                                 label={item[0].charAt(0).toUpperCase() + item[0].slice(1)}
                                 onDelete={() => handleDeleteItem(index)}

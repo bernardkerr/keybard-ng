@@ -5,6 +5,7 @@ import OnOffToggle from "@/components/ui/OnOffToggle";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
+import { DragItem } from "@/contexts/DragContext";
 import { AltRepeatKeyOptions } from "@/types/vial.types";
 import { vialService } from "@/services/vial.service";
 import EditorKey from "./EditorKey";
@@ -95,13 +96,13 @@ const AltRepeatEditor: FC = () => {
         }
     };
 
-    const handleDrop = async (slot: "keycode" | "alt_keycode", item: any) => {
+    const handleDrop = async (slot: "keycode" | "alt_keycode", item: DragItem) => {
         if (!keyboard || !altRepeatEntry) return;
 
         const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
 
         if (item.editorType === "altrepeat" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
-            const sourceSlot = item.editorSlot;
+            const sourceSlot = item.editorSlot as "keycode" | "alt_keycode";
             const targetSlot = slot;
             if (sourceSlot === targetSlot) return;
 

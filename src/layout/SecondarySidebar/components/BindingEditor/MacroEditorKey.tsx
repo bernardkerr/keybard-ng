@@ -6,7 +6,7 @@ import EditorKey from "./EditorKey";
 
 interface Props {
     label?: string;
-    binding?: any;
+    binding?: string;
     index: number;
     onDelete?: () => void;
     onDrop?: (item: DragItem) => void;

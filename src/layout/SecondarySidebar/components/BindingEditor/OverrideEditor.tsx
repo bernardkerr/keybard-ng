@@ -5,11 +5,10 @@ import OnOffToggle from "@/components/ui/OnOffToggle";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
+import { DragItem } from "@/contexts/DragContext";
 import { cn } from "@/lib/utils";
 
 import OverrideModifierSelector from "./OverrideModifierSelector";
-
-interface Props { }
 
 const TABS = ["Trigger", "Negative", "Suspended"] as const;
 type TabType = typeof TABS[number];
@@ -30,7 +29,7 @@ const ENABLED_BIT = 1 << 7;
 import { vialService } from "@/services/vial.service";
 import EditorKey from "./EditorKey";
 
-const OverrideEditor: FC<Props> = () => {
+const OverrideEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
     const { itemToEdit, setPanelToGoBack, setAlternativeHeader, initialEditorSlot } = usePanels();
     const { selectOverrideKey, selectedTarget } = useKeyBinding();
@@ -132,9 +131,9 @@ const OverrideEditor: FC<Props> = () => {
         setKeyboard(updatedKeyboard);
     };
 
-    const handleDrop = (slot: "trigger" | "replacement", item: any) => {
+    const handleDrop = (slot: "trigger" | "replacement", item: DragItem) => {
         if (item.editorType === "override" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
-            const sourceSlot = item.editorSlot;
+            const sourceSlot = item.editorSlot as "trigger" | "replacement";
             const targetSlot = slot;
             if (sourceSlot === targetSlot) return;
 

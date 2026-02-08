@@ -6,40 +6,40 @@ import { DelayedTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/
 
 interface Props {
     type: string;
-    value: any;
-    onChange: (value: any) => void;
+    value: string | number;
+    onChange: (value: string | number) => void;
     onDelete?: () => void;
     autoFocus?: boolean;
 }
 
 const MacroEditorText: FC<Props> = ({ type, value, onChange, onDelete, autoFocus }) => {
-    const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        if (autoFocus && inputRef.current) {
-            inputRef.current.focus();
-            // Optional: Move cursor to end of text
-            if (inputRef.current instanceof HTMLTextAreaElement || inputRef.current.type === 'text') {
-                const len = String(value).length;
-                inputRef.current.setSelectionRange(len, len);
-            }
+        const activeRef = type === "text" ? textareaRef.current : inputRef.current;
+        if (autoFocus && activeRef) {
+            activeRef.focus();
+            // Move cursor to end of text
+            const len = String(value).length;
+            activeRef.setSelectionRange(len, len);
         }
-    }, [autoFocus]);
+    }, [autoFocus, type, value]);
 
     return (
         <div className="relative w-full">
             <div className="flex flex-row justify-start items-center w-full peer">
                 {type === "text" ? (
                     <Textarea
-                        ref={inputRef as any}
-                        value={value}
+                        ref={textareaRef}
+                        value={String(value)}
                         onChange={(e) => onChange(e.target.value)}
                         className="bg-white text-black border-input w-[180px] flex-grow-0 select-text"
                     />
                 ) : (
                     <Input
-                        ref={inputRef as any}
-                        value={value}
+                        ref={inputRef}
+                        value={String(value)}
                         onChange={(e) => onChange(e.target.value)}
                         className="bg-white text-black border-input w-[180px] flex-grow-0 select-text"
                     />

@@ -5,6 +5,7 @@ import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
+import { DragItem } from "@/contexts/DragContext";
 import { cn } from "@/lib/utils";
 import { vialService } from "@/services/vial.service";
 import { LeaderOptions } from "@/types/vial.types";
@@ -74,10 +75,10 @@ const LeaderEditor: FC = () => {
         );
     };
 
-    const handleDrop = (slot: "sequence" | "output", item: any, seqIndex?: number) => {
-        if (item.editorType === "leader" && item.editorId === itemToEdit) {
-            const sourceSlot = item.editorSlot; // "output" or number (index)
-            const targetSlot = slot === "output" ? "output" : seqIndex!;
+    const handleDrop = (slot: "sequence" | "output", item: DragItem, seqIndex?: number) => {
+        if (item.editorType === "leader" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
+            const sourceSlot = item.editorSlot as string | number; // "output" or number (index)
+            const targetSlot: string | number = slot === "output" ? "output" : seqIndex!;
 
             if (sourceSlot === targetSlot) return;
 

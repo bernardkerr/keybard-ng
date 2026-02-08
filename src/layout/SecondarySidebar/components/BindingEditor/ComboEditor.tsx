@@ -5,14 +5,12 @@ import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-
+import { DragItem } from "@/contexts/DragContext";
 
 import EditorKey from "./EditorKey";
 import { ComboEntry } from "@/types/vial.types";
 
-interface Props { }
-
-const ComboEditor: FC<Props> = () => {
+const ComboEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
     const { setPanelToGoBack, setAlternativeHeader, itemToEdit, initialEditorSlot } = usePanels();
     const { selectComboKey, selectedTarget } = useKeyBinding();
@@ -41,18 +39,17 @@ const ComboEditor: FC<Props> = () => {
         }
     }, [itemToEdit, selectComboKey, initialEditorSlot]);
 
-    const handleDrop = (slot: number, item: any) => {
-        if (!keyboard || itemToEdit === null) return;
+    const handleDrop = (slot: number, item: DragItem) => {
+        if (!keyboard?.combos || itemToEdit === null) return;
 
         // Check if we should swap (dragging from same combo editor)
         if (item.editorType === "combo" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
-            const sourceSlot = item.editorSlot;
+            const sourceSlot = item.editorSlot as number;
             const targetSlot = slot;
 
             if (sourceSlot === targetSlot) return;
 
-            const updatedKeyboard = { ...keyboard };
-            const combos = [...(updatedKeyboard as any).combos];
+            const combos = [...keyboard.combos];
 
             if (combos[itemToEdit]) {
                 const combo = { ...combos[itemToEdit] };
@@ -72,12 +69,10 @@ const ComboEditor: FC<Props> = () => {
                 combo.keys = newKeys;
                 combos[itemToEdit] = combo;
             }
-            (updatedKeyboard as any).combos = combos;
-            setKeyboard(updatedKeyboard);
+            setKeyboard({ ...keyboard, combos });
         } else {
             // Standard assignment (replace)
-            const updatedKeyboard = { ...keyboard };
-            const combos = [...(updatedKeyboard as any).combos];
+            const combos = [...keyboard.combos];
             if (combos[itemToEdit]) {
                 const combo = { ...combos[itemToEdit] };
                 if (slot < 4) {
@@ -89,14 +84,25 @@ const ComboEditor: FC<Props> = () => {
                 }
                 combos[itemToEdit] = combo;
             }
-            (updatedKeyboard as any).combos = combos;
-            setKeyboard(updatedKeyboard);
+            setKeyboard({ ...keyboard, combos });
         }
     };
 
     const updateComboAssignment = (slot: number, keycode: string) => {
-        // Wrapper for compatibility if called directly (though handleDrop covers it)
-        handleDrop(slot, { keycode });
+        if (!keyboard?.combos || itemToEdit === null) return;
+        const combos = [...keyboard.combos];
+        if (combos[itemToEdit]) {
+            const combo = { ...combos[itemToEdit] };
+            if (slot < 4) {
+                const newKeys = [...combo.keys];
+                newKeys[slot] = keycode;
+                combo.keys = newKeys;
+            } else {
+                combo.output = keycode;
+            }
+            combos[itemToEdit] = combo;
+        }
+        setKeyboard({ ...keyboard, combos });
     };
 
     const renderComboKey = (keycode: string, slot: number) => {
