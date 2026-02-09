@@ -48,12 +48,12 @@ const MOUSE_KEYS: readonly MouseKeyDefinition[] = [
     { keycode: "KC_ACL2", label: "Mouse Accelerate 2" },
 
     // Custom Mouse Features
-    { keycode: "SV_SNIPER_2", label: "Mouse Sniper 2x" },
-    { keycode: "SV_SNIPER_3", label: "Mouse Sniper 3x" },
-    { keycode: "SV_SNIPER_5", label: "Mouse Sniper 5x" },
-    { keycode: "SV_SNIPER_2_TG", label: "Sniper 2x Toggle" },
-    { keycode: "SV_SNIPER_3_TG", label: "Sniper 3x Toggle" },
-    { keycode: "SV_SNIPER_5_TG", label: "Sniper 5x Toggle" },
+    { keycode: "SV_SNIPER_2", label: "2X" },
+    { keycode: "SV_SNIPER_3", label: "3X" },
+    { keycode: "SV_SNIPER_5", label: "5X" },
+    { keycode: "SV_SNIPER_2_TG", label: "2XTG" },
+    { keycode: "SV_SNIPER_3_TG", label: "3XTG" },
+    { keycode: "SV_SNIPER_5_TG", label: "5XTG" },
     { keycode: "SV_MH_CHANGE_TIMEOUTS", label: "Mouse Key Timer" },
     { keycode: "SV_RECALIBRATE_POINTER", label: "Fix Drift" },
     { keycode: "SV_CAPS_WORD", label: "Caps Word" },
@@ -139,6 +139,7 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
                                 hoverBackgroundColor={hoverStyles.hoverBackgroundColor}
                                 hoverLayerColor={hoverStyles.layerColorName}
                                 onClick={() => assignKeycode(mouseKey.keycode)}
+                                disableTooltip={true}
                             />
                         );
                     })}
@@ -161,7 +162,7 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
         <section className="flex h-full max-h-full flex-col space-y-3 pt-3">
             {isPicker && (
                 <div className="pb-2">
-                    <span className="font-semibold text-xl text-slate-700">Mouse</span>
+                    <span className="font-semibold text-xl text-black">Mouse Keys</span>
                 </div>
             )}
             <div className="scrollbar-thin flex flex-grow flex-col overflow-auto">
@@ -183,6 +184,7 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
                             hoverLayerColor={hoverStyles.layerColorName}
                             hoverHeaderClass={hoverStyles.hoverHeaderClass}
                             showIndex={false}
+                            className="py-2"
                         />
                     );
                 })}

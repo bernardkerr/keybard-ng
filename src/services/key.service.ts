@@ -97,6 +97,9 @@ export class KeyService {
    * Convert a keynum to a string. e.g: 0x0004 -> 'KC_A', 0x0104 -> "LCTRL(KC_A)"
    */
   stringify(keynum: number): string {
+    if (keynum === undefined || keynum === null) {
+      return "0x0000";
+    }
     // Check full keycode first (handles OSM, special keycodes that aren't mod+key combos)
     if (keynum in CODEMAP) {
       return CODEMAP[keynum] as string;

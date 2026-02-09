@@ -34,7 +34,6 @@ interface KeyboardProps {
 export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) => {
     const {
         selectKeyboardKey,
-        selectKeyboardKeyWithSubsection,
         selectedTarget,
         clearSelection,
         assignKeycode
@@ -117,28 +116,6 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
             selectedTarget.layer === selectedLayer &&
             selectedTarget.row === row &&
             selectedTarget.col === col;
-    };
-
-    const getSelectedSubsection = (row: number, col: number): "full" | "inner" | null => {
-        if (!isKeySelected(row, col)) return null;
-        return selectedTarget?.keyboardSubsection || null;
-    };
-
-    const handleKeySubsectionClick = (row: number, col: number, subsection: "full" | "inner") => {
-        if (isTransmitting) {
-            const pos = row * matrixCols + col;
-            const keycode = layerKeymap[pos] || 0;
-            const keycodeName = getKeycodeName(keycode);
-            assignKeycode(keycodeName);
-            return;
-        }
-
-        // If clicking the same key and same subsection, toggle off
-        if (isKeySelected(row, col) && selectedTarget?.keyboardSubsection === subsection) {
-            clearSelection();
-            return;
-        }
-        selectKeyboardKeyWithSubsection(selectedLayer, row, col, subsection);
     };
 
     const handleKeyClick = (row: number, col: number) => {
@@ -263,9 +240,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                             row={row}
                             col={col}
                             selected={isKeySelected(row, col)}
-                            selectedSubsection={getSelectedSubsection(row, col)}
                             onClick={handleKeyClick}
-                            onSubsectionClick={handleKeySubsectionClick}
                             keyContents={keyContents}
                             layerColor={activeLayerColor}
                             headerClassName={keyHeaderClassFull}
@@ -275,6 +250,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                             variant={keyVariant}
                             layerIndex={selectedLayer}
                             hasPendingChange={hasPendingChangeForKey(selectedLayer, row, col)}
+                            disableTooltip={true}
                         />
                     );
                 })}

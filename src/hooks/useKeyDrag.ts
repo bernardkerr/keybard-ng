@@ -3,8 +3,9 @@ import { DragItem, useDrag } from "@/contexts/DragContext";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useVial } from "@/contexts/VialContext";
 import { KeyContent } from "@/types/vial.types";
-import { CODEMAP } from "@/constants/keygen";
+import { keyService } from "@/services/key.service";
 import { UNIT_SIZE, MATRIX_COLS } from "@/constants/svalboard-layout";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 
 export interface UseKeyDragProps {
     uniqueId: string;
@@ -18,9 +19,13 @@ export interface UseKeyDragProps {
     keyContents?: KeyContent;
     w: number;
     h: number;
+    dragW?: number;
+    dragH?: number;
     variant: "default" | "medium" | "small";
     onClick?: (row: number, col: number) => void;
     disableHover?: boolean;
+    disableDrag?: boolean;
+    dragItemData?: Partial<DragItem>;
 }
 
 /**
@@ -29,12 +34,14 @@ export interface UseKeyDragProps {
 export const useKeyDrag = (props: UseKeyDragProps) => {
     const {
         uniqueId, keycode, label, row, col, layerIndex, layerColor,
-        isRelative, keyContents, w, h, variant, onClick, disableHover
+        isRelative, keyContents, w, h, dragW, dragH, variant, onClick, disableHover, disableDrag,
+        dragItemData
     } = props;
 
     const { startDrag, dragSourceId, isDragging, draggedItem, markDropConsumed } = useDrag();
-    const { assignKeycode, selectKeyboardKey, swapKeys, setHoveredKey, clearSelection } = useKeyBinding();
+    const { assignKeycodeTo, selectKeyboardKey, swapKeys, setHoveredKey, clearSelection } = useKeyBinding();
     const { keyboard } = useVial();
+    const { keyVariant } = useLayoutSettings();
 
     const startPosRef = useRef<{ x: number; y: number } | null>(null);
     const [isDragHover, setIsDragHover] = useState(false);
@@ -44,6 +51,13 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
         if (variant === "medium") return 45;
         return UNIT_SIZE;
     }, [variant]);
+
+    // Calculate the target unit size for the drag payload based on the global key variant
+    const targetUnitSize = useMemo(() => {
+        if (keyVariant === "small") return 30;
+        if (keyVariant === "medium") return 45;
+        return UNIT_SIZE;
+    }, [keyVariant]);
 
     const isDragSource = dragSourceId === uniqueId;
     const canDrop = !isRelative && isDragging;
@@ -72,7 +86,7 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
     }, [canDrop, disableHover, setHoveredKey, clearSelection]);
 
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (e.button !== 0) return;
+        if (e.button !== 0 || disableDrag) return;
 
         startPosRef.current = { x: e.clientX, y: e.clientY };
 
@@ -87,23 +101,28 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
                 // Clear keyboard selection when drag starts
                 clearSelection();
 
+                // Use drag dimensions if provided, otherwise use actual dimensions
+                const effectW = dragW ?? w;
+                const effectH = dragH ?? h;
+
                 const dragPayload: DragItem = {
                     keycode,
                     label: label || keycode,
                     type: keyContents?.type || "keyboard",
                     extra: keyContents,
                     sourceId: uniqueId,
-                    width: w * currentUnitSize,
-                    height: h * currentUnitSize,
+                    width: effectW * targetUnitSize,
+                    height: effectH * targetUnitSize,
                     component: "Key",
                     props: {
-                        x: 0, y: 0, w, h, keycode, label, row, col,
+                        x: 0, y: 0, w: effectW, h: effectH, keycode, label, row, col,
                         layerColor, keyContents, isRelative: true,
-                        variant, className: "", selected: false, disableHover: true
+                        variant: keyVariant, className: "", selected: false, disableHover: true
                     },
                     row: isRelative ? undefined : row,
                     col: isRelative ? undefined : col,
-                    layer: isRelative ? undefined : layerIndex
+                    layer: isRelative ? undefined : layerIndex,
+                    ...dragItemData // Merge custom drag data overrides
                 };
 
                 startDrag(dragPayload, moveEvent);
@@ -121,7 +140,7 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
 
         window.addEventListener("mousemove", checkDrag);
         window.addEventListener("mouseup", handleUp);
-    }, [keycode, label, keyContents, uniqueId, w, currentUnitSize, h, row, col, layerColor, variant, isRelative, layerIndex, startDrag]);
+    }, [keycode, label, keyContents, uniqueId, w, currentUnitSize, h, row, col, layerColor, variant, isRelative, layerIndex, startDrag, dragW, dragH, dragItemData]);
 
     const handleMouseUp = useCallback(() => {
         if (canDrop && isDragHover && draggedItem) {
@@ -135,36 +154,50 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
                     );
                 }
             } else {
-                // Check if the dragged item is a modifier wrapping KC_NO — if so,
-                // combine with the drop target's existing base keycode
                 const dragKc = draggedItem.keycode;
-                const modWrapMatch = typeof dragKc === "string" && dragKc.match(/^(\w+)\(KC_NO\)$/);
-                if (modWrapMatch && keyboard?.keymap && layerIndex !== undefined) {
-                    const modPrefix = modWrapMatch[1];
-                    const matrixCols = keyboard.cols || MATRIX_COLS;
-                    const matrixPos = row * matrixCols + col;
-                    const existingNumeric = keyboard.keymap[layerIndex]?.[matrixPos];
-                    if (existingNumeric !== undefined && existingNumeric > 0) {
-                        // Get the base keycode (strip existing modifiers if any)
-                        let baseCode = existingNumeric;
-                        if (existingNumeric >= 0x2000 && existingNumeric <= 0x3FFF) {
-                            baseCode = existingNumeric & 0xFF; // mod-tap inner
-                        } else if (existingNumeric >= 0x0100 && existingNumeric <= 0x1FFF) {
-                            baseCode = existingNumeric & 0xFF; // modmask inner
-                        }
-                        const baseStr = baseCode in CODEMAP ? (CODEMAP[baseCode] as string) : "KC_NO";
-                        assignKeycode(`${modPrefix}(${baseStr})`);
+                const dragNumeric = keyService.parse(dragKc);
+                const matrixCols = keyboard!.cols || MATRIX_COLS;
+                const matrixPos = row * matrixCols + col;
+                const existingNumeric = keyboard?.keymap?.[layerIndex]?.[matrixPos] || 0;
+
+                // Check if the dragged item is a "wrapper" template (e.g., LCTL(KC_NO), LSFT_T(KC_NO), LT1(KC_NO))
+                // OR if it's a smart preview being dragged from the sidebar (draggedItem.row is undefined)
+                const isDragWrapper = (dragNumeric >= 0x0100 && dragNumeric <= 0x4FFF) &&
+                    (dragNumeric & 0xFF) === 0;
+
+                if (isDragWrapper && existingNumeric > 0) {
+                    // Extract the "inner" part of the existing key (the basic key/keycode)
+                    const basePart = existingNumeric & 0x00FF;
+
+                    // Determine the types for combining logic
+                    const dragType = dragNumeric & 0xF000;
+                    const existingType = existingNumeric & 0xF000;
+
+                    // Case 1: Both are same-category wrappers (e.g. both Modifiers or both Mod-Taps)
+                    // We can combine their modifier masks bitwise.
+                    const isModCategory = (t: number) => t === 0x0000 || t === 0x1000;
+                    const isModTapCategory = (t: number) => t === 0x2000 || t === 0x3000;
+
+                    if (isModCategory(dragType) && isModCategory(existingType)) {
+                        // Combine plain modifiers (preserving existing base key)
+                        assignKeycodeTo({ type: "keyboard", layer: layerIndex, row, col }, (dragNumeric | existingNumeric) & 0x1FFF);
+                    } else if (isModTapCategory(dragType) && isModTapCategory(existingType)) {
+                        // Combine mod-tap modifiers (preserving existing base key)
+                        assignKeycodeTo({ type: "keyboard", layer: layerIndex, row, col }, (dragNumeric | existingNumeric) & 0x3FFF);
                     } else {
-                        assignKeycode(dragKc);
+                        // Mixed types or first-time assignment: wrap existing base key with new modifier/type
+                        // This handles LT(layer, basePart), MT(mods, basePart), etc.
+                        assignKeycodeTo({ type: "keyboard", layer: layerIndex, row, col }, (dragNumeric & 0xFF00) | basePart);
                     }
                 } else {
-                    assignKeycode(dragKc);
+                    const dragKc = draggedItem.keycode;
+                    assignKeycodeTo({ type: "keyboard", layer: layerIndex, row, col }, dragKc);
                 }
             }
 
             setIsDragHover(false);
         }
-    }, [canDrop, isDragHover, draggedItem, markDropConsumed, row, col, layerIndex, swapKeys, assignKeycode, keyboard]);
+    }, [canDrop, isDragHover, draggedItem, markDropConsumed, row, col, layerIndex, swapKeys, assignKeycodeTo, keyboard]);
 
     return {
         isDragSource,

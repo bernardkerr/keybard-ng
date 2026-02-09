@@ -1,5 +1,6 @@
 import { KeyboardInfo } from "../types/vial.types";
 import { PendingChange } from "./changes.service";
+import { customValueService } from "./custom-value.service";
 import { keyService } from "./key.service";
 
 export class ImportService {
@@ -57,23 +58,10 @@ export class ImportService {
         }
 
         // 2. Sync Macros
-        // Macros are tricky because we only have 'push' which pushes ALL macros.
-        // We really should just check if ANY macro changed and push all if so.
-        // Or if the service allows pushing single macro?
-        // macro.service.ts has `push(kbinfo)` which dumps ALL macros.
-        // So we just queue one big "Update Macros" task if macros differ.
         if (JSON.stringify(newKb.macros) !== JSON.stringify(currentKb.macros)) {
             await queue(
                 "Update All Macros",
                 async () => {
-                    // We must update the CURRENT kbinfo object with new macros before pushing
-                    // But wait, if we update 'currentKb' in place here, React might catch it?
-                    // The 'cb' runs later. We should ensure 'currentKb' (which is the main state)
-                    // has the new macros when this runs.
-                    // Actually, the caller 'SettingsPanel' sets keyboard state *immediately* after calling sync.
-                    // So when this queue callback runs, 'vialContext.keyboard' will already be 'newKb'.
-                    // Wait, if we queue it, we pass 'newKb' to the update function?
-                    // updateMacros takes (kbinfo).
                     await services.vialService.updateMacros(newKb);
                 },
                 { type: "macro" }
@@ -81,13 +69,12 @@ export class ImportService {
         }
 
         // 3. Sync Combos
-        // combos is a direct array of combo data
-        // Check both combos and combos.entries just in case, but prefer array
         const newCombos = newKb.combos;
         const currentCombos = currentKb.combos;
 
         if (newCombos && currentCombos) {
-            newCombos.forEach(async (combo: any, idx: number) => {
+            for (let idx = 0; idx < newCombos.length; idx++) {
+                const combo = newCombos[idx];
                 const oldCombo = currentCombos[idx];
                 if (JSON.stringify(combo) !== JSON.stringify(oldCombo)) {
                     await queue(
@@ -98,16 +85,16 @@ export class ImportService {
                         { type: "combo", comboId: idx }
                     );
                 }
-            });
+            }
         }
 
         // 4. Sync Tapdances
-        // Handle both 'tapdance' and 'tapdances' property names
         const newTds = newKb.tapdances;
         const oldTds = currentKb.tapdances;
 
         if (newTds && oldTds) {
-            newTds.forEach(async (td: any, idx: number) => {
+            for (let idx = 0; idx < newTds.length; idx++) {
+                const td = newTds[idx];
                 const oldTd = oldTds[idx];
                 if (JSON.stringify(td) !== JSON.stringify(oldTd)) {
                     await queue(
@@ -118,7 +105,7 @@ export class ImportService {
                         { type: "tapdance", tapdanceId: idx }
                     );
                 }
-            });
+            }
         }
 
         // 5. Sync Key Overrides
@@ -126,7 +113,8 @@ export class ImportService {
         const currentOverrides = currentKb.key_overrides;
 
         if (newOverrides && currentOverrides) {
-            newOverrides.forEach(async (ko: any, idx: number) => {
+            for (let idx = 0; idx < newOverrides.length; idx++) {
+                const ko = newOverrides[idx];
                 const oldKo = currentOverrides[idx];
                 if (JSON.stringify(ko) !== JSON.stringify(oldKo)) {
                     await queue(
@@ -137,13 +125,12 @@ export class ImportService {
                         { type: "override" }
                     );
                 }
-            });
+            }
         }
 
         // 6. Sync QMK Settings
-        // qmk.service.ts: push(kbinfo, qsid)
         if (newKb.settings && currentKb.settings) {
-            Object.keys(newKb.settings).forEach(async (key) => {
+            for (const key of Object.keys(newKb.settings)) {
                 const qsid = parseInt(key);
                 const newVal = newKb.settings![qsid];
                 const oldVal = currentKb.settings![qsid];
@@ -154,10 +141,66 @@ export class ImportService {
                         async () => {
                             await services.vialService.updateQMKSetting(newKb, qsid);
                         },
-                        { type: "key" } // Reuse key or add new type
+                        { type: "key" }
                     );
                 }
-            });
+            }
+        }
+
+        // 7. Sync VIA3 Custom Values (DPI, scroll mode, automouse, bump filter, etc.)
+        if (newKb.custom_values && newKb.custom_values.length > 0 && currentKb.menus) {
+            // Walk connected keyboard's menu tree to get channel/valueId/width for each key
+            const menuItemsWithRefs = customValueService.extractAllItemsWithRefs(currentKb.menus);
+            const menuRefMap = new Map(menuItemsWithRefs.map(({ item, ref }) => [ref.key, { item, ref }]));
+
+            const channelsToSave = new Set<number>();
+
+            for (const entry of newKb.custom_values) {
+                const menuEntry = menuRefMap.get(entry.key);
+                if (!menuEntry) {
+                    console.warn(`[Import] Custom value key "${entry.key}" not found in connected keyboard menus, skipping`);
+                    continue;
+                }
+
+                const { item, ref } = menuEntry;
+                const width = customValueService.getByteWidth(item);
+
+                // Prepare data bytes - handle backward compat:
+                // Old format: data: [integer] where the single number is the full value
+                // New format: data: [byte0, byte1, ...] raw little-endian bytes
+                let dataBytes: number[];
+                if (entry.data.length === 1 && width > 1) {
+                    // Old format: single integer, expand to bytes
+                    dataBytes = customValueService.intToBytes(entry.data[0], width);
+                } else {
+                    dataBytes = entry.data.slice(0, width);
+                    // Pad if needed
+                    while (dataBytes.length < width) {
+                        dataBytes.push(0);
+                    }
+                }
+
+                await queue(
+                    `Update custom value ${entry.key}`,
+                    async () => {
+                        await customValueService.setRaw(ref.channel, ref.valueId, dataBytes);
+                    },
+                    { type: "custom_ui" as any }
+                );
+
+                channelsToSave.add(ref.channel);
+            }
+
+            // Save each affected channel
+            for (const channel of channelsToSave) {
+                await queue(
+                    `Save custom values channel ${channel}`,
+                    async () => {
+                        await customValueService.save(channel);
+                    },
+                    { type: "custom_ui" as any }
+                );
+            }
         }
     }
 }

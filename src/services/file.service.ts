@@ -1,4 +1,4 @@
-import type { KeyboardInfo } from "../types/vial.types";
+import type { CustomValueEntry, KeyboardInfo } from "../types/vial.types";
 import { getClosestPresetColor } from "../utils/color-conversion";
 import { FragmentComposerService } from "./fragment-composer.service";
 import { FragmentService } from "./fragment.service";
@@ -167,6 +167,10 @@ export class FileService {
     }
 
     parseContent(content: string): KeyboardInfo {
+        // Extract raw UID before JSON.parse (which loses precision on large numbers)
+        const uidMatch = content.match(/"uid"\s*:\s*(\d+)/);
+        const rawUidStr = uidMatch ? uidMatch[1] : null;
+
         const js = JSON.parse(content);
         let kbinfo: KeyboardInfo | null = null;
 
@@ -178,6 +182,11 @@ export class FileService {
             kbinfo = this.vilToKBINFO(js);
         } else {
             throw new Error('Unknown file format. Expected .viable or .vil file.');
+        }
+
+        // Restore precise UID (JSON.parse loses precision on large integers)
+        if (rawUidStr && kbinfo) {
+            kbinfo.kbid = BigInt(rawUidStr).toString(16);
         }
 
         // Deserialize layout using KLE logic
@@ -422,21 +431,50 @@ export class FileService {
             viable.keylayout = kbinfo.keylayout;
         }
 
-        // Save layer colors as custom_values (matching viable-gui format)
-        // Format: [{"key": "id_layer0_color", "data": [hue, sat]}, ...]
+        // Save VIA3 dynamic menus (pointing device settings, etc.)
+        if (kbinfo.menus) {
+            viable.menus = kbinfo.menus;
+        }
+
+        // Save cosmetic data (layer names, etc.)
+        if (kbinfo.cosmetic) {
+            viable.cosmetic = kbinfo.cosmetic;
+        }
+
+        // Save custom values (VIA3 dynamic menu values + layer colors)
+        // Uses kbinfo.custom_values which are loaded at connect time with raw bytes
+        const customValues: Array<{ key: string; channel: number; valueId: number; data: number[] }> = [];
+
+        // Save layer colors from kbinfo.layer_colors (matching viable-gui format)
         if (kbinfo.layer_colors && kbinfo.layer_colors.length > 0) {
-            const customValues: Array<{ key: string; data: number[] }> = [];
             kbinfo.layer_colors.forEach((color, idx) => {
                 if (color && (color.hue !== 0 || color.sat !== 0)) {
                     customValues.push({
                         key: `id_layer${idx}_color`,
+                        channel: 0,
+                        valueId: idx, // layer color index
                         data: [color.hue, color.sat]
                     });
                 }
             });
-            if (customValues.length > 0) {
-                viable.custom_values = customValues;
+        }
+
+        // Save all VIA3 custom values from kbinfo (loaded at connect time)
+        if (kbinfo.custom_values) {
+            for (const entry of kbinfo.custom_values) {
+                // Skip layer colors (already handled above)
+                if (entry.key.match(/^id_layer\d+_color$/)) continue;
+                customValues.push({
+                    key: entry.key,
+                    channel: entry.channel,
+                    valueId: entry.valueId,
+                    data: entry.data,
+                });
             }
+        }
+
+        if (customValues.length > 0) {
+            viable.custom_values = customValues;
         }
 
         // Stringify and replace UID placeholder with BigInt value (no quotes)
@@ -697,6 +735,16 @@ export class FileService {
             kbinfo.keylayout = keylayout;
         }
 
+        // Restore VIA3 dynamic menus (pointing device settings, etc.)
+        if (viable.menus) {
+            kbinfo.menus = viable.menus;
+        }
+
+        // Restore cosmetic data (layer names, etc.)
+        if (viable.cosmetic) {
+            kbinfo.cosmetic = viable.cosmetic;
+        }
+
         // Restore fragment definitions and composition
         if (viable.fragments) {
             kbinfo.fragments = viable.fragments;
@@ -714,10 +762,11 @@ export class FileService {
             };
         }
 
-        // Restore layer_colors from custom_values (matching viable-gui format)
-        // Format: [{"key": "id_layer0_color", "data": [hue, sat]}, ...]
+        // Restore custom_values (layer colors + VIA3 menu values)
         if (viable.custom_values && Array.isArray(viable.custom_values)) {
             const layerColors: Array<{ hue: number; sat: number; val: number }> = [];
+            const customValues: CustomValueEntry[] = [];
+
             for (const cv of viable.custom_values) {
                 // Check if it's a layer color value (id_layerX_color)
                 const match = cv.key?.match(/^id_layer(\d+)_color$/);
@@ -726,16 +775,24 @@ export class FileService {
                     layerColors[layerIdx] = {
                         hue: cv.data[0],
                         sat: cv.data[1],
-                        val: 255, // Default value (brightness) not stored, assume max
+                        val: 255,
                     };
+                } else if (cv.key && Array.isArray(cv.data) && cv.data.length >= 1) {
+                    // Non-layer-color custom value (pointing device settings, etc.)
+                    // New format has channel/valueId; old format has only key + data
+                    customValues.push({
+                        key: cv.key,
+                        channel: cv.channel ?? 0,
+                        valueId: cv.valueId ?? 0,
+                        data: cv.data,
+                    });
                 }
             }
+
             if (layerColors.length > 0) {
                 kbinfo.layer_colors = layerColors;
                 console.log("Restored layer_colors from file:", layerColors.length, "colors");
 
-                // Also update cosmetic.layer_colors with the closest preset color names
-                // This is needed for the keyboard display to show correct colors
                 if (!kbinfo.cosmetic) {
                     kbinfo.cosmetic = { layer: {}, layer_colors: {} };
                 }
@@ -749,6 +806,11 @@ export class FileService {
                     }
                 });
                 console.log("Cosmetic layer colors restored:", kbinfo.cosmetic.layer_colors);
+            }
+
+            if (customValues.length > 0) {
+                kbinfo.custom_values = customValues;
+                console.log("Restored custom values from file:", customValues.length, "entries");
             }
         }
 

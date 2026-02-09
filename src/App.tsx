@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { Loader2 } from "lucide-react";
 
 import MainScreen from "./components/MainScreen";
 import PrintableKeymapWrapper from "./components/PrintableKeymapWrapper";
@@ -56,6 +58,20 @@ const NavigationProvider = ({ children }: { children: ReactNode }) => {
     );
 };
 
+function LoadingOverlay() {
+    const { isImporting } = useVial();
+    if (!isImporting) return null;
+    return createPortal(
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
+            <div className="flex flex-col items-center gap-3">
+                <Loader2 className="h-10 w-10 animate-spin text-white" />
+                <span className="text-white text-sm font-medium">Importing...</span>
+            </div>
+        </div>,
+        document.body
+    );
+}
+
 function AppContent() {
     const { currentPage, goBack } = useNavigation();
 
@@ -86,6 +102,7 @@ function AppContent() {
 function App() {
     return (
         <VialProvider>
+            <LoadingOverlay />
             <SettingsProvider>
                 <ChangesProviderWithVial>
                     <KeyBindingProvider>

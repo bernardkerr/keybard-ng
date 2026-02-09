@@ -1,42 +1,26 @@
-import { FC, useEffect, useRef } from "react";
+import { FC, useEffect } from "react";
+import { ArrowRightFromLine, Plus } from "lucide-react";
 
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
-import { getKeyContents } from "@/utils/keys";
-import { ArrowRight, Trash2 } from "lucide-react";
-import { Key } from "@/components/Key";
+import { DragItem } from "@/contexts/DragContext";
 
-import { useLayer } from "@/contexts/LayerContext";
-import { hoverBackgroundClasses, hoverBorderClasses } from "@/utils/colors";
+import EditorKey from "./EditorKey";
+import { ComboEntry } from "@/types/vial.types";
 
-interface Props { }
-
-const ComboEditor: FC<Props> = () => {
-    const { keyboard } = useVial();
-    const { setPanelToGoBack, setAlternativeHeader, itemToEdit } = usePanels();
-    const { selectComboKey, selectedTarget, assignKeycode } = useKeyBinding();
-    const { selectedLayer } = useLayer();
+const ComboEditor: FC = () => {
+    const { keyboard, setKeyboard } = useVial();
+    const { setPanelToGoBack, setAlternativeHeader, itemToEdit, initialEditorSlot } = usePanels();
+    const { selectComboKey, selectedTarget } = useKeyBinding();
     const { layoutMode } = useLayoutSettings();
-    const hasAutoSelected = useRef(false);
-
     const isHorizontal = layoutMode === "bottombar";
-    const keySize = isHorizontal ? "w-[45px] h-[45px]" : "w-[60px] h-[60px]";
+    const keySize = isHorizontal ? "w-[45px] h-[45px]" : "w-[50px] h-[50px]";
     const keyVariant = isHorizontal ? "medium" : "default";
 
-    const layerColorName = keyboard?.cosmetic?.layer_colors?.[selectedLayer] || "primary";
-    const hoverBorderColor = hoverBorderClasses[layerColorName] || hoverBorderClasses["primary"];
-    const hoverBackgroundColor = hoverBackgroundClasses[layerColorName] || hoverBackgroundClasses["primary"];
-
-    const currCombo = (keyboard as any).combos?.[itemToEdit!] as import("@/types/vial.types").ComboEntry;
-    const keys = {
-        0: getKeyContents(keyboard!, currCombo.keys[0]),
-        1: getKeyContents(keyboard!, currCombo.keys[1]),
-        2: getKeyContents(keyboard!, currCombo.keys[2]),
-        3: getKeyContents(keyboard!, currCombo.keys[3]),
-        4: getKeyContents(keyboard!, currCombo.output),
-    };
+    // Fix type assertion
+    const currCombo = keyboard?.combos?.[itemToEdit!] as ComboEntry;
 
     // Check if a specific combo slot is selected
     const isSlotSelected = (slot: number) => {
@@ -46,77 +30,116 @@ const ComboEditor: FC<Props> = () => {
     useEffect(() => {
         setPanelToGoBack("combos");
         setAlternativeHeader(true);
-        console.log("currCombo", currCombo);
+    }, [setPanelToGoBack, setAlternativeHeader]);
 
-        // Auto-select the first key slot when the editor opens (only once)
-        if (itemToEdit !== null && !hasAutoSelected.current) {
-            hasAutoSelected.current = true;
-            selectComboKey(itemToEdit, 0);
+    // Auto-select the first key slot whenever the itemToEdit changes
+    useEffect(() => {
+        if (itemToEdit !== null) {
+            selectComboKey(itemToEdit, initialEditorSlot ?? 0);
         }
-    }, [itemToEdit, setPanelToGoBack, setAlternativeHeader, selectComboKey]);
+    }, [itemToEdit, selectComboKey, initialEditorSlot]);
 
-    const renderKey = (content: any, slot: number) => {
-        const isSelected = isSlotSelected(slot);
-        const hasContent = (content?.top && content.top !== "KC_NO") || (content?.str && content.str !== "KC_NO" && content.str !== "");
+    const handleDrop = (slot: number, item: DragItem) => {
+        if (!keyboard?.combos || itemToEdit === null) return;
 
-        let keyColor: string | undefined;
-        let keyClassName: string;
-        let headerClass: string;
+        // Check if we should swap (dragging from same combo editor)
+        if (item.editorType === "combo" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
+            const sourceSlot = item.editorSlot as number;
+            const targetSlot = slot;
 
-        if (isSelected) {
-            keyColor = undefined;
-            keyClassName = "border-2 border-red-600";
-            headerClass = "bg-black/20";
-        } else if (hasContent) {
-            keyColor = "sidebar";
-            keyClassName = "border-kb-gray";
-            headerClass = "bg-kb-sidebar-dark";
+            if (sourceSlot === targetSlot) return;
+
+            const combos = [...keyboard.combos];
+
+            if (combos[itemToEdit]) {
+                const combo = { ...combos[itemToEdit] };
+                const newKeys = [...combo.keys];
+
+                // Get values
+                const sourceVal = sourceSlot < 4 ? newKeys[sourceSlot] : combo.output;
+                const targetVal = targetSlot < 4 ? newKeys[targetSlot] : combo.output;
+
+                // Set values (Swap)
+                if (sourceSlot < 4) newKeys[sourceSlot] = targetVal;
+                else combo.output = targetVal;
+
+                if (targetSlot < 4) newKeys[targetSlot] = sourceVal;
+                else combo.output = sourceVal;
+
+                combo.keys = newKeys;
+                combos[itemToEdit] = combo;
+            }
+            setKeyboard({ ...keyboard, combos });
         } else {
-            keyColor = undefined;
-            keyClassName = "bg-transparent border-2 border-black";
-            headerClass = "text-black";
+            // Standard assignment (replace)
+            const combos = [...keyboard.combos];
+            if (combos[itemToEdit]) {
+                const combo = { ...combos[itemToEdit] };
+                if (slot < 4) {
+                    const newKeys = [...combo.keys];
+                    newKeys[slot] = item.keycode;
+                    combo.keys = newKeys;
+                } else {
+                    combo.output = item.keycode;
+                }
+                combos[itemToEdit] = combo;
+            }
+            setKeyboard({ ...keyboard, combos });
         }
+    };
 
-        const trashOffset = isHorizontal ? "-left-8" : "-left-10";
+    const updateComboAssignment = (slot: number, keycode: string) => {
+        if (!keyboard?.combos || itemToEdit === null) return;
+        const combos = [...keyboard.combos];
+        if (combos[itemToEdit]) {
+            const combo = { ...combos[itemToEdit] };
+            if (slot < 4) {
+                const newKeys = [...combo.keys];
+                newKeys[slot] = keycode;
+                combo.keys = newKeys;
+            } else {
+                combo.output = keycode;
+            }
+            combos[itemToEdit] = combo;
+        }
+        setKeyboard({ ...keyboard, combos });
+    };
+
+    const renderComboKey = (keycode: string, slot: number) => {
+        const isSelected = isSlotSelected(slot);
+        const trashOffset = isHorizontal ? "-left-8" : "-left-9";
         const trashSize = isHorizontal ? "w-3 h-3" : "w-4 h-4";
 
         return (
-            <div className={`relative ${keySize} group/key`}>
-                <Key
-                    isRelative
-                    x={0} y={0} w={1} h={1} row={-1} col={-1}
-                    keycode={content?.top || "KC_NO"}
-                    label={content?.str || ""}
-                    keyContents={content}
+            <div className="flex flex-col items-center gap-1">
+                <EditorKey
+                    keycode={keycode}
                     selected={isSelected}
                     onClick={() => selectComboKey(itemToEdit!, slot)}
-                    layerColor={keyColor}
-                    className={keyClassName}
-                    headerClassName={headerClass}
-                    hoverBorderColor={hoverBorderColor}
-                    hoverBackgroundColor={hoverBackgroundColor}
-                    hoverLayerColor={layerColorName}
+                    onClear={() => {
+                        selectComboKey(itemToEdit!, slot);
+                        setTimeout(() => updateComboAssignment(slot, "KC_NO"), 0);
+                    }}
+                    onDrop={(item) => {
+                        handleDrop(slot, item);
+                    }}
+                    size={keySize}
+                    trashOffset={trashOffset}
+                    trashSize={trashSize}
                     variant={keyVariant}
+                    wrapperClassName={`relative ${keySize} group/key z-20`}
+                    // We don't use the built-in EditorKey label, we render it externally for consistent positioning in grid
+                    label={undefined}
+                    labelClassName={undefined}
+                    editorType="combo"
+                    editorId={itemToEdit!}
+                    editorSlot={slot}
                 />
-
-                {hasContent && (
-                    <div className={`absolute ${trashOffset} top-0 h-full flex items-center justify-center opacity-0 group-hover/key:opacity-100 transition-opacity`}>
-                        <button
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                selectComboKey(itemToEdit!, slot);
-                                setTimeout(() => assignKeycode("KC_NO"), 0);
-                            }}
-                            title="Clear key"
-                        >
-                            <Trash2 className={trashSize} />
-                        </button>
-                    </div>
-                )}
             </div>
         );
     };
+
+    if (!currCombo) return <div className="p-5">Combo entry not found</div>;
 
     // Horizontal layout: 2x2 grid of input keys + arrow + output
     if (isHorizontal) {
@@ -125,51 +148,60 @@ const ComboEditor: FC<Props> = () => {
                 <div className="flex flex-col gap-1">
                     <span className="text-xs font-medium text-slate-500 mb-1">Input Keys</span>
                     <div className="grid grid-cols-2 gap-2">
-                        <div className="flex flex-col items-center">
-                            <span className="text-[10px] text-gray-400 mb-0.5">1</span>
-                            {renderKey(keys[0], 0)}
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <span className="text-[10px] text-gray-400 mb-0.5">2</span>
-                            {renderKey(keys[1], 1)}
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <span className="text-[10px] text-gray-400 mb-0.5">3</span>
-                            {renderKey(keys[2], 2)}
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <span className="text-[10px] text-gray-400 mb-0.5">4</span>
-                            {renderKey(keys[3], 3)}
-                        </div>
+                        {renderComboKey(currCombo.keys[0], 0)}
+                        {renderComboKey(currCombo.keys[1], 1)}
+                        {renderComboKey(currCombo.keys[2], 2)}
+                        {renderComboKey(currCombo.keys[3], 3)}
                     </div>
                 </div>
-                <ArrowRight className="h-5 w-5 flex-shrink-0 text-gray-600" />
+                <ArrowRightFromLine className="h-5 w-5 flex-shrink-0 text-gray-600" />
                 <div className="flex flex-col items-center">
                     <span className="text-xs font-medium text-slate-500 mb-1">Output</span>
-                    {renderKey(keys[4], 4)}
+                    {renderComboKey(currCombo.output, 4)}
                 </div>
             </div>
         );
     }
 
-    // Vertical layout (sidebar mode)
+    // ==========================================
+    // VERTICAL BAR MODE (Sidebar)
+    // ==========================================
+
     return (
-        <div className="flex flex-row items-center px-20 gap-8 pt-5">
-            <div className="flex flex-col gap-0 py-8">
-                {renderKey(keys[0], 0)}
-                <div className="text-center text-xl">+</div>
-                {renderKey(keys[1], 1)}
-                <div className="text-center text-xl">+</div>
-                {renderKey(keys[2], 2)}
-                <div className="text-center text-xl">+</div>
-                {renderKey(keys[3], 3)}
+        <div className="flex flex-col gap-8 py-6 pl-[84px] pb-20">
+            <div className="flex flex-col gap-3">
+                <div className="flex flex-row flex-wrap gap-4 items-end">
+                    {[0, 1, 2, 3].map((slotIdx) => (
+                        <div key={slotIdx} className="flex flex-row items-end gap-4">
+                            {slotIdx > 0 && (
+                                <div className="h-[50px] flex items-center justify-center translate-y-1 translate-x-1">
+                                    <Plus className="w-5 h-5 text-black" />
+                                </div>
+                            )}
+                            {renderComboKey(currCombo.keys[slotIdx], slotIdx)}
+                        </div>
+                    ))}
+
+                    {/* Output Key */}
+                    <div className="flex flex-row gap-4 items-end">
+                        <div className="h-[50px] flex items-center justify-center translate-y-1 translate-x-1">
+                            <ArrowRightFromLine className="w-5 h-5 text-black" />
+                        </div>
+                        <div className="flex flex-col items-center gap-1 relative">
+                            <span className="font-bold text-slate-600 text-sm">Output</span>
+                            {renderComboKey(currCombo.output, 4)}
+                        </div>
+                    </div>
+                </div>
             </div>
-            <ArrowRight className="h-6 w-6 flex-shrink-0" />
-            <div className="flex flex-col gap-6 py-8 flex-shrink-1">
-                {renderKey(keys[4], 4)}
+
+            {/* Info */}
+            <div className="text-xs text-muted-foreground mt-2">
+                Set 2-4 keys to press simultaneously to get the output key.
             </div>
         </div>
     );
 };
 
 export default ComboEditor;
+

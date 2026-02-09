@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Clock, Crosshair } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Clock, Crosshair, Repeat, ListOrdered } from "lucide-react";
 import MouseIcon from "@/components/icons/Mouse";
 import LayersIcon from "@/components/icons/Layers";
 import MacrosIcon from "@/components/icons/MacrosIcon";
@@ -97,6 +97,10 @@ export const getTypeIcon = (type: string, variant: "default" | "medium" | "small
             return <OverridesIcon className={iconClass} />;
         case "layer":
             return <LayersIcon className={isSmall ? "w-3 h-3" : isMedium ? "w-5 h-5" : ""} />;
+        case "altrepeat":
+            return <Repeat className={iconClass} />;
+        case "leaders":
+            return <ListOrdered className={iconClass} />;
         default:
             return null;
     }

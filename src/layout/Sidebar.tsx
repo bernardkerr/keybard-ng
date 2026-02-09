@@ -191,15 +191,16 @@ const AppSidebar = () => {
         if (!keyboard?.menus) return [];
 
         return keyboard.menus
-            .filter((menu) => !isExcludedMenu(menu.label))
-            .map((menu, index) => {
+            .map((menu, originalIndex) => ({ menu, originalIndex }))
+            .filter(({ menu }) => !isExcludedMenu(menu.label))
+            .map(({ menu, originalIndex }) => {
                 const iconName = getIconForMenu(menu.label);
                 // Map icon name to component
                 const IconComponent = iconName === 'target' ? PointingDeviceBall01Icon : iconName === 'mouse' ? Mouse : Settings;
 
                 return {
-                    title: menu.label || `Menu ${index}`,
-                    url: `dynamic-menu-${index}`,
+                    title: menu.label || `Menu ${originalIndex}`,
+                    url: `dynamic-menu-${originalIndex}`,
                     icon: IconComponent,
                 };
             });

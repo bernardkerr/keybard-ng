@@ -48,6 +48,7 @@ const QmkKeyPanel = ({ isPicker }: Props) => {
                 hoverBorderColor={hoverBorderColor}
                 hoverBackgroundColor={hoverBackgroundColor}
                 hoverLayerColor={layerColorName}
+                disableTooltip={true}
             />
         );
     };
@@ -85,12 +86,12 @@ const QmkKeyPanel = ({ isPicker }: Props) => {
         <div className="space-y-6 pt-3 pb-8">
             {isPicker && (
                 <div className="pb-2">
-                    <span className="font-semibold text-xl text-slate-700">One-Shot</span>
+                    <span className="font-semibold text-xl text-black">One-Shot</span>
                 </div>
             )}
             {/* One-Shot Modifiers Section */}
             <section className="flex flex-col gap-3">
-                <span className="font-semibold text-lg text-slate-700">One-Shot Modifiers</span>
+                <span className="font-semibold text-lg text-black">One-Shot Modifiers</span>
 
                 <div className="flex flex-col gap-2">
                     <span className="text-base font-medium text-black">Left Hand Side</span>

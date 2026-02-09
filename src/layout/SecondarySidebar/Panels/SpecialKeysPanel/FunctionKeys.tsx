@@ -28,7 +28,7 @@ const FunctionKeys = () => {
 
     return (
         <div className="flex flex-col gap-2">
-            <span className="font-semibold text-lg text-slate-700">Extra Function Keys</span>
+            <span className="font-semibold text-lg text-black">Extra Function Keys</span>
             <div className="flex flex-wrap gap-1">
                 {keys.map((k) => (
                     <Key
@@ -49,6 +49,7 @@ const FunctionKeys = () => {
                         hoverBackgroundColor={hoverBackgroundColor}
                         hoverLayerColor={layerColorName}
                         onClick={() => assignKeycode(k.keycode)}
+                        disableTooltip={true}
                     />
                 ))}
             </div>

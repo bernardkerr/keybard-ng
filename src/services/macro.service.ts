@@ -75,14 +75,19 @@ export class MacroService {
 
         while (offset < rawmacro.length) {
             if (rawmacro[offset] === this.QMK_EXT_ID) {
+                if (offset + 1 >= rawmacro.length) break;
                 const type = rawmacro[offset + 1];
+
                 if (type in this.MACRO_IDS) {
+                    if (offset + 2 >= rawmacro.length) break;
                     actions.push([this.MACRO_IDS[type as keyof typeof this.MACRO_IDS], keyService.stringify(rawmacro[offset + 2])]);
                     offset += 3;
                 } else if (type === this.MACRO_DELAY) {
+                    if (offset + 3 >= rawmacro.length) break;
                     actions.push(["delay", rawmacro[offset + 2] - 1 + (rawmacro[offset + 3] - 1) * 255]);
                     offset += 4;
                 } else if (type in this.MACRO_DOUBLES) {
+                    if (offset + 3 >= rawmacro.length) break;
                     actions.push([this.MACRO_DOUBLES[type as keyof typeof this.MACRO_DOUBLES], keyService.stringify(rawmacro[offset + 2] + (rawmacro[offset + 3] << 8))]);
                     offset += 4;
                 }
@@ -131,6 +136,9 @@ export class MacroService {
                     dv.setUint8(offset++, Math.floor(action[1] / 255) + 1);
                 } else if (action[0] in this.MACRO_IDS) {
                     const value = keyService.parse(action[1]);
+                    // Skip KC_NO (0) to prevent early termination of the macro string
+                    if (value === 0) continue;
+
                     dv.setUint8(offset++, this.QMK_EXT_ID);
                     if (value >= 0x100) {
                         dv.setUint8(offset++, this.MACRO_DOUBLES[action[0] as keyof typeof this.MACRO_DOUBLES] as number);

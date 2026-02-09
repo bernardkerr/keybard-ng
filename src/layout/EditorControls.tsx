@@ -25,6 +25,7 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
         setIsAutoKeySize,
         isAutoLayoutMode,
         setIsAutoLayoutMode,
+        layoutMode,
         setLayoutMode
     } = useLayoutSettings();
     // const { resetToOriginal } = useVial();
@@ -77,7 +78,12 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
                         setIsAutoLayoutMode(false);
                         setLayoutMode("sidebar");
                     }}
-                    className="p-1 rounded-[4px] transition-all text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50 border"
+                    className={cn(
+                        "p-1 rounded-[4px] transition-all border",
+                        layoutMode === "sidebar" && !isAutoLayoutMode
+                            ? "bg-black text-white shadow-sm border-black"
+                            : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
+                    )}
                     title="Sidebar layout"
                 >
                     <PanelRight className="h-3.5 w-3.5" />
@@ -90,9 +96,9 @@ export const EditorControls: React.FC<EditorControlsProps> = ({
                     }}
                     className={cn(
                         "p-1 rounded-[4px] transition-all border",
-                        !isAutoLayoutMode
+                        layoutMode === "bottombar" && !isAutoLayoutMode
                             ? "bg-black text-white shadow-sm border-black"
-                            : "bg-gray-400 text-white border-gray-400"
+                            : "text-gray-500 border-transparent hover:text-gray-900 hover:bg-gray-300/50"
                     )}
                     title="Bottom bar layout"
                 >

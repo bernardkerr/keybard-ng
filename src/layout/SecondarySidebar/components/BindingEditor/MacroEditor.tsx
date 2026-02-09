@@ -1,20 +1,23 @@
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect, useState, useRef } from "react";
 
 import PlusIcon from "@/components/icons/Plus";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { useChanges } from "@/hooks/useChanges";
-import { vialService } from "@/services/vial.service";
+import { DragItem } from "@/contexts/DragContext";
+import { MacroAction } from "@/types/vial.types";
 import { ArrowDown } from "lucide-react";
 import MacroEditorKey from "./MacroEditorKey";
 import MacroEditorText from "./MacroEditorText";
+import { vialService } from "@/services/vial.service";
 
 const MacroEditor: FC = () => {
-    const [actions, setActions] = useState<any[]>([]);
+    const [actions, setActions] = useState<MacroAction[]>([]);
     const [focusIndex, setFocusIndex] = useState<number | null>(null);
+    const hasAppliedInitialSelection = useRef(false);
     const { keyboard, setKeyboard } = useVial();
-    const { itemToEdit, setPanelToGoBack, setAlternativeHeader } = usePanels();
+    const { itemToEdit, setPanelToGoBack, setAlternativeHeader, initialEditorSlot } = usePanels();
     const { selectComboKey: _selectComboKey, selectMacroKey, selectedTarget, clearSelection } = useKeyBinding();
     const { queue } = useChanges();
 
@@ -49,8 +52,8 @@ const MacroEditor: FC = () => {
 
     // Load macros
     useEffect(() => {
-        if (!keyboard || itemToEdit === null) return;
-        const currMacro = (keyboard as any).macros?.[itemToEdit];
+        if (!keyboard?.macros || itemToEdit === null) return;
+        const currMacro = keyboard.macros[itemToEdit];
         const newActions = currMacro?.actions || [];
 
         // Only update local state if different from keyboard state
@@ -59,8 +62,32 @@ const MacroEditor: FC = () => {
         }
     }, [itemToEdit, keyboard]);
 
+    // Reset initial selection flag when itemToEdit changes
+    useEffect(() => {
+        hasAppliedInitialSelection.current = false;
+    }, [itemToEdit]);
+
+    // Handle initial selection
+    useEffect(() => {
+        if (initialEditorSlot !== null && initialEditorSlot !== undefined && actions.length > 0 && !hasAppliedInitialSelection.current) {
+            const index = initialEditorSlot;
+            const action = actions[index];
+            if (action) {
+                hasAppliedInitialSelection.current = true;
+                const [type] = action;
+                if (["text", "delay"].includes(type)) {
+                    setFocusIndex(index);
+                    selectMacroKey(itemToEdit!, -1) // Clear key selection if any
+                } else {
+                    selectMacroKey(itemToEdit!, index);
+                    setFocusIndex(null);
+                }
+            }
+        }
+    }, [initialEditorSlot, actions, itemToEdit, selectMacroKey]);
+
     // Manual helper to update both local state and keyboard context
-    const updateActions = (newActions: any[]) => {
+    const updateActions = async (newActions: MacroAction[]) => {
         setActions(newActions);
 
         if (!keyboard || itemToEdit === null) return;
@@ -98,7 +125,8 @@ const MacroEditor: FC = () => {
     };
 
     const handleAddItem = (type: string) => {
-        const newActions = [...actions, [type, ""]];
+        const newAction: MacroAction = [type, ""];
+        const newActions: MacroAction[] = [...actions, newAction];
         updateActions(newActions);
 
         if (["down", "up", "tap"].includes(type)) {
@@ -118,7 +146,7 @@ const MacroEditor: FC = () => {
         clearSelection();
     };
 
-    const handleTextChange = (index: number, value: any) => {
+    const handleTextChange = (index: number, value: string | number) => {
         const newActions = [...actions];
         newActions[index][1] = value;
         updateActions(newActions);
@@ -127,20 +155,45 @@ const MacroEditor: FC = () => {
     const AddButton = ({ type, label }: { type: string; label: string }) => {
         return (
             <button
-                className="bg-black cursor-pointer text-white pl-[19px] pr-[22px] py-2 rounded-md hover:bg-gray-600 transition flex flex-row gap-2 items-center"
+                className="bg-black cursor-pointer text-white pl-[19px] pr-[22px] py-2 rounded-full hover:bg-gray-600 transition flex flex-row gap-2 items-center"
                 onClick={() => handleAddItem(type)}
             >
                 <PlusIcon className="h-5 w-5" /> {label}
             </button>
         );
     };
+    const handleDrop = (index: number, item: DragItem) => {
+        if (item.editorType === "macro" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
+            const sourceIndex = item.editorSlot as number;
+            const targetIndex = index;
+            if (sourceIndex === targetIndex) return;
+
+            const newActions = [...actions];
+            // Swap action values
+            const temp = newActions[sourceIndex];
+            newActions[sourceIndex] = newActions[targetIndex];
+            newActions[targetIndex] = temp;
+
+            updateActions(newActions);
+            // Update selection to follow the swapped item if needed, 
+            // but usually simplistic swap is enough visually.
+        } else {
+            const newActions = [...actions];
+            if (newActions[index]) {
+                newActions[index][1] = item.keycode;
+                updateActions(newActions);
+            }
+        }
+    };
+
     return (
         <div
-            className="flex flex-col items-start pl-[84px] pr-5 gap-1 pt-5 w-full max-h-[600px] overflow-y-auto"
+            className="flex flex-col items-start pl-[84px] gap-1 pt-5 pb-20 w-full max-h-[600px] overflow-y-auto"
             onClick={(e) => {
                 // Should only clear if clicking the background, not a child element
                 if (e.target === e.currentTarget) {
                     clearSelection();
+                    setFocusIndex(null);
                 }
             }}
         >
@@ -167,17 +220,22 @@ const MacroEditor: FC = () => {
                         )}
                         {["down", "up", "tap"].includes(item[0]) && (
                             <MacroEditorKey
-                                binding={item[1]}
+                                binding={item[1] as string}
                                 index={index}
                                 label={item[0].charAt(0).toUpperCase() + item[0].slice(1)}
                                 onDelete={() => handleDeleteItem(index)}
+                                onDrop={(draggedItem) => handleDrop(index, draggedItem)}
+                                onClick={() => {
+                                    selectMacroKey(itemToEdit!, index);
+                                    setFocusIndex(null);
+                                }}
                             />
                         )}
                         {index < actions.length - 1 && <ArrowDown className="w-6 h-6 text-black ml-[18px]" />}
                     </div>
                 ))}
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-[14px]">
                 {actions.length > 0 && <ArrowDown className="w-6 h-6 text-black ml-[18px]" />}
                 <AddButton type="tap" label="Key Tap" />
                 <AddButton type="down" label="Key Down" />

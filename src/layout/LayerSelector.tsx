@@ -51,7 +51,7 @@ interface LayerSelectorProps {
  * Displays a horizontal bar of layer tabs with a filter toggle for hiding blank layers.
  */
 const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer }) => {
-    const { keyboard, setKeyboard, updateKey, isConnected, connect, resetToOriginal } = useVial();
+    const { keyboard, setKeyboard, updateKey, isConnected, connect, resetToOriginal, setIsImporting } = useVial();
     const { clearSelection } = useKeyBinding();
     const { queue, commit, getPendingCount, clearAll } = useChanges();
     const { getSetting, updateSetting } = useSettings();
@@ -68,62 +68,68 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
 
     const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (file) {
-            try {
-                const newKbInfo = await fileService.uploadFile(file);
-                if (newKbInfo) {
-                    // Start sync if connected
-                    if (keyboard && isConnected) {
-                        const { importService } = await import('@/services/import.service');
-                        const { vialService } = await import('@/services/vial.service');
+        if (!file) return;
 
-                        await importService.syncWithKeyboard(
-                            newKbInfo,
-                            keyboard,
-                            queue,
-                            { vialService }
-                        );
+        setIsImporting(true);
+        // Double-yield to guarantee React paints the spinner before heavy work
+        await new Promise<void>(resolve =>
+            requestAnimationFrame(() => setTimeout(resolve, 0))
+        );
 
-                        // Merge fragment definitions and state from connected keyboard
-                        if (keyboard.fragments) {
-                            newKbInfo.fragments = keyboard.fragments;
-                        }
-                        if (keyboard.composition) {
-                            newKbInfo.composition = keyboard.composition;
-                        }
-                        // Merge hardware detection/EEPROM from connected keyboard with user selections from file
-                        const ensureMap = <K, V>(obj: Map<K, V> | Record<string, V> | undefined): Map<K, V> => {
-                            if (!obj) return new Map();
-                            if (obj instanceof Map) return obj;
-                            return new Map(Object.entries(obj)) as unknown as Map<K, V>;
+        try {
+            const newKbInfo = await fileService.uploadFile(file);
+            if (newKbInfo) {
+                // Start sync if connected
+                if (keyboard && isConnected) {
+                    const { importService } = await import('@/services/import.service');
+                    const { vialService } = await import('@/services/vial.service');
+
+                    await importService.syncWithKeyboard(
+                        newKbInfo,
+                        keyboard,
+                        queue,
+                        { vialService }
+                    );
+
+                    // Merge fragment definitions and state from connected keyboard
+                    if (keyboard.fragments) {
+                        newKbInfo.fragments = keyboard.fragments;
+                    }
+                    if (keyboard.composition) {
+                        newKbInfo.composition = keyboard.composition;
+                    }
+                    // Merge hardware detection/EEPROM from connected keyboard with user selections from file
+                    const ensureMap = <K, V>(obj: Map<K, V> | Record<string, V> | undefined): Map<K, V> => {
+                        if (!obj) return new Map();
+                        if (obj instanceof Map) return obj;
+                        return new Map(Object.entries(obj)) as unknown as Map<K, V>;
+                    };
+
+                    if (keyboard.fragmentState) {
+                        const importedUserSelections = ensureMap<string, string>(newKbInfo.fragmentState?.userSelections);
+                        newKbInfo.fragmentState = {
+                            hwDetection: ensureMap<number, number>(keyboard.fragmentState.hwDetection),
+                            eepromSelections: ensureMap<number, number>(keyboard.fragmentState.eepromSelections),
+                            userSelections: importedUserSelections,
                         };
-
-                        if (keyboard.fragmentState) {
-                            const importedUserSelections = ensureMap<string, string>(newKbInfo.fragmentState?.userSelections);
-                            newKbInfo.fragmentState = {
-                                hwDetection: ensureMap<number, number>(keyboard.fragmentState.hwDetection),
-                                eepromSelections: ensureMap<number, number>(keyboard.fragmentState.eepromSelections),
-                                userSelections: importedUserSelections,
-                            };
-                        }
-
-                        // Recompose layout with fragment selections
-                        const fragmentComposer = vialService.getFragmentComposer();
-                        if (fragmentComposer.hasFragments(newKbInfo)) {
-                            const composedLayout = fragmentComposer.composeLayout(newKbInfo);
-                            if (Object.keys(composedLayout).length > 0) {
-                                newKbInfo.keylayout = composedLayout;
-                            }
-
-                        }
                     }
 
-                    setKeyboard(newKbInfo);
+                    // Recompose layout with fragment selections
+                    const fragmentComposer = vialService.getFragmentComposer();
+                    if (fragmentComposer.hasFragments(newKbInfo)) {
+                        const composedLayout = fragmentComposer.composeLayout(newKbInfo);
+                        if (Object.keys(composedLayout).length > 0) {
+                            newKbInfo.keylayout = composedLayout;
+                        }
+                    }
                 }
-            } catch (err) {
-                console.error("Upload failed", err);
-            }
 
+                setKeyboard(newKbInfo);
+            }
+        } catch (err) {
+            console.error("Upload failed", err);
+        } finally {
+            setIsImporting(false);
         }
         // Reset input so same file can be selected again
         if (event.target) {
@@ -139,6 +145,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
 
         try {
             if (exportFormat === "viable") {
+                // Custom values are already in keyboard.custom_values (loaded at connect time)
                 await fileService.downloadViable(keyboard, includeMacros);
             } else {
                 await fileService.downloadVIL(keyboard, includeMacros);

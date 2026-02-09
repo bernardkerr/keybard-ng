@@ -413,10 +413,12 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     const keycodeName = typeof keycode === "string" ? keycode : `KC_${keycode}`;
                     macros[macroId].actions[macroIndex][1] = keycodeName;
 
+                    // Queue the change with callback
                     const mId = macroId;
                     queue(
                         `macro_${mId}`,
                         async () => {
+                            console.log(`Committing macro change: Macro ${macroId}, Index ${macroIndex} → ${keycodeName}`);
                             try {
                                 await vialService.updateMacros(updatedKeyboard);
                                 await vialService.saveViable();
@@ -424,7 +426,12 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                                 console.error("Failed to update macro:", err);
                             }
                         },
-                        { type: "macro" }
+                        {
+                            type: "macro" as any,
+                            macroId,
+                            macroIndex,
+                            keycode: keycodeValue,
+                        } as any
                     );
 
                     break;

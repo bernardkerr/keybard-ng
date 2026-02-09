@@ -19,8 +19,8 @@ const SpecialKeysPanel = ({ isPicker }: Props) => {
                 <OtherKeys variant="medium" />
                 <MediaKeys variant="medium" />
                 <AudioKeys variant="medium" />
-                <StenoKeys variant="medium" />
                 <BacklightsKeys variant="medium" />
+                <StenoKeys variant="medium" />
             </div>
         );
     }
@@ -29,14 +29,14 @@ const SpecialKeysPanel = ({ isPicker }: Props) => {
         <div className="flex flex-col gap-4">
             {isPicker && (
                 <div className="pb-2">
-                    <span className="font-semibold text-xl text-slate-700">Special Keys</span>
+                    <span className="font-semibold text-xl text-black">Special Keys</span>
                 </div>
             )}
             <OtherKeys />
             <MediaKeys />
             <AudioKeys />
-            <StenoKeys />
             <BacklightsKeys />
+            <StenoKeys />
         </div>
     );
 };

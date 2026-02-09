@@ -13,7 +13,9 @@ interface DynamicMenuPanelProps {
 
 /**
  * Dynamic panel that renders a VIA3 custom UI menu
- * Loads values from keyboard on mount and handles updates
+ * Seeds values from kbinfo.custom_values (loaded at connect time),
+ * then refreshes from USB if connected for latest state.
+ * On value change, updates both the keyboard and kbinfo.custom_values.
  */
 const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizontal = false }) => {
     const { keyboard, isConnected } = useVial();
@@ -27,7 +29,7 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
 
     // Load values when panel opens or keyboard connects
     useEffect(() => {
-        if (!menu || !isConnected) {
+        if (!menu) {
             setLoading(false);
             return;
         }
@@ -36,7 +38,16 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
             setLoading(true);
             setError(null);
             try {
-                await customValueService.loadMenuValues([menu]);
+                // First: seed from kbinfo.custom_values (instant, no USB)
+                if (keyboard?.custom_values) {
+                    customValueService.populateCacheFromEntries(keyboard.custom_values);
+                }
+
+                // If connected: fetch fresh values from USB for latest state
+                if (isConnected) {
+                    await customValueService.loadMenuValues([menu]);
+                }
+
                 setValues(customValueService.getCache());
             } catch (err) {
                 console.error("Failed to load custom values:", err);
@@ -47,9 +58,9 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
         };
 
         loadValues();
-    }, [menu, isConnected]);
+    }, [menu, isConnected, keyboard?.custom_values]);
 
-    // Handle value changes
+    // Handle value changes - update USB, cache, and kbinfo.custom_values
     const handleValueChange = useCallback(async (key: string, value: number) => {
         if (!menu || !isConnected) return;
 
@@ -61,13 +72,24 @@ const DynamicMenuPanel: React.FC<DynamicMenuPanelProps> = ({ menuIndex, horizont
             async () => {
                 try {
                     await customValueService.setValue(key, value, [menu]);
+
+                    // Update kbinfo.custom_values so export stays current
+                    if (keyboard?.custom_values) {
+                        const entry = keyboard.custom_values.find(e => e.key === key);
+                        if (entry) {
+                            const itemsWithRefs = customValueService.extractAllItemsWithRefs([menu]);
+                            const found = itemsWithRefs.find(({ ref }) => ref.key === key);
+                            const width = found ? customValueService.getByteWidth(found.item) : entry.data.length;
+                            entry.data = customValueService.intToBytes(value, width);
+                        }
+                    }
                 } catch (err) {
                     console.error(`Failed to set ${key}:`, err);
                 }
             },
             { type: "custom_ui" as any }
         );
-    }, [menu, isConnected, queue]);
+    }, [menu, isConnected, queue, keyboard]);
 
     // Handle button clicks (special actions)
     const handleButtonClick = useCallback(async (key: string) => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ArrowRight, Plus, X } from "lucide-react";
+import { Plus, X, ArrowRightFromLine } from "lucide-react";
 
 import ComboIcon from "@/components/ComboIcon";
 import OnOffToggle from "@/components/ui/OnOffToggle";
@@ -27,6 +27,7 @@ const CombosPanel: React.FC = () => {
         setItemToEdit,
         setBindingTypeToEdit,
         setAlternativeHeader,
+        setInitialEditorSlot,
     } = usePanels();
     const [saving, setSaving] = useState(false);
     const [timeoutInput, setTimeoutInput] = useState<string>("");
@@ -113,10 +114,13 @@ const CombosPanel: React.FC = () => {
 
     const combos = keyboard.combos || [];
 
-    const handleEdit = (index: number) => {
+    const handleEdit = (index: number, slot?: number) => {
         setItemToEdit(index);
         setBindingTypeToEdit("combos");
         setAlternativeHeader(true);
+        if (slot !== undefined) {
+            setInitialEditorSlot(slot);
+        }
     };
 
     const isEnabled = (options: number) => {
@@ -151,21 +155,33 @@ const CombosPanel: React.FC = () => {
         return (top && top !== "KC_NO" && top !== "TRNS") || (str && str !== "KC_NO" && str !== "");
     };
 
-    const renderSmallKey = (content: KeyContent, idx: number, comboIndex: number) => {
+    // Shared small key renderer
+    const renderSmallKey = (content: KeyContent, idx: number, comboIndex: number, slot: number) => {
         const hasContent = isKeyAssigned(content);
+        const label = (() => {
+            const str = content?.str;
+            if (!str) return "";
+            const parts = str.split('\n');
+            if (parts.length === 1) return parts[0];
+            const keycode = content?.top || "";
+            if (content?.type === 'modmask' && (keycode.includes("S(") || keycode.includes("LSFT") || keycode.includes("RSFT"))) {
+                return parts[0];
+            }
+            return parts[parts.length - 1];
+        })();
         return (
             <div key={idx} className="relative w-[30px] h-[30px]">
                 <Key
                     isRelative
                     x={0} y={0} w={1} h={1} row={-1} col={-1}
                     keycode={content?.top || "KC_NO"}
-                    label={content?.str || ""}
+                    label={label}
                     keyContents={content}
                     layerColor={hasContent ? "sidebar" : undefined}
                     className={hasContent ? "border-kb-gray" : "bg-transparent border border-kb-gray-border"}
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
-                    onClick={() => handleEdit(comboIndex)}
+                    onClick={() => handleEdit(comboIndex, slot)}
                     disableTooltip={true}
                 />
             </div>
@@ -228,11 +244,11 @@ const CombosPanel: React.FC = () => {
                                 {inputs.map((input, idx) => (
                                     <React.Fragment key={input.id}>
                                         {idx > 0 && <Plus className="w-2 h-2 text-gray-400" />}
-                                        {renderSmallKey(input.content, input.id, i)}
+                                        {renderSmallKey(input.content, input.id, i, input.id)}
                                     </React.Fragment>
                                 ))}
-                                <ArrowRight className="w-3 h-3 text-gray-400 mx-1" />
-                                {renderSmallKey(result, 4, i)}
+                                <ArrowRightFromLine className="w-3 h-3 text-gray-400 mx-1" />
+                                {renderSmallKey(result, 4, i, 4)}
                             </div>
                         </div>
                     );
@@ -306,11 +322,11 @@ const CombosPanel: React.FC = () => {
                             {inputs.map((input, idx) => (
                                 <React.Fragment key={input.id}>
                                     {idx > 0 && <Plus className="w-3 h-3 text-black" />}
-                                    {renderSmallKey(input.content, input.id, i)}
+                                    {renderSmallKey(input.content, input.id, i, input.id)}
                                 </React.Fragment>
                             ))}
-                            <ArrowRight className="w-3 h-3 text-black mx-1" />
-                            {renderSmallKey(result, 4, i)}
+                            <ArrowRightFromLine className="w-3 h-3 text-black mx-1" />
+                            {renderSmallKey(result, 4, i, 4)}
                             <OnOffToggle
                                 value={enabled}
                                 onToggle={() => handleToggleEnabled(i)}

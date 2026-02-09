@@ -1,18 +1,14 @@
 import { FC, useState, useEffect } from "react";
-import { ArrowRight, Trash2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import OnOffToggle from "@/components/ui/OnOffToggle";
 
-import { Key } from "@/components/Key";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
+import { DragItem } from "@/contexts/DragContext";
 import { cn } from "@/lib/utils";
-import { getKeyContents } from "@/utils/keys";
 
 import OverrideModifierSelector from "./OverrideModifierSelector";
-
-interface Props { }
 
 const TABS = ["Trigger", "Negative", "Suspended"] as const;
 type TabType = typeof TABS[number];
@@ -26,11 +22,16 @@ const OPTIONS = [
     { label: "No unregister on other key down", bit: 1 << 5 },
 ] as const;
 
+
+
 const ENABLED_BIT = 1 << 7;
 
-const OverrideEditor: FC<Props> = () => {
+import { vialService } from "@/services/vial.service";
+import EditorKey from "./EditorKey";
+
+const OverrideEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
-    const { itemToEdit, setPanelToGoBack, setAlternativeHeader } = usePanels();
+    const { itemToEdit, setPanelToGoBack, setAlternativeHeader, initialEditorSlot } = usePanels();
     const { selectOverrideKey, selectedTarget } = useKeyBinding();
     const [activeTab, setActiveTab] = useState<TabType>("Trigger");
 
@@ -38,7 +39,36 @@ const OverrideEditor: FC<Props> = () => {
     const override = keyboard?.key_overrides?.[overrideIndex];
 
     useEffect(() => {
-        selectOverrideKey(overrideIndex, "trigger");
+        if (!keyboard?.key_overrides || itemToEdit === null) return;
+        const entry = keyboard.key_overrides[itemToEdit];
+        if (!entry) return;
+
+        const hasTrigger = entry.trigger !== "KC_NO" && entry.trigger !== "";
+        const hasReplacement = entry.replacement !== "KC_NO" && entry.replacement !== "";
+        const isEmpty = !hasTrigger && !hasReplacement;
+        const isEnabled = (entry.options & ENABLED_BIT) !== 0;
+
+        if (isEmpty && !isEnabled) {
+            console.log("Auto-enabling empty override", itemToEdit);
+            const updatedOverrides = [...keyboard.key_overrides];
+            const newOptions = (entry.options || 0) | ENABLED_BIT;
+
+            updatedOverrides[itemToEdit] = {
+                ...entry,
+                options: newOptions,
+                layers: 0xFFFF
+            };
+
+            const updatedKeyboard = { ...keyboard, key_overrides: updatedOverrides };
+            setKeyboard(updatedKeyboard);
+
+            vialService.updateKeyoverride(updatedKeyboard, itemToEdit)
+                .catch(err => console.error("Failed to auto-enable override:", err));
+        }
+    }, [itemToEdit]);
+
+    useEffect(() => {
+        selectOverrideKey(overrideIndex, initialEditorSlot || "trigger");
         setPanelToGoBack("overrides");
         setAlternativeHeader(true);
     }, []);
@@ -101,125 +131,98 @@ const OverrideEditor: FC<Props> = () => {
         setKeyboard(updatedKeyboard);
     };
 
+    const handleDrop = (slot: "trigger" | "replacement", item: DragItem) => {
+        if (item.editorType === "override" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
+            const sourceSlot = item.editorSlot as "trigger" | "replacement";
+            const targetSlot = slot;
+            if (sourceSlot === targetSlot) return;
+
+            if (!keyboard || !override) return;
+            const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+            const ovr = updatedKeyboard.key_overrides[overrideIndex];
+
+            const sourceVal = sourceSlot === "trigger" ? ovr.trigger : ovr.replacement;
+            const targetVal = targetSlot === "trigger" ? ovr.trigger : ovr.replacement;
+
+            if (sourceSlot === "trigger") ovr.trigger = targetVal;
+            else ovr.replacement = targetVal;
+
+            if (targetSlot === "trigger") ovr.trigger = sourceVal;
+            else ovr.replacement = sourceVal;
+
+            setKeyboard(updatedKeyboard);
+        } else {
+            updateOverrideAssignment(slot, item.keycode);
+        }
+    };
+
+    const updateOverrideAssignment = (slot: "trigger" | "replacement", keycode: string) => {
+        if (!keyboard || !override) return;
+        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+        const ovr = updatedKeyboard.key_overrides[overrideIndex];
+        if (slot === "trigger") ovr.trigger = keycode;
+        else ovr.replacement = keycode;
+        setKeyboard(updatedKeyboard);
+    };
+
     const currentMask = getActiveMask();
 
-    const renderKey = (label: string, slot: "trigger" | "replacement") => {
+    const renderOverrideKey = (label: string, slot: "trigger" | "replacement") => {
         if (!override) return null;
         const keycode = slot === "trigger" ? override.trigger : override.replacement;
-        const keyContents = getKeyContents(keyboard!, keycode || "KC_NO");
         const isSelected = isSlotSelected(slot);
-        const hasContent = keycode && keycode !== "KC_NO";
-
-        let keyColor: string | undefined;
-        let keyClassName: string;
-        let headerClass: string;
-
-        if (isSelected) {
-            keyColor = undefined;
-            keyClassName = "border-2 border-red-600";
-            headerClass = "bg-black/20";
-        } else if (hasContent) {
-            keyColor = "sidebar";
-            keyClassName = "border-kb-gray";
-            headerClass = "bg-kb-sidebar-dark";
-        } else {
-            keyColor = undefined;
-            keyClassName = "bg-transparent border-2 border-black";
-            headerClass = "text-black";
-        }
 
         return (
             <div className="flex flex-col items-center gap-2 relative">
                 <span className="text-sm font-bold text-slate-600">{label}</span>
-                <div className="relative w-[60px] h-[60px] group/override-key">
-                    <Key
-                        isRelative
-                        x={0}
-                        y={0}
-                        w={1}
-                        h={1}
-                        row={-1}
-                        col={-1}
-                        keycode={keycode || "KC_NO"}
-                        label={keyContents?.str || ""}
-                        keyContents={keyContents}
-                        selected={isSelected}
-                        onClick={() => selectOverrideKey(overrideIndex, slot)}
-                        layerColor={keyColor}
-                        className={keyClassName}
-                        headerClassName={headerClass}
-                    />
-                    {hasContent && (
-                        <div className="absolute -left-10 top-0 h-full flex items-center justify-center opacity-0 group-hover/override-key:opacity-100 group-hover/override-key:pointer-events-auto pointer-events-none transition-opacity">
-                            <button
-                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    clearKey(slot);
-                                }}
-                                title="Clear key"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        </div>
-                    )}
-                </div>
+                <EditorKey
+                    keycode={keycode}
+                    selected={isSelected}
+                    onClick={() => selectOverrideKey(overrideIndex, slot)}
+                    onClear={() => clearKey(slot)}
+                    onDrop={(item) => handleDrop(slot, item)}
+                    size="w-[60px] h-[60px]"
+                    // OverrideEditor renders trash at "-left-10" which is default for EditorKey
+                    trashOffset="-left-10"
+                    wrapperClassName="relative w-[60px] h-[60px] group/override-key"
+                    variant="default"
+                    label={undefined}
+                    labelClassName={undefined}
+                    editorType="override"
+                    editorId={itemToEdit!}
+                    editorSlot={slot}
+                />
             </div>
         );
     };
 
     if (!override) return <div className="p-5">Override not found</div>;
 
-    const isEnabled = (override.options & ENABLED_BIT) !== 0;
-
     return (
-        <div className="flex flex-col gap-4 py-8 pl-[84px] pr-5 pb-4">
+        <div className="flex flex-col gap-2 py-6 pl-[84px] pb-16">
             {/* Active Switch */}
             {/* Active Toggle */}
-            <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-400/50 w-fit">
-                <button
-                    onClick={() => updateOption(ENABLED_BIT, true)}
-                    className={cn(
-                        "px-3 py-1 text-xs uppercase tracking-wide rounded-[4px] transition-all font-bold border",
-                        isEnabled
-                            ? "bg-black text-white shadow-sm border-black"
-                            : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                    )}
-                >
-                    ON
-                </button>
-                <button
-                    onClick={() => updateOption(ENABLED_BIT, false)}
-                    className={cn(
-                        "px-3 py-1 text-xs uppercase tracking-wide rounded-[4px] transition-all font-bold border",
-                        !isEnabled
-                            ? "bg-black text-white shadow-sm border-black"
-                            : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                    )}
-                >
-                    OFF
-                </button>
-            </div>
+
 
             <div className="flex flex-row gap-8 justify-start items-center">
-                {renderKey("Trigger", "trigger")}
+                {renderOverrideKey("Trigger", "trigger")}
                 <div className="pt-6 text-black -mr-1">
                     <ArrowRight className="w-6 h-6" />
                 </div>
-                {renderKey("Replacement", "replacement")}
+                {renderOverrideKey("Replacement", "replacement")}
             </div>
 
             {/* Tabs */}
-            <div className="flex flex-row items-center gap-1 bg-gray-200/50 p-1 rounded-lg border border-gray-400/50 w-full mt-8">
+            <div className="flex flex-row items-center bg-gray-200/50 p-1 rounded-lg border border-gray-400/50 w-full mt-4">
                 {TABS.map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
                         className={cn(
-                            "flex-1 py-2 text-sm uppercase tracking-wider rounded-md transition-all font-bold border",
+                            "flex-1 py-1.5 text-xs uppercase tracking-wider rounded-md transition-all font-bold border-none",
                             activeTab === tab
-                                ? "bg-black text-white shadow-md border-black"
-                                : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
+                                ? "bg-black text-white shadow-md"
+                                : "text-gray-500 hover:text-black hover:bg-white/50"
                         )}
                     >
                         {tab}
@@ -232,7 +235,7 @@ const OverrideEditor: FC<Props> = () => {
 
             {/* Layers Section */}
             <div className="flex flex-col gap-1.5">
-                <span className="font-semibold text-lg text-slate-700">Layers</span>
+                <span className="font-semibold text-lg text-black">Layers</span>
                 <div className="grid grid-cols-8 gap-2 w-fit">
                     {Array.from({ length: 16 }).map((_, i) => {
                         const isActive = (override.layers & (1 << i)) !== 0;
@@ -257,22 +260,18 @@ const OverrideEditor: FC<Props> = () => {
 
 
             {/* Options Switches */}
-            <div className="flex flex-col gap-3 mt-4">
-                {OPTIONS.map((opt) => {
-                    const isChecked = (override.options & opt.bit) !== 0;
-                    return (
-                        <div key={opt.label} className="flex items-center space-x-3">
-                            <Switch
-                                id={`opt-${opt.bit}`}
-                                checked={isChecked}
-                                onCheckedChange={(checked) => updateOption(opt.bit, checked)}
-                            />
-                            <Label htmlFor={`opt-${opt.bit}`} className="font-normal text-slate-700 cursor-pointer">
-                                {opt.label}
-                            </Label>
+            <div className="flex flex-col gap-1 mt-2">
+                {OPTIONS.map((opt) => (
+                    <div key={opt.label} className="flex flex-row items-center justify-between py-1">
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-sm font-medium text-slate-700">{opt.label}</span>
                         </div>
-                    );
-                })}
+                        <OnOffToggle
+                            value={(override.options & opt.bit) !== 0}
+                            onToggle={(val) => updateOption(opt.bit, val)}
+                        />
+                    </div>
+                ))}
             </div>
         </div>
     );

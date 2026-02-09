@@ -2,13 +2,21 @@ import "./BindingEditorContainer.css";
 
 import { FC, useCallback, useState, useEffect, useRef, KeyboardEvent } from "react";
 
-import ComboIcon from "@/components/ComboIcon";
-import MacrosIcon from "@/components/icons/MacrosIcon";
-import OverridesIcon from "@/components/icons/Overrides";
+import OnOffToggle from "@/components/ui/OnOffToggle";
 import { usePanels } from "@/contexts/PanelsContext";
 import { cn } from "@/lib/utils";
-import { X, Repeat, ListOrdered } from "lucide-react";
-import { LeaderOptions } from "@/types/vial.types";
+import { X, GripHorizontal, Trash2 } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { DelayedTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+
+import { LeaderOptions, AltRepeatKeyOptions } from "@/types/vial.types";
 import { vialService } from "@/services/vial.service";
 import { Input } from "@/components/ui/input";
 import AltRepeatEditor from "./AltRepeatEditor";
@@ -27,13 +35,6 @@ interface Props {
     inline?: boolean; // When true, renders inline without absolute positioning (for overlay mode)
 }
 
-const icons = {
-    macros: <MacrosIcon />,
-    combos: <ComboIcon />,
-    overrides: <OverridesIcon />,
-    altrepeat: <Repeat className="w-5 h-5" />,
-    leaders: <ListOrdered className="w-5 h-5" />,
-};
 
 const labels = {
     tapdances: "Tap Dance Keys",
@@ -44,36 +45,52 @@ const labels = {
     leaders: "Leader Sequence",
 };
 
-const LeaderToggle: FC<{ isEnabled: boolean; onToggle: (enabled: boolean) => void }> = ({ isEnabled, onToggle }) => (
-    <div className="flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-400/50 ml-3">
-        <button
-            onClick={() => onToggle(true)}
-            className={cn(
-                "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[4px] transition-all font-bold border",
-                isEnabled
-                    ? "bg-black text-white shadow-sm border-black"
-                    : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-            )}
-        >
-            ON
-        </button>
-        <button
-            onClick={() => onToggle(false)}
-            className={cn(
-                "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[4px] transition-all font-bold border",
-                !isEnabled
-                    ? "bg-black text-white shadow-sm border-black"
-                    : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-            )}
-        >
-            OFF
-        </button>
-    </div>
-);
+
 
 const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
     const { itemToEdit, handleCloseEditor, bindingTypeToEdit } = usePanels();
     const [isClosing, setIsClosing] = useState(false);
+    const [yOffset, setYOffset] = useState(0);
+    const [isDragging, setIsDragging] = useState(false);
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+    const isDraggingRef = useRef(false);
+    const startYRef = useRef(0);
+    const startOffsetRef = useRef(0);
+
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        isDraggingRef.current = true;
+        setIsDragging(true);
+        startYRef.current = e.clientY;
+        startOffsetRef.current = yOffset;
+        document.body.style.cursor = "ns-resize";
+        e.preventDefault();
+        e.stopPropagation();
+    }, [yOffset]);
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isDraggingRef.current) return;
+            const deltaY = e.clientY - startYRef.current;
+            setYOffset(startOffsetRef.current + deltaY);
+        };
+
+        const handleMouseUp = () => {
+            if (isDraggingRef.current) {
+                isDraggingRef.current = false;
+                setIsDragging(false);
+                document.body.style.cursor = "";
+            }
+        };
+
+        window.addEventListener("mousemove", handleMouseMove);
+        window.addEventListener("mouseup", handleMouseUp);
+
+        return () => {
+            window.removeEventListener("mousemove", handleMouseMove);
+            window.removeEventListener("mouseup", handleMouseUp);
+        };
+    }, []);
 
     useEffect(() => {
         if (shouldClose && !isClosing) {
@@ -134,25 +151,178 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
         }
     };
 
+    const handleClearAll = async () => {
+        if (!keyboard || itemToEdit === null || !bindingTypeToEdit) return;
+
+        setIsConfirmOpen(false);
+
+        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+
+        switch (bindingTypeToEdit) {
+            case "tapdances":
+                if (updatedKeyboard.tapdances?.[itemToEdit]) {
+                    updatedKeyboard.tapdances[itemToEdit] = {
+                        ...updatedKeyboard.tapdances[itemToEdit],
+                        tap: "KC_NO",
+                        hold: "KC_NO",
+                        doubletap: "KC_NO",
+                        taphold: "KC_NO",
+                        tapms: 200
+                    };
+                    setKeyboard(updatedKeyboard);
+                    await vialService.updateTapdance(updatedKeyboard, itemToEdit);
+                }
+                break;
+            case "macros":
+                if (updatedKeyboard.macros?.[itemToEdit]) {
+                    updatedKeyboard.macros[itemToEdit].actions = [];
+                    setKeyboard(updatedKeyboard);
+                    await vialService.updateMacros(updatedKeyboard);
+                }
+                break;
+            case "combos":
+                if (updatedKeyboard.combos?.[itemToEdit]) {
+                    updatedKeyboard.combos[itemToEdit].keys = ["KC_NO", "KC_NO", "KC_NO", "KC_NO"];
+                    updatedKeyboard.combos[itemToEdit].output = "KC_NO";
+                    setKeyboard(updatedKeyboard);
+                    await vialService.updateCombo(updatedKeyboard, itemToEdit);
+                }
+                break;
+            case "overrides":
+                if (updatedKeyboard.key_overrides?.[itemToEdit]) {
+                    updatedKeyboard.key_overrides[itemToEdit] = {
+                        ...updatedKeyboard.key_overrides[itemToEdit],
+                        trigger: "KC_NO",
+                        replacement: "KC_NO",
+                        layers: 0xFFFF,
+                        trigger_mods: 0,
+                        negative_mod_mask: 0,
+                        suppressed_mods: 0,
+                        options: 0
+                    };
+                    setKeyboard(updatedKeyboard);
+                    await vialService.updateKeyoverride(updatedKeyboard, itemToEdit);
+                }
+                break;
+            case "altrepeat":
+                if (updatedKeyboard.alt_repeat_keys?.[itemToEdit]) {
+                    updatedKeyboard.alt_repeat_keys[itemToEdit] = {
+                        ...updatedKeyboard.alt_repeat_keys[itemToEdit],
+                        keycode: "KC_NO",
+                        alt_keycode: "KC_NO",
+                        allowed_mods: 0,
+                        options: 0
+                    };
+                    setKeyboard(updatedKeyboard);
+                    await vialService.updateAltRepeatKey(updatedKeyboard, itemToEdit);
+                }
+                break;
+            case "leaders":
+                if (updatedKeyboard.leaders?.[itemToEdit]) {
+                    updatedKeyboard.leaders[itemToEdit] = {
+                        ...updatedKeyboard.leaders[itemToEdit],
+                        sequence: ["KC_NO", "KC_NO", "KC_NO", "KC_NO", "KC_NO"],
+                        output: "KC_NO",
+                        options: 0
+                    };
+                    setKeyboard(updatedKeyboard);
+                    await vialService.updateLeader(updatedKeyboard, itemToEdit);
+                }
+                break;
+        }
+
+        await vialService.saveViable();
+    };
+
+    const getEditorTitle = () => {
+        if (!keyboard || itemToEdit === null || !bindingTypeToEdit) return "Data";
+
+        if (bindingTypeToEdit === "macros") {
+            return keyboard.cosmetic?.macros?.[itemToEdit.toString()] || `Macro Key ${itemToEdit}`;
+        }
+
+        switch (bindingTypeToEdit) {
+            case "combos": return `Combo ${itemToEdit}`;
+            case "tapdances": return `Tap Dance Key ${itemToEdit}`;
+            case "overrides": return `Override ${itemToEdit}`;
+            case "altrepeat": return `Alt-Repeat Key ${itemToEdit}`;
+            case "leaders": return `Leader Sequence ${itemToEdit}`;
+            default: return (labels as any)[bindingTypeToEdit] || "Data";
+        }
+    };
+
+    const getHasContent = () => {
+        if (!keyboard || itemToEdit === null || !bindingTypeToEdit) return false;
+
+        switch (bindingTypeToEdit) {
+            case "tapdances": {
+                const td = keyboard.tapdances?.[itemToEdit];
+                return !!td && (td.tap !== "KC_NO" || td.hold !== "KC_NO" || td.doubletap !== "KC_NO" || td.taphold !== "KC_NO");
+            }
+            case "macros": {
+                const macro = keyboard.macros?.[itemToEdit];
+                return !!macro && macro.actions.length > 0;
+            }
+            case "combos": {
+                const combo = keyboard.combos?.[itemToEdit];
+                return !!combo && (combo.keys.some(k => k !== "KC_NO") || combo.output !== "KC_NO");
+            }
+            case "overrides": {
+                const override = keyboard.key_overrides?.[itemToEdit];
+                return !!override && (override.trigger !== "KC_NO" || override.replacement !== "KC_NO");
+            }
+            case "altrepeat": {
+                const ar = keyboard.alt_repeat_keys?.[itemToEdit];
+                return !!ar && (ar.keycode !== "KC_NO" || ar.alt_keycode !== "KC_NO");
+            }
+            case "leaders": {
+                const leader = keyboard.leaders?.[itemToEdit];
+                return !!leader && (leader.sequence.some(k => k !== "KC_NO") || leader.output !== "KC_NO");
+            }
+            default:
+                return false;
+        }
+    };
+
+    const hasContent = getHasContent();
+
     // In inline mode, render without absolute positioning for overlay use
     const containerClasses = inline
-        ? cn("flex flex-col", bindingTypeToEdit === "overrides" ? "w-[600px]" : "w-full")
-        : cn("absolute top-1/2 -translate-y-1/2", bindingTypeToEdit === "overrides" ? "w-[600px] right-[-600px]" : bindingTypeToEdit === "leaders" ? "w-[520px] right-[-520px]" : "w-[450px] right-[-450px]");
+        ? cn("flex flex-col", bindingTypeToEdit === "overrides" ? "w-[600px]" : bindingTypeToEdit === "combos" ? "w-[660px]" : "w-full")
+        : cn("absolute top-1/2", bindingTypeToEdit === "overrides" ? "w-[600px] right-[-600px]" : bindingTypeToEdit === "combos" ? "w-[660px] right-[-660px]" : bindingTypeToEdit === "leaders" ? "w-[520px] right-[-520px]" : "w-[450px] right-[-450px]");
 
     const panelClasses = inline
-        ? cn("bg-kb-gray-medium p-3 flex flex-col w-full")
-        : cn("binding-editor bg-kb-gray-medium rounded-r-2xl p-5 flex flex-col w-full min-h-[500px] shadow-[4px_0_16px_rgba(0,0,0,0.1)]", isClosing ? "binding-editor--exit" : "binding-editor--enter");
+        ? cn("bg-kb-gray-medium p-0 flex flex-col w-full overflow-hidden")
+        : cn(
+            "binding-editor bg-kb-gray-medium rounded-r-2xl p-0 flex flex-col w-full shadow-[4px_0_16px_rgba(0,0,0,0.1)] overflow-hidden relative",
+            bindingTypeToEdit === "overrides" ? "min-h-[620px]" : (bindingTypeToEdit === "tapdances" || bindingTypeToEdit === "macros") ? "min-h-[500px]" : "min-h-0",
+            isClosing ? "binding-editor--exit" : "binding-editor--enter"
+        );
 
     // Icon sizes: smaller for inline mode
     const iconSize = inline ? "w-10 h-10" : "w-14 h-14";
-    const iconInnerSize = inline ? "h-4 w-4 mt-2" : "h-5 w-5 mt-3";
-    const iconTextSize = inline ? "text-xs" : "text-sm";
+    const iconWidth = inline ? "w-10" : "w-14";
 
     const renderHeaderIcon = () => {
-        if (bindingTypeToEdit === "tapdances" && itemToEdit !== null && keyboard) {
-            const keycode = `TD(${itemToEdit})`;
-            const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
-            return (
+        if (!keyboard || itemToEdit === null) return null;
+
+        const isDraggable = bindingTypeToEdit === "tapdances" || bindingTypeToEdit === "macros";
+        const keycode = bindingTypeToEdit === "tapdances" ? `TD(${itemToEdit})` :
+            bindingTypeToEdit === "macros" ? `M${itemToEdit}` : "KC_NO";
+
+        const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
+        if (!isDraggable) {
+            // For non-draggable types, we still use the Key representation but override the type/label
+            (keyContents as any).type = (
+                bindingTypeToEdit === "combos" ? "combo" :
+                    bindingTypeToEdit === "leaders" ? "leaders" :
+                        bindingTypeToEdit === "overrides" ? "override" :
+                            bindingTypeToEdit === "altrepeat" ? "altrepeat" : "key"
+            );
+        }
+
+        return (
+            <div className={cn("flex flex-col items-start", iconWidth)}>
                 <div className={cn("relative", iconSize)}>
                     <Key
                         isRelative
@@ -167,108 +337,202 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                         keyContents={keyContents}
                         layerColor="sidebar"
                         variant={inline ? "small" : "default"}
+                        disableTooltip={true}
+                        disableDrag={!isDraggable}
+                        disableHover={!isDraggable}
+                        forceLabel={true}
                     />
                 </div>
-            );
-        }
 
-        const icon = (icons as any)[bindingTypeToEdit!];
-        if (icon) {
-            return (
-                <div className={cn("flex flex-col bg-black rounded-sm flex-shrink-0 items-center", iconSize)}>
-                    <div className={cn("text-white", iconInnerSize)}>{icon}</div>
-                    <span className={cn("text-white", iconTextSize)}>{itemToEdit}</span>
-                </div>
-            );
-        }
-        return null;
+                {bindingTypeToEdit === "leaders" && keyboard?.leaders && itemToEdit !== null && (
+                    <div className="mt-[20px]">
+                        <OnOffToggle
+                            value={(keyboard.leaders[itemToEdit]?.options & LeaderOptions.ENABLED) !== 0}
+                            onToggle={async (enabled) => {
+                                const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+                                let options = updatedKeyboard.leaders[itemToEdit].options;
+                                if (enabled) options |= LeaderOptions.ENABLED;
+                                else options &= ~LeaderOptions.ENABLED;
+                                updatedKeyboard.leaders[itemToEdit].options = options;
+                                setKeyboard(updatedKeyboard);
+                                try {
+                                    await vialService.updateLeader(updatedKeyboard, itemToEdit);
+                                    await vialService.saveViable();
+                                } catch (err) {
+                                    console.error("Failed to update leader:", err);
+                                }
+                            }}
+                        />
+                    </div>
+                )}
+
+                {bindingTypeToEdit === "overrides" && keyboard?.key_overrides && itemToEdit !== null && (
+                    <div className="mt-[20px]">
+                        <OnOffToggle
+                            value={(keyboard.key_overrides[itemToEdit]?.options & (1 << 7)) !== 0}
+                            onToggle={async (enabled) => {
+                                const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+                                let options = updatedKeyboard.key_overrides[itemToEdit].options;
+                                if (enabled) options |= (1 << 7);
+                                else options &= ~(1 << 7);
+                                updatedKeyboard.key_overrides[itemToEdit].options = options;
+                                setKeyboard(updatedKeyboard);
+                                try {
+                                    await vialService.updateKeyoverride(updatedKeyboard, itemToEdit);
+                                    await vialService.saveViable();
+                                } catch (err) {
+                                    console.error("Failed to update key override:", err);
+                                }
+                            }}
+                        />
+                    </div>
+                )}
+
+                {bindingTypeToEdit === "altrepeat" && keyboard?.alt_repeat_keys && itemToEdit !== null && (
+                    <div className="mt-[20px]">
+                        <OnOffToggle
+                            value={(keyboard.alt_repeat_keys[itemToEdit]?.options & AltRepeatKeyOptions.ENABLED) !== 0}
+                            onToggle={async (enabled) => {
+                                const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+                                let options = updatedKeyboard.alt_repeat_keys[itemToEdit].options;
+                                if (enabled) options |= AltRepeatKeyOptions.ENABLED;
+                                else options &= ~AltRepeatKeyOptions.ENABLED;
+                                updatedKeyboard.alt_repeat_keys[itemToEdit].options = options;
+                                setKeyboard(updatedKeyboard);
+                                try {
+                                    await vialService.updateAltRepeatKey(updatedKeyboard, itemToEdit);
+                                    await vialService.saveViable();
+                                } catch (err) {
+                                    console.error("Failed to update alt-repeat key:", err);
+                                }
+                            }}
+                        />
+                    </div>
+                )}
+            </div>
+        );
     };
 
     return (
-        <div className={containerClasses}>
+        <div
+            className={containerClasses}
+            style={{
+                ...(!inline ? { transform: `translateY(calc(-50% + ${yOffset}px))` } : { transform: `translateY(${yOffset}px)` }),
+                transition: isDragging ? "none" : "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)"
+            }}
+        >
             <div className={panelClasses} onAnimationEnd={handleAnimationEnd}>
-                <div className={cn(
-                    "flex flex-row w-full items-center justify-between",
-                    inline ? "pr-3 pt-2 pb-2 pl-4" : "pr-5 pt-2 pb-5 pl-[84px]"
-                )}>
-                    <div className="flex flex-row items-center">
-                        {renderHeaderIcon()}
-                        <div className={cn("font-normal", inline ? "pl-3 text-lg" : "pl-5 text-xl")}>
-                            {bindingTypeToEdit === "macros" ? (
-                                isEditingTitle ? (
-                                    <div className="flex items-center gap-2 bg-white rounded-md px-1 py-0.5 border border-black shadow-sm">
-                                        <Input
-                                            ref={inputRef}
-                                            value={editTitleValue}
-                                            onChange={(e) => setEditTitleValue(e.target.value)}
-                                            onBlur={handleSaveTitle}
-                                            onKeyDown={handleTitleKeyDown}
-                                            className="h-auto py-1 px-2 text-lg font-bold border-none focus-visible:ring-0 w-auto min-w-[130px] select-text"
-                                            autoFocus
-                                        />
-                                    </div>
-                                ) : (
-                                    <div
-                                        className="cursor-pointer hover:bg-black/5 rounded-md px-2 py-1 transition-colors"
-                                        onClick={handleStartEditingTitle}
-                                        title="Click to rename"
-                                    >
-                                        {keyboard?.cosmetic?.macros?.[itemToEdit!.toString()] || `Macro Key ${itemToEdit}`}
-                                    </div>
-                                )
-                            ) : bindingTypeToEdit === "combos" ? (
-                                `Combo ${itemToEdit}`
-                            ) : bindingTypeToEdit === "tapdances" ? (
-                                `Tap Dance Key ${itemToEdit}`
-                            ) : bindingTypeToEdit === "overrides" ? (
-                                `Override ${itemToEdit}`
-                            ) : bindingTypeToEdit === "altrepeat" ? (
-                                `Alt-Repeat Key ${itemToEdit}`
-                            ) : bindingTypeToEdit === "leaders" ? (
-                                `Leader Sequence ${itemToEdit}`
-                            ) : (
-                                (labels as any)[bindingTypeToEdit!]
-                            )}
+                <div
+                    className="w-full h-6 flex items-center justify-center cursor-ns-resize hover:bg-black/5 transition-colors group z-20"
+                    onMouseDown={handleMouseDown}
+                >
+                    <GripHorizontal className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+                </div>
+                <div className={inline ? "p-3 pt-0" : "p-5 pt-0"}>
+                    <div className={cn(
+                        "flex flex-row w-full items-start justify-between",
+                        inline ? "pr-3 pt-2 pb-2 pl-4" : "pt-2 pb-[6px] pl-[84px]"
+                    )}>
+                        <div className="flex flex-row items-start">
+                            {renderHeaderIcon()}
+                            <div className={cn("flex items-center", inline ? "h-10 pl-3" : "h-14 pl-[20px]")}>
+                                <div className={cn("font-normal", inline ? "text-lg" : "text-xl")}>
+                                    {bindingTypeToEdit === "macros" ? (
+                                        isEditingTitle ? (
+                                            <div className="flex items-center gap-2 bg-white rounded-md px-1 py-0.5 border border-black shadow-sm">
+                                                <Input
+                                                    ref={inputRef}
+                                                    value={editTitleValue}
+                                                    onChange={(e) => setEditTitleValue(e.target.value)}
+                                                    onBlur={handleSaveTitle}
+                                                    onKeyDown={handleTitleKeyDown}
+                                                    className="h-auto py-1 px-2 text-lg font-bold border-none focus-visible:ring-0 w-auto min-w-[130px] select-text"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className="cursor-pointer hover:bg-black/5 rounded-md px-2 py-1 transition-colors"
+                                                onClick={handleStartEditingTitle}
+                                                title="Click to rename"
+                                            >
+                                                {getEditorTitle()}
+                                            </div>
+                                        )
+                                    ) : (
+                                        getEditorTitle()
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                        {bindingTypeToEdit === "leaders" && keyboard?.leaders && itemToEdit !== null && (
-                            <LeaderToggle
-                                isEnabled={(keyboard.leaders[itemToEdit]?.options & LeaderOptions.ENABLED) !== 0}
-                                onToggle={async (enabled) => {
-                                    const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-                                    let options = updatedKeyboard.leaders[itemToEdit].options;
-                                    if (enabled) options |= LeaderOptions.ENABLED;
-                                    else options &= ~LeaderOptions.ENABLED;
-                                    updatedKeyboard.leaders[itemToEdit].options = options;
-                                    setKeyboard(updatedKeyboard);
-                                    try {
-                                        await vialService.updateLeader(updatedKeyboard, itemToEdit);
-                                        await vialService.saveViable();
-                                    } catch (err) {
-                                        console.error("Failed to update leader:", err);
-                                    }
-                                }}
-                            />
+                        {!isEditingTitle && !inline && (
+                            <div className="h-14 flex items-center">
+                                <button
+                                    type="button"
+                                    onClick={handleAnimatedClose}
+                                    className="rounded-sm p-1 text-kb-gray-border transition-all hover:text-black focus:outline-none focus:text-black cursor-pointer"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
                         )}
+
                     </div>
-                    {!isEditingTitle && !inline && (
-                        <button
-                            type="button"
-                            onClick={handleAnimatedClose}
-                            className="rounded-sm p-1 text-kb-gray-border transition-all hover:text-black focus:outline-none focus:text-black cursor-pointer"
-                        >
-                            <X className="h-5 w-5" />
-                        </button>
+                    {bindingTypeToEdit === "tapdances" && <TapdanceEditor />}
+                    {bindingTypeToEdit === "combos" && <ComboEditor />}
+                    {bindingTypeToEdit === "overrides" && <OverrideEditor />}
+                    {bindingTypeToEdit === "macros" && <MacroEditor />}
+                    {bindingTypeToEdit === "altrepeat" && <AltRepeatEditor />}
+                    {bindingTypeToEdit === "leaders" && <LeaderEditor />}
+
+                    {!inline && hasContent && (
+                        <div className="absolute bottom-[22px] right-5 z-10">
+                            <DelayedTooltip>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsConfirmOpen(true)}
+                                        className="rounded-full p-1 text-kb-gray-border transition-all hover:bg-red-500 hover:text-white focus:outline-none cursor-pointer bg-kb-gray-medium"
+                                    >
+                                        <Trash2 className="h-5 w-5" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Clear all data</p>
+                                </TooltipContent>
+                            </DelayedTooltip>
+                        </div>
                     )}
                 </div>
-                {bindingTypeToEdit === "tapdances" && <TapdanceEditor />}
-                {bindingTypeToEdit === "combos" && <ComboEditor />}
-                {bindingTypeToEdit === "overrides" && <OverrideEditor />}
-                {bindingTypeToEdit === "macros" && <MacroEditor />}
-                {bindingTypeToEdit === "altrepeat" && <AltRepeatEditor />}
-                {bindingTypeToEdit === "leaders" && <LeaderEditor />}
             </div>
-        </div>
+            <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold">
+                            Clear {getEditorTitle()}
+                        </DialogTitle>
+                    </DialogHeader>
+                    <DialogFooter className="gap-3 sm:gap-4 mt-4">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsConfirmOpen(false)}
+                            className="rounded-full px-8 py-5 text-base border-slate-300 hover:bg-slate-50 transition-colors"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleClearAll}
+                            className="rounded-full px-8 py-5 text-base font-bold bg-red-600 hover:bg-red-700 transition-colors border-none"
+                        >
+                            Clear
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div >
     );
 };
+
 
 export default BindingEditorContainer;
