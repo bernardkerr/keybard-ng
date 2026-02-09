@@ -9,7 +9,6 @@ import AltRepeatPanel from "./Panels/AltRepeatPanel";
 import BasicKeyboards from "./Panels/BasicKeyboards";
 import CombosPanel from "./Panels/CombosPanel";
 import DynamicMenuPanel from "./Panels/DynamicMenuPanel";
-import FragmentsPanel from "./Panels/FragmentsPanel";
 import LayoutsPanel from "./Panels/LayoutsPanel";
 import LeadersPanel from "./Panels/LeadersPanel";
 import LayersPanel from "./Panels/LayersPanel";
@@ -63,7 +62,6 @@ const getPanelTitle = (panel: string | null | undefined, menus?: CustomUIMenuIte
         overrides: "Overrides",
         altrepeat: "Alt-Repeat Keys",
         leaders: "Leader Sequences",
-        fragments: "Fragment Selections",
         layouts: "Layouts",
         pointing: "Pointing Devices",
         qmksettings: "QMK Settings",
@@ -98,7 +96,7 @@ const AlternativeHeader = ({ onBack, menus }: AlternativeHeaderProps) => {
                 <ArrowLeft className="h-6 w-6 text-gray-500" />
             </button>
             <div>
-                <h2 className="text-[22px] font-semibold leading-none text-slate-700">
+                <h2 className="text-[22px] font-semibold leading-none text-black">
                     {title}
                 </h2>
             </div>
@@ -171,7 +169,6 @@ const SecondarySidebar = () => {
             case "overrides": return <OverridesPanel />;
             case "altrepeat": return <AltRepeatPanel />;
             case "leaders": return <LeadersPanel />;
-            case "fragments": return <FragmentsPanel />;
             case "layouts": return <LayoutsPanel />;
             case "pointing": return <PointingPanel />;
             case "qmk": return <QmkKeyPanel />;
@@ -195,7 +192,7 @@ const SecondarySidebar = () => {
             defaultOpen={false}
             collapsible="offcanvas"
             hideGap
-            className="z-9 absolute select-none"
+            className="z-[60] absolute select-none"
             style={{
                 left: state === "collapsed" ? undefined : primaryOffset,
                 "--sidebar-width": DETAIL_SIDEBAR_WIDTH,
@@ -208,7 +205,7 @@ const SecondarySidebar = () => {
                 ) : (
                     <div className="flex items-center justify-between gap-4">
                         <div>
-                            <h2 className="text-[22px] font-semibold leading-none text-slate-700">
+                            <h2 className="text-[22px] font-semibold leading-none text-black">
                                 {getPanelTitle(activePanel, keyboard?.menus)}
                             </h2>
                         </div>

@@ -9,6 +9,7 @@ import { LayerProvider } from '../../src/contexts/LayerContext';
 import { PanelsProvider, usePanels } from '../../src/contexts/PanelsContext';
 import { SidebarProvider } from '../../src/components/ui/sidebar';
 import { DragProvider } from '../../src/contexts/DragContext';
+import { LayoutSettingsProvider } from '../../src/contexts/LayoutSettingsContext';
 import type { KeyboardInfo, LeaderEntry } from '../../src/types/vial.types';
 import { LeaderOptions } from '../../src/types/vial.types';
 import React from 'react';
@@ -133,23 +134,25 @@ const TestWrapper = ({
 }) => {
     return (
         <SettingsProvider>
-            <ChangesProvider>
-                <VialProvider>
-                    <LayerProvider>
-                        <SidebarProvider>
-                            <PanelsProvider>
-                                <KeyBindingProvider>
-                                    <DragProvider>
-                                        <TestSetup keyboard={keyboard} itemToEdit={itemToEdit}>
-                                            {children}
-                                        </TestSetup>
-                                    </DragProvider>
-                                </KeyBindingProvider>
-                            </PanelsProvider>
-                        </SidebarProvider>
-                    </LayerProvider>
-                </VialProvider>
-            </ChangesProvider>
+            <LayoutSettingsProvider>
+                <ChangesProvider>
+                    <VialProvider>
+                        <LayerProvider>
+                            <SidebarProvider>
+                                <PanelsProvider>
+                                    <KeyBindingProvider>
+                                        <DragProvider>
+                                            <TestSetup keyboard={keyboard} itemToEdit={itemToEdit}>
+                                                {children}
+                                            </TestSetup>
+                                        </DragProvider>
+                                    </KeyBindingProvider>
+                                </PanelsProvider>
+                            </SidebarProvider>
+                        </LayerProvider>
+                    </VialProvider>
+                </ChangesProvider>
+            </LayoutSettingsProvider>
         </SettingsProvider>
     );
 };
@@ -173,47 +176,8 @@ describe('LeaderEditor', () => {
         });
     });
 
-    it('shows ON/OFF toggle for enabled entry', async () => {
-        const keyboard = createKeyboardWithLeaders();
-
-        render(
-            <TestWrapper keyboard={keyboard} itemToEdit={0}>
-                <LeaderEditor />
-            </TestWrapper>
-        );
-
-        await waitFor(() => {
-            // Entry 0 is enabled
-            const onButton = screen.getByRole('button', { name: /^ON$/i });
-            const offButton = screen.getByRole('button', { name: /^OFF$/i });
-
-            expect(onButton).toBeInTheDocument();
-            expect(offButton).toBeInTheDocument();
-            // ON should be active (bg-black)
-            expect(onButton).toHaveClass('bg-black');
-        });
-    });
-
-    it('shows ON/OFF toggle for disabled entry', async () => {
-        const keyboard = createKeyboardWithLeaders();
-
-        render(
-            <TestWrapper keyboard={keyboard} itemToEdit={1}>
-                <LeaderEditor />
-            </TestWrapper>
-        );
-
-        await waitFor(() => {
-            // Entry 1 is disabled
-            const onButton = screen.getByRole('button', { name: /^ON$/i });
-            const offButton = screen.getByRole('button', { name: /^OFF$/i });
-
-            expect(onButton).toBeInTheDocument();
-            expect(offButton).toBeInTheDocument();
-            // OFF should be active (bg-black)
-            expect(offButton).toHaveClass('bg-black');
-        });
-    });
+    // ON/OFF toggle was moved from LeaderEditor to BindingEditorContainer/LeadersPanel
+    // Those toggles are now tested in LeadersPanel.test.tsx
 
     it('displays sequence label', async () => {
         const keyboard = createKeyboardWithLeaders();

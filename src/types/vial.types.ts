@@ -49,6 +49,20 @@ export interface KeyboardInfo {
 
     // VIA3 Custom UI menus (auto-generated settings panels)
     menus?: CustomUIMenuItem[];
+
+    // VIA3 Custom values (loaded at connect time, used for export/import)
+    custom_values?: CustomValueEntry[];
+}
+
+/**
+ * A stored custom value entry (VIA3 dynamic menu value)
+ * Stores raw bytes so multi-byte values survive round-trip without precision loss
+ */
+export interface CustomValueEntry {
+    key: string;        // e.g. "id_left_dpi"
+    channel: number;    // VIA channel (usually 0)
+    valueId: number;    // Value index within channel
+    data: number[];     // Raw bytes, little-endian
 }
 
 export interface KeyboardPayload {

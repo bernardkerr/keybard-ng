@@ -1,6 +1,6 @@
 // Custom Value Service - VIA3 Custom UI value get/set operations
 import { ViableUSB, usbInstance } from "./usb.service";
-import type { CustomUIMenuItem, CustomUIValueRef } from "../types/vial.types";
+import type { CustomUIMenuItem, CustomUIValueRef, CustomValueEntry } from "../types/vial.types";
 
 /**
  * Service for managing VIA3 custom UI values
@@ -55,12 +55,22 @@ export class CustomValueService {
         }
 
         // Parse value from data bytes, little-endian
-        let value = 0;
-        for (let i = 0; i < width && i < data.length; i++) {
-            value |= data[i] << (i * 8);
+        return this.bytesToInt(Array.from(data), width);
+    }
+
+    /**
+     * Get raw bytes from a custom value on the keyboard
+     * Returns the raw byte array without integer conversion
+     */
+    async getRaw(channel: number, valueId: number, width: number = 1): Promise<number[]> {
+        const data = await this.usb.customValueGet(channel, valueId, width);
+
+        if (!data || data.length < 1) {
+            console.warn("Invalid custom value response:", data);
+            return new Array(width).fill(0);
         }
 
-        return value;
+        return Array.from(data).slice(0, width);
     }
 
     /**
@@ -69,16 +79,20 @@ export class CustomValueService {
      * @param width - byte width of value (1 or 2), defaults to 1
      */
     async set(channel: number, valueId: number, value: number, width: number = 1): Promise<void> {
-        // Convert value to little-endian bytes
-        const valueBytes: number[] = [];
-        for (let i = 0; i < width; i++) {
-            valueBytes.push((value >> (i * 8)) & 0xff);
-        }
+        const valueBytes = this.intToBytes(value, width);
 
         console.log(`[CustomValue] SET ch=${channel} id=${valueId} value=${value} bytes=[${valueBytes.join(', ')}]`);
 
         // Use the proper customValueSet method which uses 0x07
         await this.usb.customValueSet(channel, valueId, valueBytes);
+    }
+
+    /**
+     * Set a custom value on the keyboard from raw bytes
+     */
+    async setRaw(channel: number, valueId: number, data: number[]): Promise<void> {
+        console.log(`[CustomValue] SET_RAW ch=${channel} id=${valueId} bytes=[${data.join(', ')}]`);
+        await this.usb.customValueSet(channel, valueId, data);
     }
 
     /**
@@ -140,9 +154,54 @@ export class CustomValueService {
     }
 
     /**
+     * Load ALL values from the full menu tree, returning CustomValueEntry[] with raw bytes.
+     * Also populates the cache. This is called at connect time.
+     */
+    async loadAllMenuValues(menus: CustomUIMenuItem[]): Promise<CustomValueEntry[]> {
+        const itemsWithRefs = this.extractAllItemsWithRefs(menus);
+        console.log(`[CustomValue] Bulk-loading ${itemsWithRefs.length} values from all menus`);
+
+        const entries: CustomValueEntry[] = [];
+
+        for (const { item, ref } of itemsWithRefs) {
+            try {
+                const width = this.getByteWidth(item);
+                const rawBytes = await this.getRaw(ref.channel, ref.valueId, width);
+                const intValue = this.bytesToInt(rawBytes, width);
+
+                entries.push({
+                    key: ref.key,
+                    channel: ref.channel,
+                    valueId: ref.valueId,
+                    data: rawBytes,
+                });
+
+                // Also populate cache with integer value for UI
+                this.cache.set(ref.key, intValue);
+                console.log(`[CustomValue] ${ref.key} (ch=${ref.channel}, id=${ref.valueId}, w=${width}) = ${intValue} raw=[${rawBytes.join(',')}]`);
+            } catch (error) {
+                console.warn(`Failed to load custom value ${ref.key}:`, error);
+            }
+        }
+
+        return entries;
+    }
+
+    /**
+     * Seed the cache from stored CustomValueEntry[] (no USB needed).
+     * Used when loading from file or seeding DynamicMenuPanel from kbinfo.
+     */
+    populateCacheFromEntries(entries: CustomValueEntry[]): void {
+        for (const entry of entries) {
+            const intValue = this.bytesToInt(entry.data, entry.data.length);
+            this.cache.set(entry.key, intValue);
+        }
+    }
+
+    /**
      * Determine byte width based on control type and options
      */
-    private getByteWidth(item: CustomUIMenuItem): number {
+    getByteWidth(item: CustomUIMenuItem): number {
         // Color controls use 2 bytes (HSV packed)
         if (item.type === 'color') {
             return 2;
@@ -168,7 +227,7 @@ export class CustomValueService {
      * Extract all items with their value references from a menu tree
      * Returns both the item (for type/options info) and its value ref
      */
-    private extractAllItemsWithRefs(items: CustomUIMenuItem[]): { item: CustomUIMenuItem; ref: CustomUIValueRef }[] {
+    extractAllItemsWithRefs(items: CustomUIMenuItem[]): { item: CustomUIMenuItem; ref: CustomUIValueRef }[] {
         const results: { item: CustomUIMenuItem; ref: CustomUIValueRef }[] = [];
 
         for (const item of items) {
@@ -188,6 +247,29 @@ export class CustomValueService {
         }
 
         return results;
+    }
+
+    /**
+     * Convert raw bytes (little-endian) to integer
+     */
+    bytesToInt(data: number[], width?: number): number {
+        const len = width ?? data.length;
+        let value = 0;
+        for (let i = 0; i < len && i < data.length; i++) {
+            value |= data[i] << (i * 8);
+        }
+        return value;
+    }
+
+    /**
+     * Convert integer to little-endian byte array
+     */
+    intToBytes(value: number, width: number): number[] {
+        const bytes: number[] = [];
+        for (let i = 0; i < width; i++) {
+            bytes.push((value >> (i * 8)) & 0xff);
+        }
+        return bytes;
     }
 
     /**

@@ -48,6 +48,6 @@ export default defineConfig({
     },
     server: {
         port: devPort,
-        strictPort: false, // Allow auto-increment to find available port
+        strictPort: true,
     },
 });

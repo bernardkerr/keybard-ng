@@ -1,6 +1,5 @@
 import React from "react";
 import { ArrowRight, Plus, X } from "lucide-react";
-
 import OnOffToggle from "@/components/ui/OnOffToggle";
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useLayer } from "@/contexts/LayerContext";
@@ -24,6 +23,7 @@ const OverridesPanel: React.FC = () => {
         setItemToEdit,
         setBindingTypeToEdit,
         setAlternativeHeader,
+        setInitialEditorSlot,
     } = usePanels();
 
     const isHorizontal = layoutMode === "bottombar";
@@ -37,10 +37,13 @@ const OverridesPanel: React.FC = () => {
 
     const overrides = keyboard.key_overrides || [];
 
-    const handleEdit = (index: number) => {
+    const handleEdit = (index: number, slot?: "trigger" | "replacement") => {
         setItemToEdit(index);
         setBindingTypeToEdit("overrides");
         setAlternativeHeader(true);
+        if (slot) {
+            setInitialEditorSlot(slot);
+        }
     };
 
     const clearOverride = async (index: number) => {
@@ -51,7 +54,7 @@ const OverridesPanel: React.FC = () => {
             trigger: "KC_NO",
             replacement: "KC_NO",
             options: 0,
-            layers: 0,
+            layers: 0xFFFF,
             negative_mod_mask: 0,
             suppressed_mods: 0,
             trigger_mods: 0
@@ -80,9 +83,8 @@ const OverridesPanel: React.FC = () => {
 
     const handleAddOverride = () => {
         const emptyIndex = findFirstEmptyOverride();
-        if (emptyIndex < (keyboard.key_overrides?.length || 0)) {
-            handleEdit(emptyIndex);
-        }
+        if (!keyboard.key_overrides || emptyIndex >= keyboard.key_overrides.length) return;
+        handleEdit(emptyIndex);
     };
 
     const updateOverrideOption = (index: number, bit: number, checked: boolean) => {
@@ -99,19 +101,30 @@ const OverridesPanel: React.FC = () => {
 
     const renderSmallKey = (content: KeyContent, idx: number, overrideIndex: number) => {
         const hasContent = (content?.top && content.top !== "KC_NO") || (content?.str && content.str !== "KC_NO" && content.str !== "");
+        const keycode = content?.top || "";
+        const label = (() => {
+            const str = content?.str;
+            if (!str) return "";
+            const parts = str.split('\n');
+            if (parts.length === 1) return parts[0];
+            if (content?.type === 'modmask' && (keycode.includes("S(") || keycode.includes("LSFT") || keycode.includes("RSFT"))) {
+                return parts[0];
+            }
+            return parts[parts.length - 1];
+        })();
         return (
             <div key={idx} className="relative w-[30px] h-[30px]">
                 <Key
                     isRelative
                     x={0} y={0} w={1} h={1} row={-1} col={-1}
                     keycode={content?.top || "KC_NO"}
-                    label={content?.str || ""}
+                    label={label}
                     keyContents={content}
                     layerColor={hasContent ? "sidebar" : undefined}
                     className={hasContent ? "border-kb-gray" : "bg-transparent border border-kb-gray-border"}
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
-                    onClick={() => handleEdit(overrideIndex)}
+                    onClick={() => handleEdit(overrideIndex, idx === 0 ? "trigger" : "replacement")}
                     disableTooltip={true}
                 />
             </div>
@@ -123,8 +136,8 @@ const OverridesPanel: React.FC = () => {
         return (
             <div className="flex flex-row gap-3 h-full items-start pt-2">
                 {overrides.map((override, i) => {
-                    const isDefined = (override.trigger && override.trigger !== "KC_NO") || (override.replacement && override.replacement !== "KC_NO");
                     const isEnabled = (override.options & ENABLED_BIT) !== 0;
+                    const isDefined = (override.trigger && override.trigger !== "KC_NO") || (override.replacement && override.replacement !== "KC_NO") || isEnabled;
 
                     if (!isDefined) return null;
 
@@ -191,8 +204,8 @@ const OverridesPanel: React.FC = () => {
         <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
                 {overrides.map((override, i) => {
-                    const isDefined = (override.trigger && override.trigger !== "KC_NO") || (override.replacement && override.replacement !== "KC_NO");
                     const isEnabled = (override.options & ENABLED_BIT) !== 0;
+                    const isDefined = (override.trigger && override.trigger !== "KC_NO") || (override.replacement && override.replacement !== "KC_NO");
 
                     const triggerContent = getKeyContents(keyboard, override.trigger || "KC_NO") as KeyContent;
                     const replacementContent = getKeyContents(keyboard, override.replacement || "KC_NO") as KeyContent;
@@ -204,13 +217,14 @@ const OverridesPanel: React.FC = () => {
                                 <ArrowRight className="w-3 h-3 text-black mx-1" />
                                 {renderSmallKey(replacementContent, 1, i)}
                             </div>
-
-                            <OnOffToggle
-                                value={isEnabled}
-                                onToggle={(val) => updateOverrideOption(i, ENABLED_BIT, val)}
-                                className="ml-auto mr-2"
-                            />
                         </div>
+                    ) : undefined;
+
+                    const rowAction = isDefined ? (
+                        <OnOffToggle
+                            value={isEnabled}
+                            onToggle={(val) => updateOverrideOption(i, ENABLED_BIT, val)}
+                        />
                     ) : undefined;
 
                     // Still pass KeyContent type for consistency, though preview key is hidden
@@ -230,6 +244,8 @@ const OverridesPanel: React.FC = () => {
                             hoverLayerColor={layerColorName}
                             hoverHeaderClass={hoverHeaderClass}
                             showPreviewKey={false}
+                            action={rowAction}
+                            dimmed={!!(isDefined && !isEnabled)}
                             className="py-4"
                         >
                             {rowChildren}

@@ -50,7 +50,8 @@ describe('FileService', () => {
 
       expect(result.rows).toBe(2);
       expect(result.cols).toBe(3);
-      expect(result.kbid).toBe('12345');
+      // parseContent converts decimal UID to hex string via BigInt
+      expect(result.kbid).toBe('3039'); // 12345 decimal = 0x3039
     });
 
     it('successfully parses .vil file with uid field', async () => {
@@ -72,7 +73,7 @@ describe('FileService', () => {
       const file = createMockFile(JSON.stringify(vilData));
       const result = await fileService.loadFile(file);
 
-      expect(result.kbid).toBe('98765');
+      expect(result.kbid).toBe('181cd'); // 98765 decimal = 0x181cd
       // vilToKBINFO uses || so default rows/cols from DEFAULT_KB_INFO are kept
       // keymap is flattened correctly based on layout dimensions
       expect(result.keymap?.[0].length).toBe(4); // 2 rows * 2 cols = 4 keys
@@ -97,7 +98,7 @@ describe('FileService', () => {
       const file = createMockFile(JSON.stringify(dataWithOptionals));
       const result = await fileService.loadFile(file);
 
-      expect(result.kbid).toBe('11111');
+      expect(result.kbid).toBe('2b67'); // 11111 decimal = 0x2b67
       expect(result.layers).toBe(2);
       expect(result.tapdances?.length).toBe(1);
     });
@@ -633,7 +634,8 @@ describe('FileService', () => {
 
       const kbinfo = (fileService as any).parseContent(viableContent);
 
-      expect(kbinfo.kbid).toBe('12345');
+      // parseContent converts decimal UID to hex string via BigInt
+      expect(kbinfo.kbid).toBe('3039'); // 12345 decimal = 0x3039
       expect(kbinfo.rows).toBe(2);
       expect(kbinfo.cols).toBe(2);
     });
@@ -651,7 +653,8 @@ describe('FileService', () => {
 
       const kbinfo = (fileService as any).parseContent(vilContent);
 
-      expect(kbinfo.kbid).toBe('12345');
+      // parseContent converts decimal UID to hex string via BigInt
+      expect(kbinfo.kbid).toBe('3039'); // 12345 decimal = 0x3039
     });
 
     it('throws for unknown format', () => {

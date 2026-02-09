@@ -6,18 +6,21 @@ import { fileService } from "../services/file.service";
 import { keyService } from "../services/key.service";
 import { qmkService } from "../services/qmk.service";
 import { usbInstance } from "../services/usb.service";
+import { customValueService } from "../services/custom-value.service";
 import { getClosestPresetColor } from "../utils/color-conversion";
 import type { KeyboardInfo } from "../types/vial.types";
 
 interface VialContextType {
     keyboard: KeyboardInfo | null;
-    setKeyboard: (keyboard: KeyboardInfo) => void;
+    setKeyboard: React.Dispatch<React.SetStateAction<KeyboardInfo | null>>;
     originalKeyboard: KeyboardInfo | null;
     resetToOriginal: () => void;
     markAsSaved: () => void;
     hasUnsavedChanges: boolean;
     isConnected: boolean;
     isWebHIDSupported: boolean;
+    isImporting: boolean;
+    setIsImporting: React.Dispatch<React.SetStateAction<boolean>>;
     loadedFrom: string | null;
     connect: (filters?: HIDDeviceFilter[]) => Promise<boolean>;
     disconnect: () => Promise<void>;
@@ -35,6 +38,7 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [originalKeyboard, setOriginalKeyboard] = useState<KeyboardInfo | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [loadedFrom, setLoadedFrom] = useState<string | null>(null);
+    const [isImporting, setIsImporting] = useState(false);
     const [lastHeartbeat, setLastHeartbeat] = useState<number>(0);
     const isWebHIDSupported = VialService.isWebHIDSupported();
     useEffect(() => {
@@ -126,6 +130,17 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.warn("Failed to load layer colors:", error);
             }
 
+            // Load all VIA3 custom values (DPI, scroll mode, automouse, etc.)
+            if (loadedInfo.menus) {
+                console.log("[VialContext] Loading VIA3 custom values from keyboard...");
+                try {
+                    loadedInfo.custom_values = await customValueService.loadAllMenuValues(loadedInfo.menus);
+                    console.log("[VialContext] Custom values loaded:", loadedInfo.custom_values.length, "entries");
+                } catch (error) {
+                    console.warn("Failed to load custom values:", error);
+                }
+            }
+
             setKeyboard(loadedInfo);
             // Store original state for revert functionality
             setOriginalKeyboard(JSON.parse(JSON.stringify(loadedInfo)));
@@ -214,6 +229,8 @@ export const VialProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hasUnsavedChanges,
         isConnected,
         isWebHIDSupported,
+        isImporting,
+        setIsImporting,
         loadedFrom,
         connect,
         disconnect,

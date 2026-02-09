@@ -9,6 +9,7 @@ import { LayerProvider } from '../../src/contexts/LayerContext';
 import { PanelsProvider } from '../../src/contexts/PanelsContext';
 import { SidebarProvider } from '../../src/components/ui/sidebar';
 import { DragProvider } from '../../src/contexts/DragContext';
+import { LayoutSettingsProvider } from '../../src/contexts/LayoutSettingsContext';
 import type { KeyboardInfo, LeaderEntry } from '../../src/types/vial.types';
 import { LeaderOptions } from '../../src/types/vial.types';
 
@@ -121,23 +122,25 @@ const createKeyboardWithoutLeaders = (): KeyboardInfo => ({
 const TestWrapper = ({ keyboard, children }: { keyboard: KeyboardInfo | null, children: React.ReactNode }) => {
     return (
         <SettingsProvider>
-            <ChangesProvider>
-                <VialProvider>
-                    <LayerProvider>
-                        <SidebarProvider>
-                            <PanelsProvider>
-                                <KeyBindingProvider>
-                                    <DragProvider>
-                                        <KeyboardSetter keyboard={keyboard}>
-                                            {children}
-                                        </KeyboardSetter>
-                                    </DragProvider>
-                                </KeyBindingProvider>
-                            </PanelsProvider>
-                        </SidebarProvider>
-                    </LayerProvider>
-                </VialProvider>
-            </ChangesProvider>
+            <LayoutSettingsProvider>
+                <ChangesProvider>
+                    <VialProvider>
+                        <LayerProvider>
+                            <SidebarProvider>
+                                <PanelsProvider>
+                                    <KeyBindingProvider>
+                                        <DragProvider>
+                                            <KeyboardSetter keyboard={keyboard}>
+                                                {children}
+                                            </KeyboardSetter>
+                                        </DragProvider>
+                                    </KeyBindingProvider>
+                                </PanelsProvider>
+                            </SidebarProvider>
+                        </LayerProvider>
+                    </VialProvider>
+                </ChangesProvider>
+            </LayoutSettingsProvider>
         </SettingsProvider>
     );
 };

@@ -1,34 +1,70 @@
 import { FC, useEffect } from "react";
-import { ArrowRight, Trash2 } from "lucide-react";
+import { ArrowRight, ArrowRightFromLine } from "lucide-react";
 
-import { Key } from "@/components/Key";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
+import { DragItem } from "@/contexts/DragContext";
 import { cn } from "@/lib/utils";
-import { getKeyContents } from "@/utils/keys";
 import { vialService } from "@/services/vial.service";
+import { LeaderOptions } from "@/types/vial.types";
+import EditorKey from "./EditorKey";
 
 const LeaderEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
-    const { itemToEdit, setPanelToGoBack, setAlternativeHeader } = usePanels();
+    const { itemToEdit, setPanelToGoBack, setAlternativeHeader, initialEditorSlot } = usePanels();
     const { selectLeaderKey, selectedTarget } = useKeyBinding();
     const { layoutMode } = useLayoutSettings();
 
     const isHorizontal = layoutMode === "bottombar";
     const seqKeySize = isHorizontal ? "w-[45px] h-[45px]" : "w-[50px] h-[50px]";
-    const outputKeySize = isHorizontal ? "w-[45px] h-[45px]" : "w-[60px] h-[60px]";
+    const outputKeySize = isHorizontal ? "w-[45px] h-[45px]" : "w-[50px] h-[50px]";
     const keyVariant = isHorizontal ? "medium" : "default";
 
     const leaderIndex = itemToEdit!;
     const leaderEntry = keyboard?.leaders?.[leaderIndex];
 
     useEffect(() => {
-        selectLeaderKey(leaderIndex, "sequence", 0);
+        if (!keyboard?.leaders || itemToEdit === null) return;
+
+        const entry = keyboard.leaders[itemToEdit];
+        if (!entry) return;
+
+        const hasSeq = entry.sequence.some(k => k !== "KC_NO" && k !== "");
+        const hasOut = entry.output !== "KC_NO" && entry.output !== "";
+        const isEmpty = !hasSeq && !hasOut;
+        const isEnabled = (entry.options & LeaderOptions.ENABLED) !== 0;
+
+        if (isEmpty && !isEnabled) {
+            console.log("Auto-enabling empty leader", itemToEdit);
+            const updatedLeaders = [...keyboard.leaders];
+            const newOptions = (entry.options || 0) | LeaderOptions.ENABLED;
+
+            updatedLeaders[itemToEdit] = {
+                ...entry,
+                options: newOptions
+            };
+
+            const updatedKeyboard = { ...keyboard, leaders: updatedLeaders };
+            setKeyboard(updatedKeyboard);
+
+            vialService.updateLeader(updatedKeyboard, itemToEdit)
+                .catch(err => console.error("Failed to auto-enable leader:", err));
+        }
+
+        if (initialEditorSlot) {
+            if (initialEditorSlot.type === "sequence") {
+                selectLeaderKey(leaderIndex, "sequence", initialEditorSlot.index ?? 0);
+            } else {
+                selectLeaderKey(leaderIndex, "output");
+            }
+        } else {
+            selectLeaderKey(leaderIndex, "sequence", 0);
+        }
         setPanelToGoBack("leaders");
         setAlternativeHeader(true);
-    }, [leaderIndex, selectLeaderKey, setPanelToGoBack, setAlternativeHeader]);
+    }, [leaderIndex, selectLeaderKey, setPanelToGoBack, setAlternativeHeader, initialEditorSlot]);
 
     const isSlotSelected = (slot: "sequence" | "output", seqIndex?: number) => {
         return (
@@ -37,6 +73,58 @@ const LeaderEditor: FC = () => {
             selectedTarget.leaderSlot === slot &&
             (slot === "output" || selectedTarget.leaderSeqIndex === seqIndex)
         );
+    };
+
+    const handleDrop = (slot: "sequence" | "output", item: DragItem, seqIndex?: number) => {
+        if (item.editorType === "leader" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
+            const sourceSlot = item.editorSlot as string | number; // "output" or number (index)
+            const targetSlot: string | number = slot === "output" ? "output" : seqIndex!;
+
+            if (sourceSlot === targetSlot) return;
+
+            if (!keyboard || !leaderEntry) return;
+            const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+            const entry = updatedKeyboard.leaders[leaderIndex];
+
+            // Helper to get/set value
+            const getValue = (s: string | number) => {
+                if (s === "output") return entry.output;
+                return entry.sequence[s as number];
+            };
+            const setValue = (s: string | number, val: string) => {
+                if (s === "output") entry.output = val;
+                else entry.sequence[s as number] = val;
+            };
+
+            const sourceVal = getValue(sourceSlot);
+            const targetVal = getValue(targetSlot);
+
+            setValue(sourceSlot, targetVal);
+            setValue(targetSlot, sourceVal);
+
+            setKeyboard(updatedKeyboard);
+            vialService.updateLeader(updatedKeyboard, leaderIndex)
+                .catch(err => console.error("Failed to update leader:", err));
+        } else {
+            updateLeaderAssignment(slot, item.keycode, seqIndex);
+        }
+    };
+
+    const updateLeaderAssignment = (slot: "sequence" | "output", keycode: string, seqIndex?: number) => {
+        if (!keyboard || !leaderEntry) return;
+        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+        const entry = updatedKeyboard.leaders[leaderIndex];
+
+        if (slot === "sequence" && seqIndex !== undefined) {
+            entry.sequence[seqIndex] = keycode;
+        } else if (slot === "output") {
+            entry.output = keycode;
+        }
+
+        setKeyboard(updatedKeyboard);
+
+        vialService.updateLeader(updatedKeyboard, leaderIndex)
+            .catch(err => console.error("Failed to update leader:", err));
     };
 
     const clearKey = async (slot: "sequence" | "output", seqIndex?: number) => {
@@ -68,65 +156,50 @@ const LeaderEditor: FC = () => {
     const renderSequenceKey = (seqIndex: number) => {
         if (!leaderEntry) return null;
         const keycode = leaderEntry.sequence?.[seqIndex] || "KC_NO";
-        const keyContents = getKeyContents(keyboard!, keycode);
         const isSelected = isSlotSelected("sequence", seqIndex);
-        const hasContent = keycode && keycode !== "KC_NO";
-
-        let keyColor: string | undefined;
-        let keyClassName: string;
-        let headerClass: string;
-
-        if (isSelected) {
-            keyColor = undefined;
-            keyClassName = "border-2 border-red-600";
-            headerClass = "bg-black/20";
-        } else if (hasContent) {
-            keyColor = "sidebar";
-            keyClassName = "border-kb-gray";
-            headerClass = "bg-kb-sidebar-dark";
-        } else {
-            keyColor = undefined;
-            keyClassName = "bg-transparent border-2 border-dashed border-gray-300";
-            headerClass = "text-gray-400";
-        }
 
         return (
             <div className="flex flex-col items-center gap-1 relative">
-                <span className={cn("font-medium text-slate-500", isHorizontal ? "text-[10px]" : "text-xs")}>{seqIndex + 1}</span>
-                <div className={`relative ${seqKeySize} group/leader-key`}>
-                    <Key
-                        isRelative
-                        x={0}
-                        y={0}
-                        w={1}
-                        h={1}
-                        row={-1}
-                        col={-1}
-                        keycode={keycode}
-                        label={keyContents?.str || ""}
-                        keyContents={keyContents}
-                        selected={isSelected}
-                        onClick={() => selectLeaderKey(leaderIndex, "sequence", seqIndex)}
-                        layerColor={keyColor}
-                        className={keyClassName}
-                        headerClassName={headerClass}
-                        variant={keyVariant}
-                    />
-                    {hasContent && (
-                        <div className="absolute -top-2 -right-2 opacity-0 group-hover/leader-key:opacity-100 transition-opacity">
-                            <button
-                                className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full bg-white shadow-sm"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    clearKey("sequence", seqIndex);
-                                }}
-                                title="Remove key"
-                            >
-                                <Trash2 className="w-3 h-3" />
-                            </button>
-                        </div>
-                    )}
-                </div>
+                <span className={cn("font-medium text-black", isHorizontal ? "text-[10px]" : "text-xs")}>{seqIndex + 1}</span>
+                <EditorKey
+                    keycode={keycode}
+                    selected={isSelected}
+                    onClick={() => selectLeaderKey(leaderIndex, "sequence", seqIndex)}
+                    onClear={() => clearKey("sequence", seqIndex)}
+                    onDrop={(item) => handleDrop("sequence", item, seqIndex)}
+                    size={seqKeySize}
+                    // LeaderEditor sets trash top -2 right -2 which is different from default EditorKey
+                    // EditorKey uses top-0 left-offset. 
+                    // Let's stick to EditorKey default (left offset) for consistency, unless it breaks layout.
+                    // The original used: "absolute -top-2 -right-2".
+                    // EditorKey default is: "absolute -left-10 top-0".
+                    // Let's try to override to match original if possible, but EditorKey trash is hard elements.
+                    // Maybe just accept the new cleaner left-side trash? 
+                    // Wait, sequence keys in sidebar might be tight.
+                    // Original sidebar layout: `flex flex-row flex-wrap gap-4 items-end`.
+                    // Keys are 50x50. Left trash (-left-10 = -2.5rem = -40px) might overlap previous key.
+                    // Let's check visual overlap.
+                    // Sequence: Key1 -> arrow -> Key2.
+                    // If Key2 has trash on left, it might overlap arrow or Key1.
+                    // Let's try to keep the original "top right" style by using classes, IF EditorKey allows.
+                    // EditorKey structure: relative wrapper -> Key -> Trash holder.
+                    // Trash holder class: `absolute ${trashOffset} top-0 h-full ...`
+                    // I can pass `trashOffset="-right-2"` but top is fixed to `top-0`.
+                    // Original was `-top-2 -right-2`.
+                    // To support top offset, EditorKey would need updating.
+                    // Let's just use the default left trash for now and see. 
+                    // Actually, for "sequence" items which are in a row, left trash is risky.
+                    // But also top-right trash often overlaps with the label or header of the *next* key or similar.
+                    // Let's assume standard left trash is OK for "cleaner code" goal, uniformity.
+                    variant={keyVariant}
+                    wrapperClassName={`relative ${seqKeySize} group/leader-key`}
+                    // We render label externally to control styling
+                    label={undefined}
+                    labelClassName={undefined}
+                    editorType="leader"
+                    editorId={itemToEdit!}
+                    editorSlot={seqIndex}
+                />
             </div>
         );
     };
@@ -134,68 +207,30 @@ const LeaderEditor: FC = () => {
     const renderOutputKey = () => {
         if (!leaderEntry) return null;
         const keycode = leaderEntry.output || "KC_NO";
-        const keyContents = getKeyContents(keyboard!, keycode);
         const isSelected = isSlotSelected("output");
-        const hasContent = keycode && keycode !== "KC_NO";
-
-        let keyColor: string | undefined;
-        let keyClassName: string;
-        let headerClass: string;
-
-        if (isSelected) {
-            keyColor = undefined;
-            keyClassName = "border-2 border-red-600";
-            headerClass = "bg-black/20";
-        } else if (hasContent) {
-            keyColor = "sidebar";
-            keyClassName = "border-kb-gray";
-            headerClass = "bg-kb-sidebar-dark";
-        } else {
-            keyColor = undefined;
-            keyClassName = "bg-transparent border-2 border-black";
-            headerClass = "text-black";
-        }
-
         const trashOffset = isHorizontal ? "-left-8" : "-left-10";
         const trashSize = isHorizontal ? "w-3 h-3" : "w-4 h-4";
 
         return (
             <div className="flex flex-col items-center gap-1 relative">
                 <span className={cn("font-bold text-slate-600", isHorizontal ? "text-xs" : "text-sm")}>Output</span>
-                <div className={`relative ${outputKeySize} group/leader-output`}>
-                    <Key
-                        isRelative
-                        x={0}
-                        y={0}
-                        w={1}
-                        h={1}
-                        row={-1}
-                        col={-1}
-                        keycode={keycode}
-                        label={keyContents?.str || ""}
-                        keyContents={keyContents}
-                        selected={isSelected}
-                        onClick={() => selectLeaderKey(leaderIndex, "output")}
-                        layerColor={keyColor}
-                        className={keyClassName}
-                        headerClassName={headerClass}
-                        variant={keyVariant}
-                    />
-                    {hasContent && (
-                        <div className={`absolute ${trashOffset} top-0 h-full flex items-center justify-center opacity-0 group-hover/leader-output:opacity-100 transition-opacity`}>
-                            <button
-                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    clearKey("output");
-                                }}
-                                title="Clear key"
-                            >
-                                <Trash2 className={trashSize} />
-                            </button>
-                        </div>
-                    )}
-                </div>
+                <EditorKey
+                    keycode={keycode}
+                    selected={isSelected}
+                    onClick={() => selectLeaderKey(leaderIndex, "output")}
+                    onClear={() => clearKey("output")}
+                    onDrop={(item) => handleDrop("output", item)}
+                    size={outputKeySize}
+                    trashOffset={trashOffset}
+                    trashSize={trashSize}
+                    wrapperClassName={`relative ${outputKeySize} group/leader-output`}
+                    variant={keyVariant}
+                    label={undefined}
+                    labelClassName={undefined}
+                    editorType="leader"
+                    editorId={itemToEdit!}
+                    editorSlot="output"
+                />
             </div>
         );
     };
@@ -244,32 +279,38 @@ const LeaderEditor: FC = () => {
     // VERTICAL LAYOUT (Sidebar Mode)
     // ==========================================
     return (
-        <div className="flex flex-col gap-4 py-6 pl-[84px] pr-5 pb-4">
-            {/* Sequence Keys */}
-            <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-8 py-6 pl-[84px] pb-20">
+            {/* Sequence & Output Keys */}
+            <div className="flex flex-col gap-3">
                 <span className="font-semibold text-sm text-slate-600">Sequence (up to 5 keys)</span>
-                <div className="flex flex-row gap-2 items-end">
+                <div className="flex flex-row flex-wrap gap-4 items-end">
                     {[0, 1, 2, 3, 4].map((idx) => {
                         // Only show slots up to filledKeys + 1 (to allow adding one more)
                         if (idx > filledKeys) return null;
                         return (
-                            <div key={idx} className="flex items-center gap-1">
-                                {idx > 0 && <ArrowRight className="w-4 h-4 text-gray-400 -mx-1" />}
+                            <div key={idx} className="flex flex-row items-end gap-4">
+                                {idx > 0 && (
+                                    <div className="h-[50px] flex items-center justify-center translate-y-1 translate-x-1">
+                                        <ArrowRight className="w-5 h-5 text-black" />
+                                    </div>
+                                )}
                                 {renderSequenceKey(idx)}
                             </div>
                         );
                     })}
+
+                    {/* Output Key on same line */}
+                    <div className="flex flex-row gap-4 items-end">
+                        <div className="h-[50px] flex items-center justify-center translate-y-1 translate-x-1">
+                            <ArrowRightFromLine className="w-5 h-5 text-black" />
+                        </div>
+                        {renderOutputKey()}
+                    </div>
                 </div>
             </div>
 
-            {/* Output Key */}
-            <div className="flex flex-row gap-4 items-center mt-4">
-                <ArrowRight className="w-6 h-6 text-black" />
-                {renderOutputKey()}
-            </div>
-
             {/* Info */}
-            <div className="text-xs text-muted-foreground mt-4">
+            <div className="text-xs text-muted-foreground mt-2">
                 Press the Leader key, then type this sequence to trigger the output keycode.
             </div>
         </div>

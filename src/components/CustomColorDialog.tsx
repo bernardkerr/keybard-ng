@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -167,24 +166,23 @@ const CustomColorDialog = ({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[400px]">
                 <DialogHeader>
-                    <DialogTitle>Custom Layer Color</DialogTitle>
-                    <DialogDescription>
-                        {layerName
-                            ? `Set custom colors for "${layerName}" layer.`
-                            : "Set custom colors for the layer."
-                        }
-                    </DialogDescription>
+                    <DialogTitle>
+                        {layerName ? `Custom colors for ${layerName}` : "Custom colors"}
+                    </DialogTitle>
                 </DialogHeader>
 
                 <div className="grid gap-6 py-4">
-                    {/* Color Preview Circles */}
-                    <div className="flex items-center justify-center gap-4">
-                        {/* Display Color Circle (Large) */}
-                        <div className="flex flex-col items-center gap-1">
+                    {/* Color Preview Section */}
+                    <div className="flex items-center justify-start gap-8">
+                        {/* Display Color Key Shape */}
+                        <div
+                            className="flex items-center gap-3 cursor-pointer group"
+                            onClick={() => setActiveTarget('display')}
+                        >
                             <div
                                 className={cn(
-                                    "w-20 h-20 rounded-full cursor-pointer transition-all",
-                                    activeTarget === 'display' ? "" : "hover:scale-105"
+                                    "w-16 h-16 rounded-lg transition-all",
+                                    activeTarget === 'display' ? "" : "group-hover:scale-105"
                                 )}
                                 style={{
                                     backgroundColor: displayColor,
@@ -192,17 +190,24 @@ const CustomColorDialog = ({
                                         ? `0 0 0 4px black, 0 0 20px ${displayColor}80`
                                         : `0 0 0 4px transparent`
                                 }}
-                                onClick={() => setActiveTarget('display')}
                             />
-                            <span className="text-xs text-muted-foreground">Display</span>
+                            <span className={cn(
+                                "text-sm font-semibold transition-colors",
+                                activeTarget === 'display' ? "text-black" : "text-black/60 group-hover:text-black"
+                            )}>
+                                DISPLAY
+                            </span>
                         </div>
 
-                        {/* LED Color Circle (Small) */}
-                        <div className="flex flex-col items-center gap-1">
+                        {/* LED Color Circle */}
+                        <div
+                            className="flex items-center gap-3 cursor-pointer group"
+                            onClick={() => setActiveTarget('led')}
+                        >
                             <div
                                 className={cn(
-                                    "w-10 h-10 rounded-full cursor-pointer transition-all",
-                                    activeTarget === 'led' ? "" : "hover:scale-105"
+                                    "w-8 h-8 rounded-full transition-all",
+                                    activeTarget === 'led' ? "" : "group-hover:scale-105"
                                 )}
                                 style={{
                                     backgroundColor: ledColor,
@@ -210,15 +215,14 @@ const CustomColorDialog = ({
                                         ? `0 0 0 4px black, 0 0 20px ${ledColor}80`
                                         : `0 0 0 4px transparent`
                                 }}
-                                onClick={() => setActiveTarget('led')}
                             />
-                            <span className="text-xs text-muted-foreground">LED</span>
+                            <span className={cn(
+                                "text-sm font-semibold transition-colors",
+                                activeTarget === 'led' ? "text-black" : "text-black/60 group-hover:text-black"
+                            )}>
+                                LED
+                            </span>
                         </div>
-                    </div>
-
-                    {/* Active target label */}
-                    <div className="text-center text-sm font-medium">
-                        Editing: {activeTarget === 'display' ? 'Display Color' : 'LED Color'}
                     </div>
 
                     {/* Hue Slider */}
@@ -298,34 +302,44 @@ const CustomColorDialog = ({
                     </div>
 
                     {/* Hex value display / input */}
-                    <div className="flex items-center justify-center">
-                        {isEditingHex ? (
-                            <Input
-                                ref={hexInputRef}
-                                value={hexInput}
-                                onChange={(e) => setHexInput(e.target.value)}
-                                onBlur={applyHexInput}
-                                onKeyDown={handleHexKeyDown}
-                                className="w-28 text-center text-sm font-mono"
-                                maxLength={7}
-                                autoFocus
-                            />
-                        ) : (
-                            <button
-                                onClick={startEditingHex}
-                                className="text-sm text-muted-foreground hover:text-foreground hover:underline cursor-pointer font-mono"
-                            >
-                                {activeColor.toUpperCase()}
-                            </button>
-                        )}
+                    <div className="grid gap-2">
+                        <Label htmlFor="hex">Hex</Label>
+                        <div className="flex items-center justify-start">
+                            {isEditingHex ? (
+                                <Input
+                                    ref={hexInputRef}
+                                    value={hexInput}
+                                    onChange={(e) => setHexInput(e.target.value)}
+                                    onBlur={applyHexInput}
+                                    onKeyDown={handleHexKeyDown}
+                                    className="w-28 text-left text-sm font-mono"
+                                    maxLength={7}
+                                    autoFocus
+                                />
+                            ) : (
+                                <button
+                                    onClick={startEditingHex}
+                                    className="text-sm text-foreground hover:underline cursor-pointer font-mono text-left"
+                                >
+                                    {activeColor.toUpperCase()}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                <DialogFooter className="gap-3 sm:gap-4">
+                    <Button
+                        variant="outline"
+                        onClick={() => onOpenChange(false)}
+                        className="rounded-full px-8 py-5 text-base border-slate-300 hover:bg-slate-50 transition-colors"
+                    >
                         Cancel
                     </Button>
-                    <Button onClick={handleApply}>
+                    <Button
+                        onClick={handleApply}
+                        className="rounded-full px-8 py-5 text-base font-bold transition-colors"
+                    >
                         Apply
                     </Button>
                 </DialogFooter>

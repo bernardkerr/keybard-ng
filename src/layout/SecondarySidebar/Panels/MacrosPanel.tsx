@@ -27,6 +27,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
         setBindingTypeToEdit,
         setAlternativeHeader,
         setPanelToGoBack,
+        setInitialEditorSlot,
     } = usePanels();
 
     const isHorizontal = layoutMode === "bottombar";
@@ -70,11 +71,14 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
 
     const macros = keyboard.macros || [];
 
-    const handleEdit = (index: number) => {
+    const handleEdit = (index: number, actionIndex?: number) => {
         setItemToEdit(index);
         setBindingTypeToEdit("macros");
         setAlternativeHeader(true);
         setPanelToGoBack("macros");
+        if (actionIndex !== undefined) {
+            setInitialEditorSlot(actionIndex);
+        }
     };
 
     const renderAction = (action: any, idx: number, macroIndex: number) => {
@@ -85,7 +89,10 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
             const actionKeyContents = getKeyContents(keyboard!, actionKeycode);
 
             return (
-                <div className="w-[30px] h-[30px] relative flex-shrink-0" key={idx}>
+                <div
+                    className="w-[30px] h-[30px] relative flex-shrink-0 cursor-pointer"
+                    key={idx}
+                >
                     <Key
                         isRelative
                         x={0}
@@ -95,25 +102,49 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                         row={-1}
                         col={-1}
                         keycode={actionKeycode}
-                        label={actionKeyContents?.str || ""}
+                        label={(() => {
+                            const str = actionKeyContents?.str;
+                            if (!str) return "";
+                            const parts = str.split('\n');
+                            if (parts.length === 1) return parts[0];
+                            if (actionKeyContents?.type === 'modmask' && (actionKeycode.includes("S(") || actionKeycode.includes("LSFT") || actionKeycode.includes("RSFT"))) {
+                                return parts[0];
+                            }
+                            return parts[parts.length - 1];
+                        })()}
                         keyContents={actionKeyContents}
                         variant="small"
                         layerColor="sidebar"
                         className="border-kb-gray"
                         headerClassName="bg-kb-sidebar-dark"
-                        onClick={() => handleEdit(macroIndex)}
+                        onClick={() => handleEdit(macroIndex, idx)}
+                        disableTooltip={true}
                     />
                 </div>
             );
         } else if (type === "text") {
             return (
-                <div key={idx} className="flex items-center justify-center bg-black border border-black rounded text-[10px] px-2 h-[30px] whitespace-nowrap max-w-[100px] overflow-hidden text-ellipsis shadow-sm font-medium text-white">
+                <div
+                    key={idx}
+                    className="flex items-center justify-center bg-black border border-black rounded text-[10px] px-2 h-[30px] whitespace-nowrap max-w-[100px] overflow-hidden text-ellipsis shadow-sm font-medium text-white cursor-pointer"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(macroIndex, idx);
+                    }}
+                >
                     "{value}"
                 </div>
             );
         } else if (type === "delay") {
             return (
-                <div key={idx} className="flex items-center justify-center bg-black border border-black rounded text-[10px] px-2 h-[30px] shadow-sm font-medium text-white">
+                <div
+                    key={idx}
+                    className="flex items-center justify-center bg-black border border-black rounded text-[10px] px-2 h-[30px] shadow-sm font-medium text-white cursor-pointer"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(macroIndex, idx);
+                    }}
+                >
                     {value}ms
                 </div>
             );
@@ -132,7 +163,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
 
                     if (!hasActions) return null;
 
-                    const macroKeycode = `M${i}`;
+                    const macroKeycode = `M${i} `;
                     const macroKeyContents = getKeyContents(keyboard, macroKeycode) as KeyContent;
 
                     return (
@@ -171,10 +202,11 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                                         className="border-kb-gray"
                                         headerClassName="bg-kb-sidebar-dark"
                                         onClick={() => assignKeycode(macroKeycode)}
+                                        disableTooltip={true}
                                     />
                                 </div>
                                 <span className="text-xs font-bold text-slate-600 truncate">
-                                    {customName || `Macro ${i}`}
+                                    {customName || `Macro ${i} `}
                                 </span>
                             </div>
                             <div className="flex flex-row items-center gap-0.5 flex-wrap justify-center">
@@ -215,19 +247,19 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
         <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
             {isPicker && (
                 <div className="pb-2">
-                    <span className="font-semibold text-xl text-slate-700">Macros</span>
+                    <span className="font-semibold text-xl text-black">Macros</span>
                 </div>
             )}
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
                 {macros.map((macroEntry, i) => {
-                    const keycode = `M${i}`;
+                    const keycode = `M${i} `;
                     const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
 
                     const actions = macroEntry?.actions || [];
                     const hasActions = actions.length > 0;
 
                     const rowChildren = hasActions ? (
-                        <div className="flex flex-row items-center gap-1 w-full overflow-hidden mask-linear-fade">
+                        <div className="flex flex-row items-center gap-1 ml-4 overflow-hidden">
                             {actions.map((action, idx) => (
                                 <React.Fragment key={idx}>
                                     {idx > 0 && <ArrowRight className="w-3 h-3 text-gray-400 flex-shrink-0" />}

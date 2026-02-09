@@ -59,7 +59,7 @@ const OverrideModifierSelector: FC<Props> = ({ value, onChange }) => {
 
     return (
         <div className="flex flex-col gap-2">
-            <span className="font-semibold text-lg text-slate-700">Modifiers</span>
+            <span className="font-semibold text-lg text-black">Modifiers</span>
             <div className="flex flex-row items-start gap-2 flex-wrap min-h-[63px]">
                 {/* NONE Button */}
                 <Button

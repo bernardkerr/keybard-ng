@@ -18,8 +18,8 @@ export const ToggleControl: React.FC<ToggleControlProps> = ({ item, value, onCha
             <span className={compact ? "text-xs" : "text-md"}>{item.label}</span>
             <OnOffToggle
                 value={value === 1}
-                onToggle={(checked) => onChange(checked ? 1 : 0)}
-                className={compact ? "scale-75" : ""}
+                onToggle={(newValue) => onChange(newValue ? 1 : 0)}
+                className={compact ? "scale-75 origin-right" : ""}
             />
         </div>
     );

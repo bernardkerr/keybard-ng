@@ -1,5 +1,6 @@
 import React from "react";
 import { ArrowRight, Plus, X } from "lucide-react";
+import OnOffToggle from "@/components/ui/OnOffToggle";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -16,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 const AltRepeatPanel: React.FC = () => {
     const { keyboard, setKeyboard } = useVial();
-    const { selectAltRepeatKey, assignKeycode, isBinding } = useKeyBinding();
+    const { assignKeycode, isBinding } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
     const {
@@ -24,6 +25,7 @@ const AltRepeatPanel: React.FC = () => {
         setBindingTypeToEdit,
         setAlternativeHeader,
         itemToEdit,
+        setInitialEditorSlot,
     } = usePanels();
 
     const isHorizontal = layoutMode === "bottombar";
@@ -37,10 +39,13 @@ const AltRepeatPanel: React.FC = () => {
 
     const altRepeatKeys = keyboard.alt_repeat_keys || [];
 
-    const handleEdit = (index: number) => {
+    const handleEdit = (index: number, slot?: "keycode" | "alt_keycode") => {
         setItemToEdit(index);
         setBindingTypeToEdit("altrepeat");
         setAlternativeHeader(true);
+        if (slot) {
+            setInitialEditorSlot(slot);
+        }
     };
 
     const clearAltRepeat = async (index: number) => {
@@ -76,9 +81,8 @@ const AltRepeatPanel: React.FC = () => {
 
     const handleAddAltRepeat = () => {
         const emptyIndex = findFirstEmptyAltRepeat();
-        if (emptyIndex < (keyboard.alt_repeat_keys?.length || 0)) {
-            handleEdit(emptyIndex);
-        }
+        if (!keyboard.alt_repeat_keys || emptyIndex >= keyboard.alt_repeat_keys.length) return;
+        handleEdit(emptyIndex);
     };
 
     const isEnabled = (options: number) => {
@@ -109,15 +113,22 @@ const AltRepeatPanel: React.FC = () => {
         }
     };
 
-    const handleKeyClick = (index: number, slot: "keycode" | "alt_keycode") => {
-        handleEdit(index);
-        selectAltRepeatKey(index, slot);
-    };
 
     const renderSmallKey = (keycode: string, index: number, slot: "keycode" | "alt_keycode", isEditing: boolean) => {
         const content = getKeyContents(keyboard, keycode) as KeyContent;
         const hasContent = keycode !== "KC_NO" && keycode !== "";
         const isSelected = isEditing && itemToEdit === index;
+
+        const label = (() => {
+            const str = content?.str;
+            if (!str) return "";
+            const parts = str.split('\n');
+            if (parts.length === 1) return parts[0];
+            if (content?.type === 'modmask' && (keycode.includes("S(") || keycode.includes("LSFT") || keycode.includes("RSFT"))) {
+                return parts[0];
+            }
+            return parts[parts.length - 1];
+        })();
 
         return (
             <div className="relative w-[40px] h-[40px] flex items-center justify-center">
@@ -125,7 +136,7 @@ const AltRepeatPanel: React.FC = () => {
                     isRelative
                     x={0} y={0} w={1} h={1} row={-1} col={-1}
                     keycode={keycode}
-                    label={content?.str || ""}
+                    label={label}
                     keyContents={content}
                     layerColor={hasContent ? "sidebar" : undefined}
                     className={cn(
@@ -134,7 +145,8 @@ const AltRepeatPanel: React.FC = () => {
                     )}
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
-                    onClick={() => handleKeyClick(index, slot)}
+                    onClick={() => handleEdit(index, slot)}
+                    disableTooltip={true}
                 />
             </div>
         );
@@ -165,6 +177,7 @@ const AltRepeatPanel: React.FC = () => {
                             headerClassName="bg-kb-sidebar-dark"
                             variant="medium"
                             onClick={handleAssignAltRepeatKey}
+                            disableTooltip={true}
                         />
                     </div>
                 </div>
@@ -242,10 +255,11 @@ const AltRepeatPanel: React.FC = () => {
                         layerColor="sidebar"
                         className={cn(
                             "border-kb-gray cursor-pointer",
-                            isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor}`
+                            isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor} `
                         )}
                         headerClassName="bg-kb-sidebar-dark"
                         onClick={handleAssignAltRepeatKey}
+                        disableTooltip={true}
                     />
                 </div>
             </div>
@@ -272,42 +286,19 @@ const AltRepeatPanel: React.FC = () => {
                                 </div>
                                 {renderSmallKey(entry.alt_keycode, i, "alt_keycode", isEditing)}
                             </div>
-
-                            {isDefined && (
-                                <div
-                                    className="ml-auto mr-2 flex flex-row items-center gap-0.5 bg-gray-200/50 p-0.5 rounded-md border border-gray-300/50"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <button
-                                        onClick={(e) => {
-                                            if (!enabled) handleToggleEnabled(i, e);
-                                        }}
-                                        className={cn(
-                                            "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[3px] transition-all font-bold border",
-                                            enabled
-                                                ? "bg-black text-white shadow-sm border-black"
-                                                : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                                        )}
-                                    >
-                                        ON
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            if (enabled) handleToggleEnabled(i, e);
-                                        }}
-                                        className={cn(
-                                            "px-2 py-0.5 text-[10px] uppercase tracking-wide rounded-[3px] transition-all font-bold border",
-                                            !enabled
-                                                ? "bg-black text-white shadow-sm border-black"
-                                                : "text-gray-500 border-transparent hover:text-black hover:bg-white hover:shadow-sm"
-                                        )}
-                                    >
-                                        OFF
-                                    </button>
-                                </div>
-                            )}
                         </div>
                     );
+
+                    const rowAction = isDefined ? (
+                        <OnOffToggle
+                            value={enabled}
+                            onToggle={(val) => {
+                                if (val !== enabled) {
+                                    handleToggleEnabled(i, { stopPropagation: () => { } } as any);
+                                }
+                            }}
+                        />
+                    ) : undefined;
 
                     const keyContents = { type: "altrepeat" } as KeyContent;
 
@@ -325,6 +316,7 @@ const AltRepeatPanel: React.FC = () => {
                             hoverLayerColor={layerColorName}
                             hoverHeaderClass={hoverHeaderClass}
                             showPreviewKey={false}
+                            action={rowAction}
                             className={cn("py-4", !enabled && isDefined && "opacity-50")}
                         >
                             {rowChildren}

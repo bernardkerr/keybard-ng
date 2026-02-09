@@ -16,6 +16,8 @@ interface PanelsContextType {
     setItemToEdit: React.Dispatch<React.SetStateAction<number | null>>;
     bindingTypeToEdit: string | null;
     setBindingTypeToEdit: React.Dispatch<React.SetStateAction<string | null>>;
+    initialEditorSlot: any | null;
+    setInitialEditorSlot: React.Dispatch<React.SetStateAction<any | null>>;
 
     name: string;
     state: "expanded" | "collapsed";
@@ -35,6 +37,7 @@ export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [panelToGoBack, setPanelToGoBack] = useState<string | null>(null);
     const [itemToEdit, setItemToEdit] = useState<number | null>(null);
     const [bindingTypeToEdit, setBindingTypeToEdit] = useState<string | null>(null);
+    const [initialEditorSlot, setInitialEditorSlot] = useState<any | null>(null);
 
     const sidebar = useSidebar("details-panel", { defaultOpen: false });
     const { isMobile, open: detailsOpen, setOpen, setOpenMobile } = sidebar;
@@ -75,6 +78,7 @@ export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setActivePanel(panelToGoBack);
         setAlternativeHeader(false);
         setPanelToGoBack(null);
+        setInitialEditorSlot(null);
     }, [panelToGoBack]);
 
     return (
@@ -93,6 +97,8 @@ export const PanelsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 setItemToEdit,
                 bindingTypeToEdit,
                 setBindingTypeToEdit,
+                initialEditorSlot,
+                setInitialEditorSlot,
                 ...sidebar,
             }}
         >

@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { ArrowRight, Plus, X } from "lucide-react";
+import { ArrowRight, Plus, X, ArrowRightFromLine } from "lucide-react";
 
 import OnOffToggle from "@/components/ui/OnOffToggle";
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { qmkService } from "@/services/qmk.service";
 import { useVial } from "@/contexts/VialContext";
@@ -20,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 const LeadersPanel: React.FC = () => {
     const { keyboard, setKeyboard, isConnected } = useVial();
-    const { selectLeaderKey, assignKeycode, isBinding } = useKeyBinding();
+    const { assignKeycode, isBinding } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
     const {
@@ -28,6 +27,7 @@ const LeadersPanel: React.FC = () => {
         setBindingTypeToEdit,
         setAlternativeHeader,
         itemToEdit,
+        setInitialEditorSlot,
     } = usePanels();
     const [savingTimeout, setSavingTimeout] = useState(false);
     const [savingPerKey, setSavingPerKey] = useState(false);
@@ -35,20 +35,20 @@ const LeadersPanel: React.FC = () => {
 
     const isHorizontal = layoutMode === "bottombar";
 
-    if (!keyboard) return null;
-
     // QMK Settings for Leader Key
     const LEADER_TIMEOUT_QSID = 28;
     const LEADER_PER_KEY_QSID = 29;
-    const isTimeoutSupported = keyboard.settings?.[LEADER_TIMEOUT_QSID] !== undefined;
-    const isPerKeySupported = keyboard.settings?.[LEADER_PER_KEY_QSID] !== undefined;
-    const leaderTimeout = keyboard.settings?.[LEADER_TIMEOUT_QSID] ?? 300;
-    const perKeyTiming = (keyboard.settings?.[LEADER_PER_KEY_QSID] ?? 0) !== 0;
+    const isTimeoutSupported = keyboard?.settings?.[LEADER_TIMEOUT_QSID] !== undefined;
+    const isPerKeySupported = keyboard?.settings?.[LEADER_PER_KEY_QSID] !== undefined;
+    const leaderTimeout = keyboard?.settings?.[LEADER_TIMEOUT_QSID] ?? 300;
+    const perKeyTiming = (keyboard?.settings?.[LEADER_PER_KEY_QSID] ?? 0) !== 0;
 
     // Sync local input state when keyboard state changes externally
     useEffect(() => {
         setTimeoutInput(String(leaderTimeout));
     }, [leaderTimeout]);
+
+    if (!keyboard) return null;
 
     const handleTimeoutBlur = async () => {
         if (!isConnected) return;
@@ -98,10 +98,13 @@ const LeadersPanel: React.FC = () => {
 
     const leaders = keyboard.leaders || [];
 
-    const handleEdit = (index: number) => {
+    const handleEdit = (index: number, slot?: { type: "sequence" | "keycode"; index?: number }) => {
         setItemToEdit(index);
         setBindingTypeToEdit("leaders");
         setAlternativeHeader(true);
+        if (slot) {
+            setInitialEditorSlot(slot);
+        }
     };
 
     const clearLeader = async (index: number) => {
@@ -137,9 +140,8 @@ const LeadersPanel: React.FC = () => {
 
     const handleAddLeader = () => {
         const emptyIndex = findFirstEmptyLeader();
-        if (emptyIndex < (keyboard.leaders?.length || 0)) {
-            handleEdit(emptyIndex);
-        }
+        if (!keyboard.leaders || emptyIndex >= keyboard.leaders.length) return;
+        handleEdit(emptyIndex);
     };
 
     const isEnabled = (options: number) => {
@@ -170,23 +172,29 @@ const LeadersPanel: React.FC = () => {
         }
     };
 
-    const handleKeyClick = (index: number, slot: "sequence" | "output", seqIndex?: number) => {
-        handleEdit(index);
-        selectLeaderKey(index, slot, seqIndex);
-    };
 
     const renderSmallKey = (keycode: string, index: number, slot: "sequence" | "output", seqIndex: number | undefined, isEditing: boolean) => {
         const content = getKeyContents(keyboard, keycode) as KeyContent;
         const hasContent = keycode !== "KC_NO" && keycode !== "";
         const isSelected = isEditing && itemToEdit === index;
 
+        const label = (() => {
+            const str = content?.str;
+            if (!str) return "";
+            const parts = str.split('\n');
+            if (parts.length === 1) return parts[0];
+            if (content?.type === 'modmask' && (keycode.includes("S(") || keycode.includes("LSFT") || keycode.includes("RSFT"))) {
+                return parts[0];
+            }
+            return parts[parts.length - 1];
+        })();
         return (
             <div className="relative w-[30px] h-[30px]">
                 <Key
                     isRelative
                     x={0} y={0} w={1} h={1} row={-1} col={-1}
                     keycode={keycode}
-                    label={content?.str || ""}
+                    label={label}
                     keyContents={content}
                     layerColor={hasContent ? "sidebar" : undefined}
                     className={cn(
@@ -195,7 +203,8 @@ const LeadersPanel: React.FC = () => {
                     )}
                     headerClassName={hasContent ? "bg-kb-sidebar-dark" : "text-black"}
                     variant="small"
-                    onClick={() => handleKeyClick(index, slot, seqIndex)}
+                    onClick={() => handleEdit(index, { type: slot === "sequence" ? "sequence" : "keycode", index: seqIndex })}
+                    disableTooltip={true}
                 />
             </div>
         );
@@ -226,6 +235,7 @@ const LeadersPanel: React.FC = () => {
                             headerClassName="bg-kb-sidebar-dark"
                             variant="medium"
                             onClick={handleAssignLeaderKey}
+                            disableTooltip={true}
                         />
                     </div>
                 </div>
@@ -266,12 +276,12 @@ const LeadersPanel: React.FC = () => {
                                         if (keycode === "KC_NO" || keycode === "") return null;
                                         return (
                                             <React.Fragment key={seqIdx}>
-                                                {seqIdx > 0 && <span className="text-[8px] text-gray-400">→</span>}
+                                                {seqIdx > 0 && <ArrowRight className="w-3 h-3 text-black" />}
                                                 {renderSmallKey(keycode, i, "sequence", seqIdx, false)}
                                             </React.Fragment>
                                         );
                                     })}
-                                    <ArrowRight className="w-2 h-2 text-gray-400 mx-0.5" />
+                                    <ArrowRightFromLine className="w-3 h-3 text-black mx-0.5" />
                                     {renderSmallKey(entry.output, i, "output", undefined, false)}
                                 </div>
                             </div>
@@ -315,6 +325,7 @@ const LeadersPanel: React.FC = () => {
                         )}
                         headerClassName="bg-kb-sidebar-dark"
                         onClick={handleAssignLeaderKey}
+                        disableTooltip={true}
                     />
                 </div>
             </div>
@@ -326,7 +337,7 @@ const LeadersPanel: React.FC = () => {
 
             {/* Leader Timing Settings */}
             {isConnected && (isTimeoutSupported || isPerKeySupported) && (
-                <div className="px-3 pb-3 border-b border-gray-200 dark:border-gray-700 space-y-3">
+                <div className="pl-6 pr-2 pb-3 border-b border-gray-200 dark:border-gray-700 space-y-3">
                     {isTimeoutSupported && (
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex flex-col">
@@ -341,7 +352,7 @@ const LeadersPanel: React.FC = () => {
                                 onChange={(e) => setTimeoutInput(e.target.value)}
                                 onBlur={handleTimeoutBlur}
                                 disabled={savingTimeout}
-                                className={cn("w-24 text-right", savingTimeout && "opacity-50")}
+                                className={cn("w-24 text-right select-text", savingTimeout && "opacity-50")}
                             />
                         </div>
                     )}
@@ -351,10 +362,9 @@ const LeadersPanel: React.FC = () => {
                                 <span className="text-sm font-medium">Per-key timing</span>
                                 <span className="text-xs text-muted-foreground">Reset timeout on each key</span>
                             </div>
-                            <Switch
-                                checked={perKeyTiming}
-                                onCheckedChange={handlePerKeyToggle}
-                                disabled={savingPerKey}
+                            <OnOffToggle
+                                value={perKeyTiming}
+                                onToggle={handlePerKeyToggle}
                                 className={cn(savingPerKey && "opacity-50")}
                             />
                         </div>
@@ -378,7 +388,7 @@ const LeadersPanel: React.FC = () => {
                                     if (keycode === "KC_NO" || keycode === "") return null;
                                     return (
                                         <React.Fragment key={seqIdx}>
-                                            {seqIdx > 0 && <span className="text-xs text-muted-foreground mx-0.5">→</span>}
+                                            {seqIdx > 0 && <ArrowRight className="w-4 h-4 text-black mx-0.5" />}
                                             {renderSmallKey(keycode, i, "sequence", seqIdx, isEditing)}
                                         </React.Fragment>
                                     );
@@ -388,19 +398,22 @@ const LeadersPanel: React.FC = () => {
                                         <span className="text-xs text-gray-400">...</span>
                                     </div>
                                 )}
-                                <ArrowRight className="w-3 h-3 text-muted-foreground mx-1" />
+                                <ArrowRightFromLine className="w-4 h-4 text-black mx-1" />
                                 {renderSmallKey(entry.output, i, "output", undefined, isEditing)}
                             </div>
-
-                            {isDefined && (
-                                <OnOffToggle
-                                    value={enabled}
-                                    onToggle={() => handleToggleEnabled(i)}
-                                    className="ml-auto mr-2"
-                                />
-                            )}
                         </div>
                     );
+
+                    const rowAction = isDefined ? (
+                        <OnOffToggle
+                            value={enabled}
+                            onToggle={(val) => {
+                                if (val !== enabled) {
+                                    handleToggleEnabled(i, { stopPropagation: () => { } } as any);
+                                }
+                            }}
+                        />
+                    ) : undefined;
 
                     const keyContents = { type: "leader" } as KeyContent;
 
@@ -418,7 +431,9 @@ const LeadersPanel: React.FC = () => {
                             hoverLayerColor={layerColorName}
                             hoverHeaderClass={hoverHeaderClass}
                             showPreviewKey={false}
-                            className={cn("py-4", !enabled && isDefined && "opacity-50")}
+                            action={rowAction}
+                            dimmed={isDefined && !enabled}
+                            className="py-4"
                         >
                             {rowChildren}
                         </SidebarItemRow>

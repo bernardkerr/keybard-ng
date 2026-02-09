@@ -19,6 +19,11 @@ export interface DragItem {
     layer?: number;
     /** Layer data when dragging an entire layer */
     layerData?: LayerEntry;
+
+    // Editor context for internal swapping
+    editorType?: string;
+    editorId?: number | string;
+    editorSlot?: number | string;
 }
 
 interface DragContextType {
@@ -30,7 +35,7 @@ interface DragContextType {
     markDropConsumed: () => void;
 }
 
-const DragContext = createContext<DragContextType | undefined>(undefined);
+export const DragContext = createContext<DragContextType | undefined>(undefined);
 
 interface DragProviderProps {
     children: React.ReactNode;

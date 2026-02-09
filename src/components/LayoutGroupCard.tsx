@@ -103,10 +103,12 @@ export const LayoutGroupCard: FC<LayoutGroupCardProps> = ({
     return (
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
             {/* Header */}
-            <button
-                type="button"
+            <div
+                role="button"
+                tabIndex={0}
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsExpanded(!isExpanded); } }}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
             >
                 <div className="flex items-center gap-3">
                     {isExpanded ? (
@@ -142,7 +144,7 @@ export const LayoutGroupCard: FC<LayoutGroupCardProps> = ({
                         </Button>
                     )}
                 </div>
-            </button>
+            </div>
 
             {/* Expanded Content */}
             {isExpanded && (
