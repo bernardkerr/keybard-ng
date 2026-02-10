@@ -1,4 +1,5 @@
 import { HelpCircle, Keyboard, ListOrdered, LucideIcon, Mouse, Piano, Repeat, Settings } from "lucide-react";
+import KeybardLogo from "@/components/icons/KeybardLogo";
 import PointingDeviceBall01Icon from "@/components/icons/PointingDeviceBall01Icon";
 import LayoutLayersIcon from "@/components/icons/LayoutLayersIcon";
 import { useCallback, useMemo } from "react";
@@ -29,10 +30,9 @@ const DIVIDER_HEIGHT_PX = 17; // 1px + 2*8px (my-2)
 const FLEX_GAP_PX = 16; // Gap-4
 const DIVIDER_OFFSET = DIVIDER_HEIGHT_PX + FLEX_GAP_PX;
 
-// Icon layout helpers - use isCollapsed boolean
+// Icon layout helpers - keep icons at the same position regardless of collapsed state
 const getIconGutterWidth = (isCollapsed: boolean) => isCollapsed ? "w-full" : "w-[43px]";
 const getIconPadding = (isCollapsed: boolean) => isCollapsed ? "pl-0" : "pl-[13px]";
-const getLogoPadding = (isCollapsed: boolean) => isCollapsed ? "pl-0" : "pl-[10px]";
 const getIconJustify = (isCollapsed: boolean) => isCollapsed ? "justify-center" : "justify-start";
 
 export type SidebarItem = {
@@ -122,7 +122,7 @@ const SidebarNavItem = ({
                 (alternativeHeader ? isPreviousPanel : isActive) ? "text-sidebar-foreground" : "text-gray-400"
             )}
         >
-            <button type="button" onClick={(e) => { e.stopPropagation(); onClick(item); }} className="flex w-full items-center justify-start">
+            <button type="button" onClick={() => onClick(item)} className={cn("flex w-full items-center", getIconJustify(isCollapsed))}>
                 <div className={cn(getIconGutterWidth(isCollapsed), "h-full flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
                     <item.icon className="h-4 w-4 shrink-0" />
                 </div>
@@ -251,19 +251,21 @@ const AppSidebar = () => {
                     {/* Header section - Logo, Connect, Import/Export */}
                     <SidebarMenu>
                         <SidebarMenuItem>
-                            <SidebarMenuButton asChild size="nav" className="transition-colors">
+                            <SidebarMenuButton
+                                asChild
+                                size="nav"
+                                sidebarName="primary-nav"
+                                className="transition-colors !overflow-visible !h-auto"
+                            >
                                 <button
                                     type="button"
-                                    className="flex w-full items-center justify-start"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleSidebar();
-                                    }}
+                                    className={cn("flex w-full items-center", getIconJustify(isCollapsed))}
+                                    onClick={() => toggleSidebar()}
                                 >
-                                    <div className={cn(getIconGutterWidth(isCollapsed), "h-4 flex items-center shrink-0", getIconJustify(isCollapsed), getLogoPadding(isCollapsed))}>
-                                        <Logo />
+                                    <div className="w-[43px] h-6 flex items-center shrink-0 justify-start pl-[13px]">
+                                        <Logo className="!w-6 !h-6 !min-w-6 !min-h-6" />
                                     </div>
-                                    <span className={cn("text-[22px] font-semibold truncate", isCollapsed && "hidden")}>keybard</span>
+                                    <KeybardLogo className={cn("shrink-0 !h-[28px] !w-auto", isCollapsed && "hidden")} />
                                 </button>
                             </SidebarMenuButton>
                         </SidebarMenuItem>

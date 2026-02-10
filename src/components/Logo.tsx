@@ -1,6 +1,13 @@
-const Logo = () => {
+import React from "react";
+
+const Logo: React.FC<React.SVGProps<SVGSVGElement>> = (props) => {
     return (
-        <svg width="25" height="25" viewBox="0 0 29 29" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg
+            viewBox="0 0 29 29"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            {...props}
+        >
             <path
                 d="M5.7998 0.884241V3.46595C5.7998 3.95425 6.1146 4.3501 6.50293 4.3501L22.4967 4.3501C22.885 4.3501 23.1998 3.95425 23.1998 3.46595V0.884241C23.1998 0.395941 22.885 9.58443e-05 22.4967 9.58443e-05L6.50293 9.58443e-05C6.1146 9.58443e-05 5.7998 0.395941 5.7998 0.884241Z"
                 fill="black"
@@ -26,3 +33,4 @@ const Logo = () => {
 };
 
 export default Logo;
+
