@@ -8,10 +8,12 @@ import SecondarySidebar, { DETAIL_SIDEBAR_WIDTH } from "./SecondarySidebar/Secon
 import { BottomPanel, BOTTOM_PANEL_HEIGHT } from "./BottomPanel";
 import BindingEditorContainer from "./SecondarySidebar/components/BindingEditor/BindingEditorContainer";
 
-import { Keyboard } from "@/components/Keyboard";
+
 import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
 import LayerSelector from "./LayerSelector";
+import KeyboardViewInstance from "./KeyboardViewInstance";
+import LayersPlusIcon from "@/components/icons/LayersPlusIcon";
 import AppSidebar from "./Sidebar";
 
 import { LayerProvider, useLayer } from "@/contexts/LayerContext";
@@ -26,6 +28,7 @@ import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useChanges } from "@/hooks/useChanges";
 // import { PanelBottom, PanelRight, X } from "lucide-react";
 import { X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { MatrixTester } from "@/components/MatrixTester";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
@@ -75,6 +78,38 @@ const EditorLayoutInner = () => {
     // Track if we're dragging a layer over the keyboard area
     const [isLayerDragOver, setIsLayerDragOver] = React.useState(false);
     const isDraggingLayer = isDragging && draggedItem?.type === "layer" && draggedItem?.component === "Layer";
+
+    // Dynamic view instances for stacking keyboard views
+    interface ViewInstance {
+        id: string;
+        selectedLayer: number;
+    }
+    const [viewInstances, setViewInstances] = React.useState<ViewInstance[]>([
+        { id: "primary", selectedLayer: 0 }
+    ]);
+    const [showAllLayers, setShowAllLayers] = React.useState(true);
+    let nextViewId = React.useRef(1);
+
+    const handleAddView = React.useCallback(() => {
+        const newId = `secondary-${nextViewId.current++}`;
+        setViewInstances(prev => [...prev, { id: newId, selectedLayer: 0 }]);
+    }, []);
+
+    const handleRemoveView = React.useCallback((id: string) => {
+        setViewInstances(prev => prev.filter(v => v.id !== id));
+    }, []);
+
+    const handleToggleShowLayers = React.useCallback(() => {
+        setShowAllLayers(prev => !prev);
+    }, []);
+
+    const handleSetViewLayer = React.useCallback((id: string, layer: number) => {
+        setViewInstances(prev => prev.map(v =>
+            v.id === id ? { ...v, selectedLayer: layer } : v
+        ));
+        // Always sync LayerContext so sidebar panels reflect the last-interacted view
+        setSelectedLayer(layer);
+    }, [setSelectedLayer]);
 
     // Ref for measuring container dimensions
     const contentContainerRef = React.useRef<HTMLDivElement>(null);
@@ -480,14 +515,45 @@ const EditorLayoutInner = () => {
                 />
 
                 <div
-                    className="flex-1 overflow-hidden flex items-start justify-center max-w-full relative transition-[padding] duration-200"
+                    className="flex-1 overflow-y-auto flex flex-col items-center max-w-full relative transition-[padding] duration-200"
                     style={{ paddingTop: dynamicTopPadding }}
                 >
 
                     {activePanel === "matrixtester" ? (
                         <MatrixTester />
                     ) : (
-                        <Keyboard keyboard={keyboard!} selectedLayer={selectedLayer} setSelectedLayer={setSelectedLayer} />
+                        <>
+                            {viewInstances.map((view) => (
+                                <KeyboardViewInstance
+                                    key={view.id}
+                                    instanceId={view.id}
+                                    selectedLayer={view.selectedLayer}
+                                    setSelectedLayer={(layer) => handleSetViewLayer(view.id, layer)}
+                                    isPrimary={view.id === "primary"}
+                                    showAllLayers={showAllLayers}
+                                    onToggleShowLayers={handleToggleShowLayers}
+                                    onRemove={view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
+                                />
+                            ))}
+
+                            {/* Add View Button */}
+                            <div className="flex items-center pl-5 pb-4 pt-2 w-full">
+                                <Tooltip delayDuration={500}>
+                                    <TooltipTrigger asChild>
+                                        <button
+                                            onClick={handleAddView}
+                                            className="p-2 rounded-full transition-colors text-gray-500 hover:text-gray-800 hover:bg-gray-200"
+                                            aria-label="Add keyboard layer view"
+                                        >
+                                            <LayersPlusIcon className="h-5 w-5" />
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right">
+                                        Show another layer view
+                                    </TooltipContent>
+                                </Tooltip>
+                            </div>
+                        </>
                     )}
 
                     {/* Editor overlay for bottom bar mode - picker tabs + editor */}
