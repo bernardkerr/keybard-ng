@@ -92,8 +92,13 @@ const EditorLayoutInner = () => {
 
     const handleAddView = React.useCallback(() => {
         const newId = `secondary-${nextViewId.current++}`;
-        setViewInstances(prev => [...prev, { id: newId, selectedLayer: 0 }]);
-    }, []);
+        setViewInstances(prev => {
+            const lastView = prev[prev.length - 1];
+            const totalLayers = keyboard?.layers || 16;
+            const nextLayer = lastView ? (lastView.selectedLayer + 1) % totalLayers : 0;
+            return [...prev, { id: newId, selectedLayer: nextLayer }];
+        });
+    }, [keyboard?.layers]);
 
     const handleRemoveView = React.useCallback((id: string) => {
         setViewInstances(prev => prev.filter(v => v.id !== id));
