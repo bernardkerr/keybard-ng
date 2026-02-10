@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Unplug } from "lucide-react";
 
 import { useVial } from "@/contexts/VialContext";
 
@@ -151,7 +151,7 @@ const ConnectKeyboard = () => {
                                     disabled={loading}
                                     className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-primary text-white hover:bg-kb-primary/90 px-5 py-1.5 rounded-full w-full"
                                 >
-                                    {loading ? "Connecting..." : "Connect Keyboard"}
+                                    {loading ? "Connecting..." : <><Unplug className="h-4 w-4" /><span>Connect Keyboard</span></>}
                                 </button>
                             ) : (
                                 <button

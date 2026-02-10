@@ -515,8 +515,7 @@ const EditorLayoutInner = () => {
                 />
 
                 <div
-                    className="flex-1 overflow-y-auto flex flex-col items-center max-w-full relative transition-[padding] duration-200"
-                    style={{ paddingTop: dynamicTopPadding }}
+                    className="flex-1 overflow-y-auto flex flex-col items-center max-w-full relative"
                 >
 
                     {activePanel === "matrixtester" ? (
