@@ -30,6 +30,8 @@ interface KeyboardViewInstanceProps {
     showAllLayers: boolean;
     onToggleShowLayers: () => void;
     onRemove?: () => void;
+    isRevealing?: boolean;
+    isHiding?: boolean;
 }
 
 /**
@@ -44,6 +46,8 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     showAllLayers,
     onToggleShowLayers,
     onRemove,
+    isRevealing = false,
+    isHiding = false,
 }) => {
     const { keyboard, updateKey, setKeyboard } = useVial();
     const { clearSelection } = useKeyBinding();
@@ -238,6 +242,10 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         <div
             ref={containerRef}
             className="w-full flex-shrink-0"
+            style={{
+                opacity: (isRevealing || isHiding) ? 0 : 1,
+                transition: isHiding ? 'none' : 'opacity 200ms ease-in-out',
+            }}
         >
             {/* Layer Controls Row: Hide-blank-layers toggle + layer tabs + (optional) remove button */}
             <div className="flex items-center gap-2 pl-5 pb-2 whitespace-nowrap">
@@ -275,6 +283,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                                 onClick={(e) => { e.stopPropagation(); onRemove(); }}
                                 className="p-2 rounded-full transition-colors text-gray-400 hover:text-black hover:bg-gray-200 ml-auto mr-4 flex-shrink-0"
                                 aria-label="Hide layer view"
+                                data-remove-view={instanceId}
                             >
                                 <LayersMinusIcon className="h-5 w-5" />
                             </button>

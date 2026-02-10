@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import LayerSelector from "./LayerSelector";
 import KeyboardViewInstance from "./KeyboardViewInstance";
 import LayersPlusIcon from "@/components/icons/LayersPlusIcon";
+import LayersMinusIcon from "@/components/icons/LayersMinusIcon";
 import AppSidebar from "./Sidebar";
 
 import { LayerProvider, useLayer } from "@/contexts/LayerContext";
@@ -90,8 +91,40 @@ const EditorLayoutInner = () => {
     const [showAllLayers, setShowAllLayers] = React.useState(true);
     let nextViewId = React.useRef(1);
 
+    // Animation: flying icon between layers-plus and layers-minus
+    const addViewButtonRef = React.useRef<HTMLButtonElement>(null);
+    const [flyingIcon, setFlyingIcon] = React.useState<{
+        startX: number; startY: number;
+        endX?: number; endY?: number;
+        iconType: 'plus' | 'minus';
+    } | null>(null);
+    const pendingTargetId = React.useRef<string | null>(null);
+    const pendingRemoveId = React.useRef<string | null>(null);
+    const [revealingViewId, setRevealingViewId] = React.useState<string | null>(null);
+    const [hidingViewId, setHidingViewId] = React.useState<string | null>(null);
+    const [hideAddButton, setHideAddButton] = React.useState(false);
+    const animationTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Clean up animation timer on unmount
+    React.useEffect(() => {
+        return () => {
+            if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+        };
+    }, []);
+
     const handleAddView = React.useCallback(() => {
         const newId = `secondary-${nextViewId.current++}`;
+
+        // Capture start position of the layers-plus button
+        const rect = addViewButtonRef.current?.getBoundingClientRect();
+        if (rect) {
+            setFlyingIcon({ startX: rect.left, startY: rect.top, iconType: 'plus' });
+            pendingTargetId.current = newId;
+        }
+
+        // Hide the add button and view until halfway through animation
+        setHideAddButton(true);
+        setRevealingViewId(newId);
         setViewInstances(prev => {
             const lastView = prev[prev.length - 1];
             const totalLayers = keyboard?.layers || 16;
@@ -100,8 +133,77 @@ const EditorLayoutInner = () => {
         });
     }, [keyboard?.layers]);
 
+    // After the new view renders, find the layers-minus button and start the transition
+    React.useEffect(() => {
+        if (!flyingIcon || flyingIcon.endX !== undefined || !pendingTargetId.current) return;
+        // Double rAF ensures DOM is painted before querying
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const target = document.querySelector(`[data-remove-view="${pendingTargetId.current}"]`);
+                if (target) {
+                    const targetRect = target.getBoundingClientRect();
+                    setFlyingIcon(prev => prev ? {
+                        ...prev,
+                        endX: targetRect.left,
+                        endY: targetRect.top,
+                    } : null);
+                    // Reveal view and add button at halfway point of the 400ms transition
+                    animationTimerRef.current = setTimeout(() => {
+                        setRevealingViewId(null);
+                        setHideAddButton(false);
+                    }, 200);
+                } else {
+                    // Target not found, reveal immediately
+                    setFlyingIcon(null);
+                    setRevealingViewId(null);
+                }
+                pendingTargetId.current = null;
+            });
+        });
+    }, [flyingIcon, viewInstances]);
+
     const handleRemoveView = React.useCallback((id: string) => {
-        setViewInstances(prev => prev.filter(v => v.id !== id));
+        // Capture positions before any state changes
+        const minusBtn = document.querySelector(`[data-remove-view="${id}"]`);
+        const plusBtn = addViewButtonRef.current;
+
+        if (minusBtn && plusBtn) {
+            const minusRect = minusBtn.getBoundingClientRect();
+            const plusRect = plusBtn.getBoundingClientRect();
+
+            // Hide view and add button immediately, then animate icon horizontally back to plus
+            setHideAddButton(true);
+            setHidingViewId(id);
+            pendingRemoveId.current = id;
+            setFlyingIcon({ startX: minusRect.left, startY: minusRect.top, iconType: 'minus' });
+
+            // Set end position after DOM paints the start position
+            // Only animate X (horizontal), keep same Y since plus button will end up on this row
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    setFlyingIcon(prev => prev ? {
+                        ...prev,
+                        endX: plusRect.left,
+                        endY: prev.startY, // horizontal only
+                    } : null);
+                    // Remove view and show add button at halfway point of the 400ms transition
+                    animationTimerRef.current = setTimeout(() => {
+                        setViewInstances(prev => prev.filter(v => v.id !== pendingRemoveId.current));
+                        setHidingViewId(null);
+                        setHideAddButton(false);
+                        pendingRemoveId.current = null;
+                    }, 200);
+                });
+            });
+        } else {
+            // Fallback: remove immediately
+            setViewInstances(prev => prev.filter(v => v.id !== id));
+        }
+    }, []);
+
+    // Clean up flying icon when animation completes
+    const handleFlyingIconEnd = React.useCallback(() => {
+        setFlyingIcon(null);
     }, []);
 
     const handleToggleShowLayers = React.useCallback(() => {
@@ -537,14 +639,23 @@ const EditorLayoutInner = () => {
                                     showAllLayers={showAllLayers}
                                     onToggleShowLayers={handleToggleShowLayers}
                                     onRemove={view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
+                                    isRevealing={view.id === revealingViewId}
+                                    isHiding={view.id === hidingViewId}
                                 />
                             ))}
 
                             {/* Add View Button */}
-                            <div className="flex items-center pl-5 pb-4 pt-2 w-full">
+                            <div
+                                className="flex items-center pl-5 pb-2 w-full"
+                                style={{
+                                    opacity: hideAddButton ? 0 : 1,
+                                    transition: hideAddButton ? 'none' : 'opacity 150ms ease-in-out',
+                                }}
+                            >
                                 <Tooltip delayDuration={500}>
                                     <TooltipTrigger asChild>
                                         <button
+                                            ref={addViewButtonRef}
                                             onClick={handleAddView}
                                             className="p-2 rounded-full transition-colors text-gray-500 hover:text-gray-800 hover:bg-gray-200"
                                             aria-label="Add keyboard layer view"
@@ -557,6 +668,28 @@ const EditorLayoutInner = () => {
                                     </TooltipContent>
                                 </Tooltip>
                             </div>
+
+                            {/* Flying icon animation (add: plus→minus, remove: minus→plus) */}
+                            {flyingIcon && (
+                                <div
+                                    className="fixed pointer-events-none"
+                                    style={{
+                                        left: flyingIcon.endX !== undefined ? flyingIcon.endX : flyingIcon.startX,
+                                        top: flyingIcon.endY !== undefined ? flyingIcon.endY : flyingIcon.startY,
+                                        transition: flyingIcon.endX !== undefined
+                                            ? 'left 400ms cubic-bezier(0.42, 0, 0.58, 1), top 400ms cubic-bezier(0.42, 0, 0.58, 1)'
+                                            : 'none',
+                                        zIndex: 40,
+                                    }}
+                                    onTransitionEnd={handleFlyingIconEnd}
+                                >
+                                    <div className="p-2">
+                                        {flyingIcon.iconType === 'plus'
+                                            ? <LayersPlusIcon className="h-5 w-5 text-gray-500" />
+                                            : <LayersMinusIcon className="h-5 w-5 text-gray-400" />}
+                                    </div>
+                                </div>
+                            )}
                         </>
                     )}
 
