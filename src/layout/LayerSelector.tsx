@@ -35,7 +35,7 @@ interface LayerSelectorProps {
  * Component for selecting and managing active layers in the keyboard editor.
  * Displays a horizontal bar of layer tabs with a filter toggle for hiding blank layers.
  */
-const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer }) => {
+const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer }) => {
     const { keyboard, setKeyboard, isConnected, connect, resetToOriginal, setIsImporting } = useVial();
     const { queue, commit, getPendingCount, clearAll } = useChanges();
     const { getSetting, updateSetting } = useSettings();
