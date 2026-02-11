@@ -32,7 +32,7 @@ const DIVIDER_OFFSET = DIVIDER_HEIGHT_PX + FLEX_GAP_PX;
 
 // Icon layout helpers - keep icons at the same position regardless of collapsed state
 const getIconGutterWidth = (isCollapsed: boolean) => isCollapsed ? "w-full" : "w-[43px]";
-const getIconPadding = (isCollapsed: boolean) => isCollapsed ? "pl-0" : "pl-[13px]";
+const getIconPadding = (isCollapsed: boolean) => (isCollapsed ? "pl-0" : "pl-[11px]");
 const getIconJustify = (isCollapsed: boolean) => isCollapsed ? "justify-center" : "justify-start";
 
 export type SidebarItem = {
@@ -262,10 +262,10 @@ const AppSidebar = () => {
                                     className={cn("flex w-full items-center", getIconJustify(isCollapsed))}
                                     onClick={() => toggleSidebar()}
                                 >
-                                    <div className="w-[43px] h-6 flex items-center shrink-0 justify-start pl-[13px]">
+                                    <div className={cn(getIconGutterWidth(isCollapsed), "h-8 flex items-center shrink-0", getIconJustify(isCollapsed), getIconPadding(isCollapsed))}>
                                         <Logo className="!w-6 !h-6 !min-w-6 !min-h-6" />
                                     </div>
-                                    <KeybardLogo className={cn("shrink-0 !h-[28px] !w-auto", isCollapsed && "hidden")} />
+                                    <KeybardLogo className={cn("shrink-0 !h-[32px] !w-auto", isCollapsed && "hidden")} />
                                 </button>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
