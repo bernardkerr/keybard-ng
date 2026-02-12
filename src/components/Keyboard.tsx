@@ -270,8 +270,9 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer, set
                         xPos -= fingerClusterSqueeze;
                     }
 
+                    const isSelected = isKeySelected(row, col);
                     const standardKeyClassName = isGhostKey
-                        ? "transition-opacity duration-200 opacity-0 group-hover:opacity-100"
+                        ? cn("transition-opacity duration-200", isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100")
                         : "";
 
                     const standardKey = (
@@ -357,7 +358,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer, set
                             layerColor={ghostLayerColor}
                             headerClassName={ghostHeaderClassFull}
                             // Ghost styles
-                            className={`border-solid border-[3px] opacity-50 transition-opacity group-hover:opacity-0`}
+                            className={cn("border-solid border-[3px] transition-opacity", isSelected ? "opacity-0" : "opacity-50 group-hover:opacity-0")}
                             // Override border color via style to match the specific darkened color
                             style={{ borderColor: darkBorderColor }}
                             variant={keyVariant}
