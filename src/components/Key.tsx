@@ -7,7 +7,7 @@ import { getHeaderIcons, getCenterContent, getTypeIcon } from "@/utils/key-icons
 import { useKeyDrag } from "@/hooks/useKeyDrag";
 
 
-export interface KeyProps {
+export interface KeyProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onClick' | 'onDoubleClick' | 'title'> {
     x: number;
     y: number;
     w: number;
@@ -19,6 +19,8 @@ export interface KeyProps {
     layerIndex?: number;
     selected?: boolean;
     onClick?: (row: number, col: number) => void;
+    onDoubleClick?: (row: number, col: number) => void;
+    title?: string; // Override default tooltip
     keyContents?: KeyContent;
     layerColor?: string;
     isRelative?: boolean;
@@ -36,18 +38,21 @@ export interface KeyProps {
     dragH?: number;
     disableDrag?: boolean;
     dragItemData?: Partial<DragItem>;
+    style?: React.CSSProperties;
 }
 
 /**
  * Renders a single key in the keyboard layout.
  */
-export const Key: React.FC<KeyProps> = (props) => {
+export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const {
         x, y, w, h, keycode, label, row, col, layerIndex = 0, layerColor = "primary",
-        selected = false, onClick, keyContents,
+        selected = false, onClick, onDoubleClick, title, keyContents,
         isRelative = false, className = "", headerClassName = "bg-black/30", variant = "default",
         hoverBorderColor, hoverBackgroundColor, hoverLayerColor, disableHover = false,
-        hasPendingChange = false, forceLabel = false, dragW, dragH, disableDrag = false
+        hasPendingChange = false, forceLabel = false, dragW, dragH, disableDrag = false,
+        style,
+        ...rest
     } = props;
 
     const uniqueId = React.useId();
@@ -72,6 +77,7 @@ export const Key: React.FC<KeyProps> = (props) => {
             top: isRelative ? undefined : `${y * drag.currentUnitSize}px`,
             width: `${w * drag.currentUnitSize}px`,
             height: `${h * drag.currentUnitSize}px`,
+            ...style
         };
 
         // Check if the key is "crowded" (has both top label/icon AND bottom badge)
@@ -132,7 +138,7 @@ export const Key: React.FC<KeyProps> = (props) => {
         );
 
         return { boxStyle, textStyle, bottomTextStyle, containerClasses };
-    }, [x, y, w, h, drag, isRelative, isSmall, isMedium, keyContents, keyData, layerColor, hoverLayerColor, selected, disableHover, hoverBorderColor, hoverBackgroundColor, hasPendingChange, className]);
+    }, [x, y, w, h, drag, isRelative, isSmall, isMedium, keyContents, keyData, layerColor, hoverLayerColor, selected, disableHover, hoverBorderColor, hoverBackgroundColor, hasPendingChange, className, style]);
 
     // Forced height logic for strict grid alignment without !important
     const forcedHeight = isSmall ? "10px" : isMedium ? "14px" : "18px";
@@ -157,19 +163,27 @@ export const Key: React.FC<KeyProps> = (props) => {
         onClick?.(row, col);
     };
 
+    const handleDoubleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onDoubleClick?.(row, col);
+    };
+
     // --- Sub-renderer for layer keys ---
     if (keyContents?.type === "layer") {
         const targetLayer = keyContents?.top?.split("(")[1]?.replace(")", "") || "";
         return (
             <div
+                ref={ref}
                 className={styles.containerClasses}
                 style={styles.boxStyle}
                 onClick={handleClick}
+                onDoubleClick={handleDoubleClick}
                 onMouseEnter={drag.handleMouseEnter}
                 onMouseLeave={drag.handleMouseLeave}
                 onMouseDown={drag.handleMouseDown}
                 onMouseUp={drag.handleMouseUp}
-                title={props.disableTooltip ? undefined : keycode}
+                title={props.disableTooltip ? undefined : (title || keycode)}
+                {...rest}
             >
                 <span className={headerClass} style={headerStyle}>{keyContents?.layertext}</span>
                 <div className={cn("flex flex-row flex-1 w-full items-center justify-center", isSmall ? "gap-1" : isMedium ? "gap-1.5" : "gap-2")}>
@@ -185,14 +199,17 @@ export const Key: React.FC<KeyProps> = (props) => {
     // --- Regular key render ---
     return (
         <div
+            ref={ref}
             className={styles.containerClasses}
             style={styles.boxStyle}
             onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
             onMouseEnter={drag.handleMouseEnter}
             onMouseLeave={drag.handleMouseLeave}
             onMouseDown={drag.handleMouseDown}
             onMouseUp={drag.handleMouseUp}
-            title={props.disableTooltip ? undefined : keycode}
+            title={props.disableTooltip ? undefined : (title || keycode)}
+            {...rest}
         >
             {keyData.topLabel && (
                 <span className={cn(headerClass)} style={headerStyle}>
@@ -216,7 +233,8 @@ export const Key: React.FC<KeyProps> = (props) => {
             )}
         </div>
     );
-};
+});
+Key.displayName = "Key";
 
 // --- Helper Functions ---
 

@@ -1,10 +1,11 @@
-import { FC, useRef } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Keyboard } from "@/components/Keyboard";
 import { LayerNameBadge } from "@/components/LayerNameBadge";
 import LayersActiveIcon from "@/components/icons/LayersActive";
 import LayersDefaultIcon from "@/components/icons/LayersDefault";
 import LayersMinusIcon from "@/components/icons/LayersMinusIcon";
+import { Microscope } from "lucide-react";
 import { useVial } from "@/contexts/VialContext";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useChanges } from "@/contexts/ChangesContext";
@@ -53,6 +54,15 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     const { clearSelection } = useKeyBinding();
     const { queue } = useChanges();
     const { activePanel } = usePanels();
+
+    const [isTransparencyActive, setIsTransparencyActive] = useState(false);
+
+    // Reset transparency when Matrix Tester is active
+    useEffect(() => {
+        if (activePanel === "matrixtester") {
+            setIsTransparencyActive(false);
+        }
+    }, [activePanel]);
 
     // Ref for container
     const containerRef = useRef<HTMLDivElement>(null);
@@ -249,31 +259,37 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         >
             {/* Layer Controls Row: Hide-blank-layers toggle + layer tabs + (optional) remove button */}
             <div className="flex items-center gap-2 pl-5 pb-2 whitespace-nowrap">
-                <Tooltip delayDuration={500}>
-                    <TooltipTrigger asChild>
-                        <button
-                            onClick={toggleShowLayers}
-                            disabled={activePanel === "matrixtester"}
-                            className={cn(
-                                "p-2 rounded-full transition-colors flex-shrink-0",
-                                activePanel === "matrixtester"
-                                    ? "text-gray-400 cursor-not-allowed opacity-30"
-                                    : "text-black hover:bg-gray-200"
-                            )}
-                            aria-label={showAllLayers ? "Hide Blank Layers" : "Show All Layers"}
-                        >
-                            {!showAllLayers ? <LayersActiveIcon className="h-5 w-5" /> : <LayersDefaultIcon className="h-5 w-5" />}
-                        </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                        {showAllLayers ? "Hide Blank Layers" : "Show All Layers"}
-                    </TooltipContent>
-                </Tooltip>
+                <div className="flex items-center gap-1">
+                    <Tooltip delayDuration={500}>
+                        <TooltipTrigger asChild>
+                            <button
+                                onClick={toggleShowLayers}
+                                disabled={activePanel === "matrixtester"}
+                                className={cn(
+                                    "p-2 rounded-full transition-colors flex-shrink-0",
+                                    activePanel === "matrixtester"
+                                        ? "text-gray-400 cursor-not-allowed opacity-30"
+                                        : "text-black hover:bg-gray-200"
+                                )}
+                                aria-label={showAllLayers ? "Hide Blank Layers" : "Show All Layers"}
+                            >
+                                {!showAllLayers ? <LayersActiveIcon className="h-5 w-5" /> : <LayersDefaultIcon className="h-5 w-5" />}
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                            {showAllLayers ? "Hide Blank Layers" : "Show All Layers"}
+                        </TooltipContent>
+                    </Tooltip>
 
-                {/* Layer tabs */}
+                </div>
+
                 <div className={cn("flex items-center gap-1", activePanel === "matrixtester" && "opacity-30 pointer-events-none")}>
                     {Array.from({ length: keyboard.layers || 16 }, (_, i) => renderLayerTab(i))}
                 </div>
+
+
+
+
 
                 {/* Remove button for non-primary views */}
                 {!isPrimary && onRemove && (
@@ -283,7 +299,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                                 onClick={(e) => { e.stopPropagation(); onRemove(); }}
                                 className="p-2 rounded-full transition-colors text-gray-400 hover:text-black hover:bg-gray-200 ml-auto mr-4 flex-shrink-0"
                                 aria-label="Hide layer view"
-                                data-remove-view={instanceId}
+                                disabled={selectedLayer === 0}
                             >
                                 <LayersMinusIcon className="h-5 w-5" />
                             </button>
@@ -296,8 +312,35 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
             </div>
 
             {/* Layer Name Badge Row */}
-            <div className="pl-[27px] pt-[7px] pb-2">
+            <div className="pl-[27px] pt-[7px] pb-2 flex items-center gap-2">
                 <LayerNameBadge selectedLayer={selectedLayer} />
+
+                {/* Transparency Button */}
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <button
+                            onClick={() => setIsTransparencyActive(!isTransparencyActive)}
+                            disabled={activePanel === "matrixtester" || selectedLayer === 0}
+                            className={cn(
+                                "p-1.5 rounded-full transition-all flex-shrink-0",
+                                activePanel === "matrixtester" || selectedLayer === 0
+                                    ? "text-gray-400 cursor-not-allowed opacity-30"
+                                    : isTransparencyActive
+                                        ? "bg-black hover:bg-gray-800"
+                                        : "hover:bg-gray-200"
+                            )}
+                            aria-label={isTransparencyActive ? "Hide Transparent Keys" : "Show Transparent Keys"}
+                        >
+                            <Microscope className={cn(
+                                "h-4 w-4",
+                                isTransparencyActive ? "text-kb-gray" : "text-black"
+                            )} />
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                        {isTransparencyActive ? "Hide Transparent Keys" : "Show Transparent Keys"}
+                    </TooltipContent>
+                </Tooltip>
             </div>
 
             {/* Keyboard */}
@@ -306,6 +349,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     keyboard={keyboard}
                     selectedLayer={selectedLayer}
                     setSelectedLayer={setSelectedLayer}
+                    showTransparency={isTransparencyActive}
                 />
             </div>
         </div>

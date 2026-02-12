@@ -62,10 +62,12 @@ function TooltipTrigger({
 
 function TooltipContent({
   className,
+  arrowClassName,
+  arrowStyle,
   sideOffset = 0,
   children,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+}: React.ComponentProps<typeof TooltipPrimitive.Content> & { arrowClassName?: string; arrowStyle?: React.CSSProperties }) {
   const dragContext = React.useContext(DragContext)
   if (dragContext?.isDragging) return null
 
@@ -81,7 +83,7 @@ function TooltipContent({
         {...props}
       >
         {children}
-        <TooltipPrimitive.Arrow className="bg-foreground fill-foreground z-100 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
+        <TooltipPrimitive.Arrow className={cn("bg-foreground fill-foreground z-100 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]", arrowClassName)} style={arrowStyle} />
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   )

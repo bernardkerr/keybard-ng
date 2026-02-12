@@ -1,4 +1,5 @@
 import "./Keyboard.css";
+import { cn } from "@/lib/utils";
 
 import { getKeyLabel, getKeycodeName } from "@/utils/layers";
 import React, { useMemo, useEffect, useRef } from "react";
@@ -14,8 +15,12 @@ import {
     headerClasses,
     hoverHeaderClasses,
     hoverBackgroundClasses,
-    hoverBorderClasses
+    hoverBorderClasses,
+    colorClasses,
+    layerColors
 } from "@/utils/colors";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { svalService } from "@/services/sval.service";
 // import { InfoIcon } from "./icons/InfoIcon";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useChanges } from "@/hooks/useChanges";
@@ -25,13 +30,14 @@ interface KeyboardProps {
     onKeyClick?: (layer: number, row: number, col: number) => void;
     selectedLayer: number;
     setSelectedLayer: (layer: number) => void;
+    showTransparency?: boolean;
 }
 
 /**
  * Main Keyboard component for the Svalboard layout.
  * Renders individual keys, cluster backgrounds, and an information panel.
  */
-export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) => {
+export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer, setSelectedLayer, showTransparency = false }) => {
     const {
         selectKeyboardKey,
         selectedTarget,
@@ -176,6 +182,25 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
         };
     }, [keyboardLayout, currentUnitSize, useFragmentLayout, fingerClusterSqueeze]);
 
+    const KC_TRNS = 1;
+
+    // Helper to find effective keycode for transparency
+    const findEffectiveKey = (startLayer: number, pos: number) => {
+        for (let l = startLayer - 1; l >= 0; l--) {
+            const keymap = keyboard.keymap?.[l];
+            if (!keymap) continue;
+            const code = keymap[pos];
+            if (code !== KC_TRNS) {
+                return {
+                    keycode: code,
+                    sourceLayer: l,
+                    sourceLayerColor: keyboard.cosmetic?.layer_colors?.[l] || "primary"
+                };
+            }
+        }
+        return null;
+    };
+
     return (
         <div className="p-4">
             <div
@@ -189,10 +214,27 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                     const row = typeof layout.row === 'number' ? layout.row : Math.floor(pos / matrixCols);
                     const col = typeof layout.col === 'number' ? layout.col : pos % matrixCols;
 
-                    const keycode = layerKeymap[pos] || 0;
+                    let keycode = layerKeymap[pos] || 0;
+
+                    // Transparency Logic
+                    let effectiveKeycode = 0;
+                    let effectiveLayerColor = "primary";
+                    let isGhostKey = false;
+                    let ghostSourceLayer = -1;
+
+                    if (showTransparency && keycode === KC_TRNS && selectedLayer > 0) {
+                        const effective = findEffectiveKey(selectedLayer, pos);
+                        if (effective) {
+                            effectiveKeycode = effective.keycode;
+                            effectiveLayerColor = effective.sourceLayerColor;
+                            isGhostKey = true;
+                            ghostSourceLayer = effective.sourceLayer;
+                        }
+                    }
+
+                    // Render Standard Key (or the underlying key if ghost is active)
                     const { label: defaultLabel, keyContents } = getKeyLabel(keyboard, keycode);
                     const keycodeName = getKeycodeName(keycode);
-
                     const label = getLabelForKeycode(keycodeName, internationalLayout) || defaultLabel;
 
                     // Styles for transmitting mode
@@ -228,7 +270,11 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                         xPos -= fingerClusterSqueeze;
                     }
 
-                    return (
+                    const standardKeyClassName = isGhostKey
+                        ? "transition-opacity duration-200 opacity-0 group-hover:opacity-100"
+                        : "";
+
+                    const standardKey = (
                         <Key
                             key={`${row}-${col}`}
                             x={xPos}
@@ -251,7 +297,96 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                             layerIndex={selectedLayer}
                             hasPendingChange={hasPendingChangeForKey(selectedLayer, row, col)}
                             disableTooltip={true}
+                            className={standardKeyClassName}
                         />
+                    );
+
+                    if (!isGhostKey) {
+                        return standardKey;
+                    }
+
+                    // Render Ghost Key Overlay
+                    const isTrnsOrNo = Number(effectiveKeycode) === 1 || Number(effectiveKeycode) === 0 || Number.isNaN(Number(effectiveKeycode));
+                    const { label: ghostDefaultLabel, keyContents: ghostKeyContents } = getKeyLabel(keyboard, effectiveKeycode);
+                    const ghostKeycodeName = getKeycodeName(effectiveKeycode);
+
+                    // Use empty label if TRNS/NO to avoid "0x0000" or "OXNAN"
+                    // Also check for "0xNaN" string which might come from invalid keycode formatting
+                    const isInvalidLabel = ghostKeycodeName === "0xNaN" || ghostDefaultLabel === "0xNaN";
+                    const ghostLabel = (isTrnsOrNo || isInvalidLabel) ? "" : (getLabelForKeycode(ghostKeycodeName, internationalLayout) || ghostDefaultLabel);
+
+                    // Styles for ghost key
+                    const ghostLayerColor = isTransmitting ? "sidebar" : effectiveLayerColor;
+                    const ghostHeaderClass = headerClasses[ghostLayerColor] || headerClasses["primary"];
+                    const ghostHoverHeaderClass = hoverHeaderClasses[ghostLayerColor] || hoverHeaderClasses["primary"];
+                    const ghostHeaderClassFull = `${ghostHeaderClass} ${ghostHoverHeaderClass}`;
+
+
+                    const sourceLayerName = svalService.getLayerName(keyboard, ghostSourceLayer);
+                    const tooltipText = sourceLayerName.startsWith("Layer") ? sourceLayerName : `Layer ${sourceLayerName}`;
+
+                    // Calculate darker border color
+                    const layerColorObj = layerColors.find(c => c.name === ghostLayerColor) || layerColors[0];
+                    const hex = layerColorObj.hex;
+                    const r = parseInt(hex.slice(1, 3), 16);
+                    const g = parseInt(hex.slice(3, 5), 16);
+                    const b = parseInt(hex.slice(5, 7), 16);
+                    const r2 = Math.round(r * 0.7).toString(16).padStart(2, '0');
+                    const g2 = Math.round(g * 0.7).toString(16).padStart(2, '0');
+                    const b2 = Math.round(b * 0.7).toString(16).padStart(2, '0');
+                    const darkBorderColor = `#${r2}${g2}${b2}`;
+
+                    const ghostOverlay = (
+                        <Key
+                            key={`${row}-${col}-ghost`}
+                            x={xPos}
+                            y={yPos}
+                            w={layout.w}
+                            h={layout.h}
+                            keycode={ghostKeycodeName}
+                            label={ghostLabel}
+                            row={row}
+                            col={col}
+                            onClick={handleKeyClick} // Clicking ghost selects the key slot on CURRENT layer
+                            onDoubleClick={() => setSelectedLayer(ghostSourceLayer)}
+                            keyContents={ghostKeyContents}
+                            layerColor={ghostLayerColor}
+                            headerClassName={ghostHeaderClassFull}
+                            // Ghost styles
+                            className={`border-solid border-[3px] opacity-50 transition-opacity group-hover:opacity-0`}
+                            // Override border color via style to match the specific darkened color
+                            style={{ borderColor: darkBorderColor }}
+                            variant={keyVariant}
+                            layerIndex={selectedLayer} // Important: belongs to current layer logic
+                            hasPendingChange={hasPendingChangeForKey(selectedLayer, row, col)}
+                            disableTooltip={true} // Disable native tooltip, we use custom one
+                        />
+                    );
+
+                    const wrapperStyle: React.CSSProperties = {
+                        position: 'absolute',
+                        left: `${xPos * currentUnitSize}px`,
+                        top: `${yPos * currentUnitSize}px`,
+                        width: `${layout.w * currentUnitSize}px`,
+                        height: `${layout.h * currentUnitSize}px`,
+                    };
+
+                    return (
+                        <div className="group" style={wrapperStyle} key={`${row}-${col}-fragment`}>
+                            {React.cloneElement(standardKey, { x: 0, y: 0 })}
+                            <Tooltip delayDuration={0}>
+                                <TooltipTrigger asChild>
+                                    {React.cloneElement(ghostOverlay, { x: 0, y: 0 })}
+                                </TooltipTrigger>
+                                <TooltipContent
+                                    className={cn(`bg-kb-${ghostLayerColor} border-none`, colorClasses[ghostLayerColor] || "text-white")}
+                                    arrowStyle={{ backgroundColor: hex, fill: 'transparent' }}
+                                    side="top"
+                                >
+                                    {tooltipText}
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
                     );
                 })}
             </div>
