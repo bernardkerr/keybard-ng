@@ -28,9 +28,11 @@ interface KeyboardViewInstanceProps {
     selectedLayer: number;
     setSelectedLayer: (layer: number) => void;
     isPrimary: boolean;
+    hideLayerTabs?: boolean;
     showAllLayers: boolean;
     onToggleShowLayers: () => void;
     onRemove?: () => void;
+    onGhostNavigate?: (sourceLayer: number) => void;
     isRevealing?: boolean;
     isHiding?: boolean;
 }
@@ -44,9 +46,11 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     selectedLayer,
     setSelectedLayer,
     isPrimary,
+    hideLayerTabs = false,
     showAllLayers,
     onToggleShowLayers,
     onRemove,
+    onGhostNavigate,
     isRevealing = false,
     isHiding = false,
 }) => {
@@ -199,6 +203,12 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         batchWipeKeys(KC_TRNS, (currentValue) => currentValue === KC_NO);
     };
 
+    const handleChangeTransparentToDisabled = () => {
+        const KC_TRNS = KEYMAP['KC_TRNS']?.code ?? 1;
+        const KC_NO = 0;
+        batchWipeKeys(KC_NO, (currentValue) => currentValue === KC_TRNS);
+    };
+
     const renderLayerTab = (i: number) => {
         const layerData = keyboard.keymap?.[i];
         const isEmpty = layerData ? vialService.isLayerEmpty(layerData) : true;
@@ -233,16 +243,6 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     <ContextMenuItem onSelect={handlePasteLayer}>
                         Paste Layer
                     </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem onSelect={handleWipeDisable}>
-                        Make All Blank
-                    </ContextMenuItem>
-                    <ContextMenuItem onSelect={handleWipeTransparent}>
-                        Make All Transparent
-                    </ContextMenuItem>
-                    <ContextMenuItem onSelect={handleChangeDisabledToTransparent}>
-                        Switch Blank to Transparent
-                    </ContextMenuItem>
                 </ContextMenuContent>
             </ContextMenu>
         );
@@ -259,33 +259,37 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         >
             {/* Layer Controls Row: Hide-blank-layers toggle + layer tabs + (optional) remove button */}
             <div className="flex items-center gap-2 pl-5 pb-2 whitespace-nowrap">
-                <div className="flex items-center gap-1">
-                    <Tooltip delayDuration={500}>
-                        <TooltipTrigger asChild>
-                            <button
-                                onClick={toggleShowLayers}
-                                disabled={activePanel === "matrixtester"}
-                                className={cn(
-                                    "p-2 rounded-full transition-colors flex-shrink-0",
-                                    activePanel === "matrixtester"
-                                        ? "text-gray-400 cursor-not-allowed opacity-30"
-                                        : "text-black hover:bg-gray-200"
-                                )}
-                                aria-label={showAllLayers ? "Hide Blank Layers" : "Show All Layers"}
-                            >
-                                {!showAllLayers ? <LayersActiveIcon className="h-5 w-5" /> : <LayersDefaultIcon className="h-5 w-5" />}
-                            </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                            {showAllLayers ? "Hide Blank Layers" : "Show All Layers"}
-                        </TooltipContent>
-                    </Tooltip>
+                {!hideLayerTabs && (
+                    <>
+                        <div className="flex items-center gap-1">
+                            <Tooltip delayDuration={500}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={toggleShowLayers}
+                                        disabled={activePanel === "matrixtester"}
+                                        className={cn(
+                                            "p-2 rounded-full transition-colors flex-shrink-0",
+                                            activePanel === "matrixtester"
+                                                ? "text-gray-400 cursor-not-allowed opacity-30"
+                                                : "text-black hover:bg-gray-200"
+                                        )}
+                                        aria-label={showAllLayers ? "Hide Blank Layers" : "Show All Layers"}
+                                    >
+                                        {!showAllLayers ? <LayersActiveIcon className="h-5 w-5" /> : <LayersDefaultIcon className="h-5 w-5" />}
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    {showAllLayers ? "Hide Blank Layers" : "Show All Layers"}
+                                </TooltipContent>
+                            </Tooltip>
 
-                </div>
+                        </div>
 
-                <div className={cn("flex items-center gap-1", activePanel === "matrixtester" && "opacity-30 pointer-events-none")}>
-                    {Array.from({ length: keyboard.layers || 16 }, (_, i) => renderLayerTab(i))}
-                </div>
+                        <div className={cn("flex items-center gap-1", activePanel === "matrixtester" && "opacity-30 pointer-events-none")}>
+                            {Array.from({ length: keyboard.layers || 16 }, (_, i) => renderLayerTab(i))}
+                        </div>
+                    </>
+                )}
 
 
 
@@ -352,6 +356,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     selectedLayer={selectedLayer}
                     setSelectedLayer={setSelectedLayer}
                     showTransparency={isTransparencyActive}
+                    onGhostNavigate={onGhostNavigate}
                 />
             </div>
         </div>

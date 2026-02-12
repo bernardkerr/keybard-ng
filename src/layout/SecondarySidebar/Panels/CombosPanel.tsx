@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, X, ArrowRightFromLine } from "lucide-react";
+import { Plus, ArrowRightFromLine } from "lucide-react";
 
 import ComboIcon from "@/components/ComboIcon";
 import OnOffToggle from "@/components/ui/OnOffToggle";
@@ -217,17 +217,6 @@ const CombosPanel: React.FC = () => {
                             )}
                             onClick={() => handleEdit(i)}
                         >
-                            {/* Delete button */}
-                            <button
-                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    clearCombo(i);
-                                }}
-                                title="Clear combo"
-                            >
-                                <X className="w-3 h-3 text-white" />
-                            </button>
                             {/* Header with icon and label */}
                             <div className="flex flex-row items-center gap-2 mb-2">
                                 <div className="w-5 h-5 text-slate-600 flex-shrink-0">
@@ -346,7 +335,6 @@ const CombosPanel: React.FC = () => {
                             keycode={resultKeycode || "KC_NO"}
                             keyContents={keyContents}
                             onEdit={handleEdit}
-                            onDelete={hasAssignment ? clearCombo : undefined}
                             onAssignKeycode={assignKeycode}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}

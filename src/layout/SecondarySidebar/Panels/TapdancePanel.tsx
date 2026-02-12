@@ -131,6 +131,7 @@ const TapdancePanel: React.FC = () => {
 
                     const tdKeycode = `TD(${i})`;
                     const tdKeyContents = getKeyContents(keyboard, tdKeycode) as KeyContent;
+                    const customName = keyboard.cosmetic?.tapdances?.[i.toString()];
 
                     return (
                         <div
@@ -160,7 +161,9 @@ const TapdancePanel: React.FC = () => {
                                         disableTooltip={true}
                                     />
                                 </div>
-                                <span className="text-xs font-bold text-slate-600">TD {i}</span>
+                                <span className="text-xs font-bold text-slate-600 truncate">
+                                    {customName || `Tapdance ${i}`}
+                                </span>
                             </div>
                             <div className="grid grid-cols-2 gap-1">
                                 {stateContents.map((content, idx) => {
@@ -238,9 +241,10 @@ const TapdancePanel: React.FC = () => {
                             keyboard={keyboard}
                             keycode={keycode}
                             label={i.toString()}
+                            hasCustomName={!!keyboard.cosmetic?.tapdances?.[i.toString()]}
+                            customName={keyboard.cosmetic?.tapdances?.[i.toString()]}
                             keyContents={keyContents}
                             onEdit={handleEdit}
-                            onDelete={hasAssignment ? clearTapdance : undefined}
                             onAssignKeycode={assignKeycode}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}

@@ -245,6 +245,15 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
         const KC_NO = 0;
         batchWipeKeys(KC_TRNS, (v) => v === KC_NO);
     };
+    const handleChangeTransparentToDisabled = () => {
+        const KC_TRNS = KEYMAP['KC_TRNS']?.code ?? 1;
+        const KC_NO = 0;
+        batchWipeKeys(KC_NO, (v) => v === KC_TRNS);
+    };
+
+    const layerKeymap = keyboard?.keymap?.[selectedLayer] || [];
+    const hasBlankKeys = layerKeymap.some((v) => v === 0);
+    const hasTransparentKeys = layerKeymap.some((v) => v === (KEYMAP['KC_TRNS']?.code ?? 1));
 
     const style: React.CSSProperties = (x !== undefined && y !== undefined) ? {
         left: `${x}px`,
@@ -350,8 +359,12 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
                         <DropdownMenuItem onSelect={handleWipeTransparent}>
                             Make All Transparent
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={handleChangeDisabledToTransparent}>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={handleChangeDisabledToTransparent} disabled={!hasBlankKeys}>
                             Switch Blank to Transparent
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={handleChangeTransparentToDisabled} disabled={!hasTransparentKeys}>
+                            Switch Transparent to Blank
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={() => setIsPublishDialogOpen(true)}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ArrowRight, Plus, X, ArrowRightFromLine } from "lucide-react";
+import { ArrowRight, Plus, ArrowRightFromLine } from "lucide-react";
 
 import OnOffToggle from "@/components/ui/OnOffToggle";
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
@@ -259,17 +259,6 @@ const LeadersPanel: React.FC = () => {
                                 )}
                                 onClick={() => handleEdit(i)}
                             >
-                                {/* Delete button */}
-                                <button
-                                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        clearLeader(i);
-                                    }}
-                                    title="Clear leader"
-                                >
-                                    <X className="w-3 h-3 text-white" />
-                                </button>
                                 <span className="text-[9px] font-bold text-slate-600 mb-1">L{i}</span>
                                 <div className="flex flex-row items-center gap-0.5">
                                     {entry.sequence.slice(0, 5).map((keycode, seqIdx) => {
@@ -425,7 +414,6 @@ const LeadersPanel: React.FC = () => {
                             label={i.toString()}
                             keyContents={keyContents}
                             onEdit={handleEdit}
-                            onDelete={isDefined ? clearLeader : undefined}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}

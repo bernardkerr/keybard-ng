@@ -31,13 +31,20 @@ interface KeyboardProps {
     selectedLayer: number;
     setSelectedLayer: (layer: number) => void;
     showTransparency?: boolean;
+    onGhostNavigate?: (sourceLayer: number) => void;
 }
 
 /**
  * Main Keyboard component for the Svalboard layout.
  * Renders individual keys, cluster backgrounds, and an information panel.
  */
-export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer, setSelectedLayer, showTransparency = false }) => {
+export const Keyboard: React.FC<KeyboardProps> = ({
+    keyboard,
+    selectedLayer,
+    setSelectedLayer,
+    showTransparency = false,
+    onGhostNavigate,
+}) => {
     const {
         selectKeyboardKey,
         selectedTarget,
@@ -185,18 +192,18 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer, set
     const KC_TRNS = 1;
 
     // Helper to find effective keycode for transparency
-    const findEffectiveKey = (startLayer: number, pos: number) => {
-        for (let l = startLayer - 1; l >= 0; l--) {
-            const keymap = keyboard.keymap?.[l];
-            if (!keymap) continue;
-            const code = keymap[pos];
-            if (code !== KC_TRNS) {
-                return {
-                    keycode: code,
-                    sourceLayer: l,
-                    sourceLayerColor: keyboard.cosmetic?.layer_colors?.[l] || "primary"
-                };
-            }
+    // Current behavior: always use Layer 0 as the ghost source.
+    const findEffectiveKey = (_startLayer: number, pos: number) => {
+        const baseLayer = 0;
+        const keymap = keyboard.keymap?.[baseLayer];
+        if (!keymap) return null;
+        const code = keymap[pos];
+        if (code !== KC_TRNS) {
+            return {
+                keycode: code,
+                sourceLayer: baseLayer,
+                sourceLayerColor: keyboard.cosmetic?.layer_colors?.[baseLayer] || "primary"
+            };
         }
         return null;
     };
@@ -353,14 +360,50 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer, set
                             row={row}
                             col={col}
                             onClick={handleKeyClick} // Clicking ghost selects the key slot on CURRENT layer
-                            onDoubleClick={() => setSelectedLayer(ghostSourceLayer)}
+                            onDoubleClick={() => {
+                                if (onGhostNavigate) {
+                                    onGhostNavigate(ghostSourceLayer);
+                                } else {
+                                    setSelectedLayer(ghostSourceLayer);
+                                }
+                            }}
                             keyContents={ghostKeyContents}
                             layerColor={ghostLayerColor}
                             headerClassName={ghostHeaderClassFull}
                             // Ghost styles
                             className={cn("border-solid border-[3px] transition-opacity", isSelected ? "opacity-0" : "opacity-50 group-hover:opacity-0")}
                             // Override border color via style to match the specific darkened color
-                            style={{ borderColor: darkBorderColor }}
+                            style={{ borderColor: darkBorderColor, pointerEvents: "none" }}
+                            // Dragging a ghost key should behave like dragging the real transparent key slot
+                            dragItemData={{
+                                keycode: keycodeName,
+                                label,
+                                row,
+                                col,
+                                layer: selectedLayer,
+                                extra: keyContents,
+                                props: {
+                                    x: 0,
+                                    y: 0,
+                                    w: layout.w,
+                                    h: layout.h,
+                                    row,
+                                    col,
+                                    keycode: keycodeName,
+                                    label,
+                                    keyContents,
+                                    layerColor: activeLayerColor,
+                                    headerClassName: keyHeaderClassFull,
+                                    hoverBorderColor: keyHoverBorder,
+                                    hoverBackgroundColor: keyHoverBg,
+                                    hoverLayerColor: keyHoverLayerColor,
+                                    isRelative: true,
+                                    variant: keyVariant,
+                                    className: "",
+                                    selected: false,
+                                    disableHover: true,
+                                },
+                            }}
                             variant={keyVariant}
                             layerIndex={selectedLayer} // Important: belongs to current layer logic
                             hasPendingChange={hasPendingChangeForKey(selectedLayer, row, col)}
@@ -377,21 +420,31 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer, set
                     };
 
                     return (
-                        <div className="group" style={wrapperStyle} key={`${row}-${col}-fragment`}>
-                            {React.cloneElement(standardKey, { x: 0, y: 0 })}
-                            <Tooltip delayDuration={0}>
-                                <TooltipTrigger asChild>
-                                    {React.cloneElement(ghostOverlay, { x: 0, y: 0 })}
-                                </TooltipTrigger>
-                                <TooltipContent
-                                    className={cn(`bg-kb-${ghostLayerColor} border-none`, colorClasses[ghostLayerColor] || "text-white")}
-                                    arrowStyle={{ backgroundColor: hex, fill: 'transparent' }}
-                                    side="top"
+                        <Tooltip delayDuration={0} key={`${row}-${col}-fragment`}>
+                            <TooltipTrigger asChild>
+                                <div
+                                    className="group"
+                                    style={wrapperStyle}
+                                    onDoubleClick={() => {
+                                        if (onGhostNavigate) {
+                                            onGhostNavigate(ghostSourceLayer);
+                                        } else {
+                                            setSelectedLayer(ghostSourceLayer);
+                                        }
+                                    }}
                                 >
-                                    {tooltipText}
-                                </TooltipContent>
-                            </Tooltip>
-                        </div>
+                                    {React.cloneElement(standardKey, { x: 0, y: 0 })}
+                                    {React.cloneElement(ghostOverlay, { x: 0, y: 0 })}
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent
+                                className={cn(`bg-kb-${ghostLayerColor} border-none`, colorClasses[ghostLayerColor] || "text-white")}
+                                arrowStyle={{ backgroundColor: hex, fill: 'transparent' }}
+                                side="top"
+                            >
+                                {tooltipText}
+                            </TooltipContent>
+                        </Tooltip>
                     );
                 })}
             </div>

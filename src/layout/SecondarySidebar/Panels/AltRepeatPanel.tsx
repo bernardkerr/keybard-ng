@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowRight, Plus, X } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import OnOffToggle from "@/components/ui/OnOffToggle";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
@@ -201,17 +201,6 @@ const AltRepeatPanel: React.FC = () => {
                                 )}
                                 onClick={() => handleEdit(i)}
                             >
-                                {/* Delete button */}
-                                <button
-                                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        clearAltRepeat(i);
-                                    }}
-                                    title="Clear alt-repeat"
-                                >
-                                    <X className="w-3 h-3 text-white" />
-                                </button>
                                 <span className="text-[9px] font-bold text-slate-600 mb-1">AR {i}</span>
                                 <div className="flex flex-row items-center gap-1">
                                     {renderSmallKey(entry.keycode, i, "keycode", false)}
@@ -310,7 +299,6 @@ const AltRepeatPanel: React.FC = () => {
                             label={i.toString()}
                             keyContents={keyContents}
                             onEdit={handleEdit}
-                            onDelete={isDefined ? clearAltRepeat : undefined}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}

@@ -36,6 +36,7 @@ import { MATRIX_COLS } from "@/constants/svalboard-layout";
 import EditorSidePanel, { PickerMode } from "./SecondarySidebar/components/EditorSidePanel";
 import { InfoPanelWidget } from "@/components/InfoPanelWidget";
 import { EditorControls } from "./EditorControls";
+import { vialService } from "@/services/vial.service";
 
 const EditorLayout = () => {
     const { assignKeycodeTo } = useKeyBinding();
@@ -89,6 +90,9 @@ const EditorLayoutInner = () => {
         { id: "primary", selectedLayer: 0 }
     ]);
     const [showAllLayers, setShowAllLayers] = React.useState(true);
+    const [isMultiLayersActive, setIsMultiLayersActive] = React.useState(false);
+    const viewsScrollRef = React.useRef<HTMLDivElement>(null);
+    const layerViewRefs = React.useRef<Map<number, HTMLDivElement>>(new Map());
     let nextViewId = React.useRef(1);
 
     // Animation: flying icon between layers-plus and layers-minus
@@ -217,6 +221,51 @@ const EditorLayoutInner = () => {
         // Always sync LayerContext so sidebar panels reflect the last-interacted view
         setSelectedLayer(layer);
     }, [setSelectedLayer]);
+
+    const handleGhostNavigate = React.useCallback((sourceLayer: number) => {
+        const targetEl = layerViewRefs.current.get(sourceLayer);
+        const container = viewsScrollRef.current;
+        if (targetEl && container) {
+            const top = targetEl.offsetTop;
+            container.scrollTo({ top, behavior: "smooth" });
+        }
+        setSelectedLayer(sourceLayer);
+    }, [setSelectedLayer]);
+
+    const primaryView = React.useMemo(
+        () => viewInstances.find(v => v.id === "primary") ?? { id: "primary", selectedLayer },
+        [viewInstances, selectedLayer]
+    );
+
+    const multiLayerIds = React.useMemo(() => {
+        if (!keyboard) return [] as number[];
+        const totalLayers = keyboard.layers || 16;
+
+        if (showAllLayers) {
+            return Array.from({ length: totalLayers }, (_, i) => i);
+        }
+
+        const keymap = keyboard.keymap || [];
+        return Array.from({ length: totalLayers }, (_, i) => i).filter((layerIndex) => {
+            const layerData = keymap[layerIndex];
+            const isEmpty = layerData ? vialService.isLayerEmpty(layerData) : true;
+            return !isEmpty || layerIndex === primaryView.selectedLayer;
+        });
+    }, [keyboard, showAllLayers, primaryView.selectedLayer]);
+
+    const renderedViews = React.useMemo(() => {
+        if (!isMultiLayersActive) {
+            return viewInstances;
+        }
+        const extraLayers = multiLayerIds.filter(layerIndex => layerIndex !== primaryView.selectedLayer);
+        return [
+            primaryView,
+            ...extraLayers.map(layerIndex => ({
+                id: `multi-${layerIndex}`,
+                selectedLayer: layerIndex
+            }))
+        ];
+    }, [isMultiLayersActive, viewInstances, primaryView, multiLayerIds]);
 
     // Ref for measuring container dimensions
     const contentContainerRef = React.useRef<HTMLDivElement>(null);
@@ -619,58 +668,79 @@ const EditorLayoutInner = () => {
                 <LayerSelector
                     selectedLayer={selectedLayer}
                     setSelectedLayer={setSelectedLayer}
+                    isMultiLayersActive={isMultiLayersActive}
+                    onToggleMultiLayers={() => setIsMultiLayersActive(prev => !prev)}
                 />
 
                 <div
                     className="flex-1 overflow-y-auto flex flex-col items-center max-w-full relative"
+                    ref={viewsScrollRef}
                 >
 
                     {activePanel === "matrixtester" ? (
                         <MatrixTester />
                     ) : (
                         <>
-                            {viewInstances.map((view) => (
-                                <KeyboardViewInstance
+                            {renderedViews.map((view) => (
+                                <div
                                     key={view.id}
-                                    instanceId={view.id}
-                                    selectedLayer={view.selectedLayer}
-                                    setSelectedLayer={(layer) => handleSetViewLayer(view.id, layer)}
-                                    isPrimary={view.id === "primary"}
-                                    showAllLayers={showAllLayers}
-                                    onToggleShowLayers={handleToggleShowLayers}
-                                    onRemove={view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
-                                    isRevealing={view.id === revealingViewId}
-                                    isHiding={view.id === hidingViewId}
-                                />
+                                    ref={(el) => {
+                                        if (el) {
+                                            const existing = layerViewRefs.current.get(view.selectedLayer);
+                                            if (view.id === "primary" || !existing) {
+                                                layerViewRefs.current.set(view.selectedLayer, el);
+                                            }
+                                        } else {
+                                            layerViewRefs.current.delete(view.selectedLayer);
+                                        }
+                                    }}
+                                    className="w-full"
+                                >
+                                    <KeyboardViewInstance
+                                        instanceId={view.id}
+                                        selectedLayer={view.selectedLayer}
+                                        setSelectedLayer={(layer) => handleSetViewLayer(view.id, layer)}
+                                        isPrimary={view.id === "primary"}
+                                        hideLayerTabs={isMultiLayersActive && view.id !== "primary"}
+                                        showAllLayers={showAllLayers}
+                                        onToggleShowLayers={handleToggleShowLayers}
+                                        onRemove={!isMultiLayersActive && view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
+                                        onGhostNavigate={isMultiLayersActive ? handleGhostNavigate : undefined}
+                                        isRevealing={view.id === revealingViewId}
+                                        isHiding={view.id === hidingViewId}
+                                    />
+                                </div>
                             ))}
 
                             {/* Add View Button */}
-                            <div
-                                className="flex items-center pl-5 pb-2 w-full"
-                                style={{
-                                    opacity: hideAddButton ? 0 : 1,
-                                    transition: hideAddButton ? 'none' : 'opacity 150ms ease-in-out',
-                                }}
-                            >
-                                <Tooltip delayDuration={500}>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                            ref={addViewButtonRef}
-                                            onClick={handleAddView}
-                                            className="p-2 rounded-full transition-colors text-gray-500 hover:text-gray-800 hover:bg-gray-200"
-                                            aria-label="Add keyboard layer view"
-                                        >
-                                            <LayersPlusIcon className="h-5 w-5" />
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="right">
-                                        Show another layer view
-                                    </TooltipContent>
-                                </Tooltip>
-                            </div>
+                            {!isMultiLayersActive && (
+                                <div
+                                    className="flex items-center pl-5 pb-2 w-full"
+                                    style={{
+                                        opacity: hideAddButton ? 0 : 1,
+                                        transition: hideAddButton ? 'none' : 'opacity 150ms ease-in-out',
+                                    }}
+                                >
+                                    <Tooltip delayDuration={500}>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                ref={addViewButtonRef}
+                                                onClick={handleAddView}
+                                                className="p-2 rounded-full transition-colors text-gray-500 hover:text-gray-800 hover:bg-gray-200"
+                                                aria-label="Add keyboard layer view"
+                                            >
+                                                <LayersPlusIcon className="h-5 w-5" />
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right">
+                                            Show another layer view
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </div>
+                            )}
 
                             {/* Flying icon animation (add: plus→minus, remove: minus→plus) */}
-                            {flyingIcon && (
+                            {flyingIcon && !isMultiLayersActive && (
                                 <div
                                     className="fixed pointer-events-none"
                                     style={{

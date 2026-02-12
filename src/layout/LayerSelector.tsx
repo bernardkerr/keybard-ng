@@ -1,6 +1,7 @@
 import { LayoutImport } from "@/components/icons/LayoutImport";
 import { LayoutExport } from "@/components/icons/LayoutExport";
 import MatrixTesterIcon from "@/components/icons/MatrixTesterSvg";
+import LayoutMultiLayersIcon from "@/components/icons/LayoutMultiLayersIcon";
 import { ArrowLeft, ChevronDown, Unplug, Undo2, Zap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useVial } from "@/contexts/VialContext";
@@ -29,13 +30,15 @@ import { usePanels } from "@/contexts/PanelsContext";
 interface LayerSelectorProps {
     selectedLayer: number;
     setSelectedLayer: (layer: number) => void;
+    isMultiLayersActive: boolean;
+    onToggleMultiLayers: () => void;
 }
 
 /**
  * Component for selecting and managing active layers in the keyboard editor.
  * Displays a horizontal bar of layer tabs with a filter toggle for hiding blank layers.
  */
-const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer }) => {
+const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer, isMultiLayersActive, onToggleMultiLayers }) => {
     const { keyboard, setKeyboard, isConnected, connect, resetToOriginal, setIsImporting } = useVial();
     const { queue, commit, getPendingCount, clearAll } = useChanges();
     const { getSetting, updateSetting } = useSettings();
@@ -331,7 +334,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer }
 
                                             // Pending Changes Ring (Manual Mode only)
                                             getPendingCount() > 0
-                                                ? `border - transparent ring - [3px] ring - red - 500 ring - offset - 2 ring - offset - kb - gray ${!ignoreHover ? "hover:ring-black" : ""} `
+                                                ? `border-transparent ring-[3px] ring-red-500 ring-offset-2 ring-offset-kb-gray ${!ignoreHover ? "hover:ring-black" : ""}`
                                                 : "", // No ring when disabled
 
                                             // Active state (click) - only when enabled
@@ -420,13 +423,13 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer }
                                     <button
                                         onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                                         className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-200"
-                                        aria-label="Import"
+                                        aria-label="Import Layout"
                                     >
                                         <LayoutImport className="h-5 w-5 text-black" />
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
-                                    Import
+                                    Import Layout
                                 </TooltipContent>
                             </Tooltip>
 
@@ -437,15 +440,48 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer }
                                         onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }}
                                         className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-200"
                                         disabled={!keyboard}
-                                        aria-label="Export"
+                                        aria-label="Export Layout"
                                     >
                                         <LayoutExport className="h-5 w-5 text-black" />
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
-                                    Export
+                                    Export Layout
                                 </TooltipContent>
                             </Tooltip>
+
+                            {/* Multi Layers Button */}
+                            <Tooltip delayDuration={500}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (activePanel === "matrixtester") {
+                                                setActivePanel(null);
+                                            }
+                                            onToggleMultiLayers();
+                                        }}
+                                        className={cn(
+                                            "p-2 rounded-full transition-all cursor-pointer",
+                                            isMultiLayersActive
+                                                ? "bg-black hover:bg-gray-800"
+                                                : "hover:bg-gray-200"
+                                        )}
+                                        aria-label={isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
+                                    >
+                                        <LayoutMultiLayersIcon className={cn(
+                                            "h-5 w-5",
+                                            isMultiLayersActive ? "text-kb-gray" : "text-black"
+                                        )} />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    {isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
+                                </TooltipContent>
+                            </Tooltip>
+
+                            {/* Divider */}
+                            <div className="h-4 w-[1px] bg-slate-400 ml-2 mr-0 flex-shrink-0" />
                         </div>
 
                     </div>
