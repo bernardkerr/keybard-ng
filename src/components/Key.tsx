@@ -342,7 +342,7 @@ function processKeyData(keycode: string, label: string, keyContents: KeyContent 
         displayLabel = label;
     }
 
-    if (displayLabel === "KC_NO") displayLabel = "";
+    if (displayLabel === "KC_NO" || displayLabel.toLowerCase() === "0x0000" || displayLabel.toLowerCase() === "0xnan") displayLabel = "";
 
     const { icons, isMouse } = getHeaderIcons(keycode, displayLabel);
     if (icons.length > 0) {

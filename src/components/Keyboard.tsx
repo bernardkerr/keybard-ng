@@ -312,7 +312,11 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer, set
 
                     // Use empty label if TRNS/NO to avoid "0x0000" or "OXNAN"
                     // Also check for "0xNaN" string which might come from invalid keycode formatting
-                    const isInvalidLabel = ghostKeycodeName === "0xNaN" || ghostDefaultLabel === "0xNaN";
+                    const isInvalidLabel =
+                        ghostKeycodeName.toLowerCase() === "0xnan" ||
+                        ghostDefaultLabel.toLowerCase() === "0xnan" ||
+                        ghostKeycodeName.toLowerCase() === "0x0000" ||
+                        ghostDefaultLabel.toLowerCase() === "0x0000";
                     const ghostLabel = (isTrnsOrNo || isInvalidLabel) ? "" : (getLabelForKeycode(ghostKeycodeName, internationalLayout) || ghostDefaultLabel);
 
                     // Styles for ghost key

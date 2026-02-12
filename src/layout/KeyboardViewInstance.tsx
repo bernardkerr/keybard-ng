@@ -316,31 +316,33 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                 <LayerNameBadge selectedLayer={selectedLayer} />
 
                 {/* Transparency Button */}
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <button
-                            onClick={() => setIsTransparencyActive(!isTransparencyActive)}
-                            disabled={activePanel === "matrixtester" || selectedLayer === 0}
-                            className={cn(
-                                "p-1.5 rounded-full transition-all flex-shrink-0",
-                                activePanel === "matrixtester" || selectedLayer === 0
-                                    ? "text-gray-400 cursor-not-allowed opacity-30"
-                                    : isTransparencyActive
-                                        ? "bg-black hover:bg-gray-800"
-                                        : "hover:bg-gray-200"
-                            )}
-                            aria-label={isTransparencyActive ? "Hide Transparent Keys" : "Show Transparent Keys"}
-                        >
-                            <Microscope className={cn(
-                                "h-4 w-4",
-                                isTransparencyActive ? "text-kb-gray" : "text-black"
-                            )} />
-                        </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">
-                        {isTransparencyActive ? "Hide Transparent Keys" : "Show Transparent Keys"}
-                    </TooltipContent>
-                </Tooltip>
+                {selectedLayer !== 0 && (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                onClick={() => setIsTransparencyActive(!isTransparencyActive)}
+                                disabled={activePanel === "matrixtester"}
+                                className={cn(
+                                    "p-1.5 rounded-full transition-all flex-shrink-0",
+                                    activePanel === "matrixtester"
+                                        ? "text-gray-400 cursor-not-allowed opacity-30"
+                                        : isTransparencyActive
+                                            ? "bg-black hover:bg-gray-800"
+                                            : "hover:bg-gray-200"
+                                )}
+                                aria-label={isTransparencyActive ? "Show Transparent Keys" : "Hide Transparent Keys"}
+                            >
+                                <Microscope className={cn(
+                                    "h-4 w-4",
+                                    isTransparencyActive ? "text-kb-gray" : "text-black"
+                                )} />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                            {isTransparencyActive ? "Show Transparent Keys" : "Hide Transparent Keys"}
+                        </TooltipContent>
+                    </Tooltip>
+                )}
             </div>
 
             {/* Keyboard */}
