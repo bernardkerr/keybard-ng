@@ -18,7 +18,7 @@ import { vialService } from "@/services/vial.service";
 import { cn } from "@/lib/utils";
 
 const LeadersPanel: React.FC = () => {
-    const { keyboard, setKeyboard, isConnected } = useVial();
+    const { keyboard, isConnected, setKeyboard } = useVial();
     const { assignKeycode, isBinding } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
@@ -104,26 +104,6 @@ const LeadersPanel: React.FC = () => {
         setAlternativeHeader(true);
         if (slot) {
             setInitialEditorSlot(slot);
-        }
-    };
-
-    const clearLeader = async (index: number) => {
-        if (!keyboard.leaders) return;
-        const updatedLeaders = [...keyboard.leaders];
-        updatedLeaders[index] = {
-            ...updatedLeaders[index],
-            sequence: ["KC_NO", "KC_NO", "KC_NO", "KC_NO", "KC_NO"],
-            output: "KC_NO",
-            options: 0
-        };
-        const updatedKeyboard = { ...keyboard, leaders: updatedLeaders };
-        setKeyboard(updatedKeyboard);
-
-        try {
-            await vialService.updateLeader(updatedKeyboard, index);
-            await vialService.saveViable();
-        } catch (err) {
-            console.error("Failed to clear leader:", err);
         }
     };
 

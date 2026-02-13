@@ -6,7 +6,6 @@ import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
-import { vialService } from "@/services/vial.service";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
@@ -43,30 +42,6 @@ const OverridesPanel: React.FC = () => {
         setAlternativeHeader(true);
         if (slot) {
             setInitialEditorSlot(slot);
-        }
-    };
-
-    const clearOverride = async (index: number) => {
-        if (!keyboard.key_overrides) return;
-        const updatedOverrides = [...keyboard.key_overrides];
-        updatedOverrides[index] = {
-            ...updatedOverrides[index],
-            trigger: "KC_NO",
-            replacement: "KC_NO",
-            options: 0,
-            layers: 0xFFFF,
-            negative_mod_mask: 0,
-            suppressed_mods: 0,
-            trigger_mods: 0
-        };
-        const updatedKeyboard = { ...keyboard, key_overrides: updatedOverrides };
-        setKeyboard(updatedKeyboard);
-
-        try {
-            await vialService.updateKeyoverride(updatedKeyboard, index);
-            await vialService.saveViable();
-        } catch (err) {
-            console.error("Failed to clear override:", err);
         }
     };
 

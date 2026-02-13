@@ -7,13 +7,12 @@ import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
-import { vialService } from "@/services/vial.service";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { KeyContent } from "@/types/vial.types";
 
 const TapdancePanel: React.FC = () => {
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard } = useVial();
     const { assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
@@ -34,28 +33,6 @@ const TapdancePanel: React.FC = () => {
     const hoverHeaderClass = hoverHeaderClasses[layerColorName] || hoverHeaderClasses["primary"];
 
     const tapdances = keyboard.tapdances || [];
-
-    const clearTapdance = async (index: number) => {
-        if (!keyboard.tapdances) return;
-        const updatedTapdances = [...keyboard.tapdances];
-        updatedTapdances[index] = {
-            idx: index,
-            tap: "KC_NO",
-            hold: "KC_NO",
-            doubletap: "KC_NO",
-            taphold: "KC_NO",
-            tapping_term: 200,
-        };
-        const updatedKeyboard = { ...keyboard, tapdances: updatedTapdances };
-        setKeyboard(updatedKeyboard);
-
-        try {
-            await vialService.updateTapdance(updatedKeyboard, index);
-            await vialService.saveViable();
-        } catch (err) {
-            console.error("Failed to clear tap dance:", err);
-        }
-    };
 
     const handleEdit = (index: number, slot?: string) => {
         setItemToEdit(index);

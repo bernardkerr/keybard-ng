@@ -1,7 +1,6 @@
 import React from "react";
 import { ArrowRight, Plus } from "lucide-react";
 import { Key } from "@/components/Key";
-import { vialService } from "@/services/vial.service";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -18,7 +17,7 @@ interface Props {
 }
 
 const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard } = useVial();
     const { assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
@@ -33,21 +32,6 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
     const isHorizontal = layoutMode === "bottombar";
 
     if (!keyboard) return null;
-
-    const clearMacro = async (index: number) => {
-        if (!keyboard.macros) return;
-        const updatedMacros = [...keyboard.macros];
-        updatedMacros[index] = { mid: index, actions: [] };
-        const updatedKeyboard = { ...keyboard, macros: updatedMacros };
-        setKeyboard(updatedKeyboard);
-
-        try {
-            await vialService.updateMacros(updatedKeyboard);
-            await vialService.saveViable();
-        } catch (err) {
-            console.error("Failed to clear macro:", err);
-        }
-    };
 
     const findFirstEmptyMacro = (): number => {
         if (!keyboard.macros) return 0;

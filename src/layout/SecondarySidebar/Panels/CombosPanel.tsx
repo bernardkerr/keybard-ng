@@ -19,7 +19,7 @@ import { KeyContent, ComboOptions } from "@/types/vial.types";
 import { cn } from "@/lib/utils";
 
 const CombosPanel: React.FC = () => {
-    const { keyboard, setKeyboard, isConnected } = useVial();
+    const { keyboard, isConnected, setKeyboard } = useVial();
     const { assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
@@ -35,26 +35,6 @@ const CombosPanel: React.FC = () => {
     const isHorizontal = layoutMode === "bottombar";
 
     if (!keyboard) return null;
-
-    const clearCombo = async (index: number) => {
-        if (!keyboard.combos) return;
-        const updatedCombos = [...keyboard.combos];
-        updatedCombos[index] = {
-            ...updatedCombos[index],
-            keys: ["KC_NO", "KC_NO", "KC_NO", "KC_NO"],
-            output: "KC_NO",
-            options: ComboOptions.ENABLED,
-        };
-        const updatedKeyboard = { ...keyboard, combos: updatedCombos };
-        setKeyboard(updatedKeyboard);
-
-        try {
-            await vialService.updateCombo(updatedKeyboard, index);
-            await vialService.saveViable();
-        } catch (err) {
-            console.error("Failed to clear combo:", err);
-        }
-    };
 
     const findFirstEmptyCombo = (): number => {
         if (!keyboard.combos) return 0;

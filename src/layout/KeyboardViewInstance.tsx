@@ -13,13 +13,11 @@ import { cn } from "@/lib/utils";
 import { svalService } from "@/services/sval.service";
 import { vialService } from "@/services/vial.service";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
-import { KEYMAP } from "@/constants/keygen";
 import { usePanels } from "@/contexts/PanelsContext";
 import {
     ContextMenu,
     ContextMenuContent,
     ContextMenuItem,
-    ContextMenuSeparator,
     ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 
@@ -143,70 +141,6 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         } catch (e) {
             console.error("Failed to paste layer", e);
         }
-    };
-
-    const batchWipeKeys = (targetKeycode: number, filterFn: (currentValue: number) => boolean) => {
-        if (!keyboard || !keyboard.keymap) return;
-        const matrixCols = keyboard.cols || MATRIX_COLS;
-        const currentLayerKeymap = keyboard.keymap[selectedLayer] || [];
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-        if (!updatedKeyboard.keymap[selectedLayer]) {
-            updatedKeyboard.keymap[selectedLayer] = [];
-        }
-        let hasChanges = false;
-        for (let r = 0; r < keyboard.rows; r++) {
-            for (let c = 0; c < keyboard.cols; c++) {
-                const idx = r * matrixCols + c;
-                const currentValue = currentLayerKeymap[idx];
-                if (filterFn(currentValue)) {
-                    hasChanges = true;
-                    updatedKeyboard.keymap[selectedLayer][idx] = targetKeycode;
-                    const row = r;
-                    const col = c;
-                    const previousValue = currentValue;
-                    const changeDesc = `key_${selectedLayer}_${row}_${col}`;
-                    queue(
-                        changeDesc,
-                        async () => {
-                            updateKey(selectedLayer, row, col, targetKeycode);
-                        },
-                        {
-                            type: "key",
-                            layer: selectedLayer,
-                            row,
-                            col,
-                            keycode: targetKeycode,
-                            previousValue,
-                        }
-                    );
-                }
-            }
-        }
-        if (hasChanges) {
-            setKeyboard(updatedKeyboard);
-        }
-    };
-
-    const handleWipeDisable = () => {
-        const KC_NO = 0;
-        batchWipeKeys(KC_NO, (currentValue) => currentValue !== KC_NO);
-    };
-
-    const handleWipeTransparent = () => {
-        const KC_TRNS = KEYMAP['KC_TRNS']?.code ?? 1;
-        batchWipeKeys(KC_TRNS, (currentValue) => currentValue !== KC_TRNS);
-    };
-
-    const handleChangeDisabledToTransparent = () => {
-        const KC_TRNS = KEYMAP['KC_TRNS']?.code ?? 1;
-        const KC_NO = 0;
-        batchWipeKeys(KC_TRNS, (currentValue) => currentValue === KC_NO);
-    };
-
-    const handleChangeTransparentToDisabled = () => {
-        const KC_TRNS = KEYMAP['KC_TRNS']?.code ?? 1;
-        const KC_NO = 0;
-        batchWipeKeys(KC_NO, (currentValue) => currentValue === KC_TRNS);
     };
 
     const renderLayerTab = (i: number) => {

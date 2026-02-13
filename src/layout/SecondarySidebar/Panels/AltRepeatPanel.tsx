@@ -48,26 +48,6 @@ const AltRepeatPanel: React.FC = () => {
         }
     };
 
-    const clearAltRepeat = async (index: number) => {
-        if (!keyboard.alt_repeat_keys) return;
-        const updatedKeys = [...keyboard.alt_repeat_keys];
-        updatedKeys[index] = {
-            ...updatedKeys[index],
-            keycode: "KC_NO",
-            alt_keycode: "KC_NO",
-            options: 0
-        };
-        const updatedKeyboard = { ...keyboard, alt_repeat_keys: updatedKeys };
-        setKeyboard(updatedKeyboard);
-
-        try {
-            await vialService.updateAltRepeatKey(updatedKeyboard, index);
-            await vialService.saveViable();
-        } catch (err) {
-            console.error("Failed to clear alt-repeat:", err);
-        }
-    };
-
     const findFirstEmptyAltRepeat = (): number => {
         if (!keyboard.alt_repeat_keys) return 0;
         for (let i = 0; i < keyboard.alt_repeat_keys.length; i++) {
