@@ -14,6 +14,7 @@ import { useChanges } from "@/contexts/ChangesContext";
 import { svalService } from "@/services/sval.service";
 import { usbInstance } from "@/services/usb.service";
 import { layerColors } from "@/utils/colors";
+import MiniZapIcon from "@/components/icons/MiniZap";
 import { getPresetHsv, hsvToHex, hexToHsv } from "@/utils/color-conversion";
 
 import { cn } from "@/lib/utils";
@@ -28,13 +29,14 @@ interface LayerNameBadgeProps {
     x?: number;
     y?: number;
     className?: string;
+    isOn?: boolean;
 }
 
 /**
  * Centered layer name badge with color picker.
  * Positioned between thumb clusters in the keyboard layout.
  */
-export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x, y, className }) => {
+export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x, y, className, isOn }) => {
     const { keyboard, setKeyboard, isConnected, updateKey } = useVial();
     const { queue } = useChanges();
     const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
@@ -336,6 +338,17 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
                     >
                         {svalService.getLayerName(keyboard, selectedLayer)}
                     </span>
+                )}
+
+                {isOn && (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span className="flex items-center">
+                                <MiniZapIcon className="w-6 h-6 text-black" />
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">Layer On</TooltipContent>
+                    </Tooltip>
                 )}
 
                 {/* Layer Actions Menu */}

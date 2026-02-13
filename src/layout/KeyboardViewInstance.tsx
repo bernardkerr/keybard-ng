@@ -187,7 +187,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem onSelect={() => onToggleLayerOn(i)}>
-                        {isOn ? "Turn Off" : "Turn On"}
+                        {isOn ? "Turn Layer Off" : "Turn Layer On"}
                     </ContextMenuItem>
                 </ContextMenuContent>
             </ContextMenu>
@@ -263,7 +263,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
 
             {/* Layer Name Badge Row */}
             <div className="pl-[27px] pt-[7px] pb-2 flex items-center gap-2">
-                <LayerNameBadge selectedLayer={selectedLayer} />
+                <LayerNameBadge selectedLayer={selectedLayer} isOn={!!layerOnState?.[selectedLayer]} />
 
                 {/* Transparency Button */}
                 {selectedLayer !== 0 && (
