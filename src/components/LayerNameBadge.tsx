@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Ellipsis, Settings } from "lucide-react";
+import { EllipsisVertical, Settings } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import {
@@ -373,7 +373,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <button className="hover:bg-black/10 p-1 rounded-full transition-colors flex items-center justify-center text-black outline-none">
-                            <Ellipsis size={16} strokeWidth={1.5} />
+                            <EllipsisVertical size={16} strokeWidth={1.5} />
                         </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-56">
