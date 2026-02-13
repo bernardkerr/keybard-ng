@@ -30,13 +30,21 @@ interface LayerNameBadgeProps {
     y?: number;
     className?: string;
     isOn?: boolean;
+    onToggleLayerOn?: (layer: number) => void;
 }
 
 /**
  * Centered layer name badge with color picker.
  * Positioned between thumb clusters in the keyboard layout.
  */
-export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x, y, className, isOn }) => {
+export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
+    selectedLayer,
+    x,
+    y,
+    className,
+    isOn,
+    onToggleLayerOn,
+}) => {
     const { keyboard, setKeyboard, isConnected, updateKey } = useVial();
     const { queue } = useChanges();
     const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
@@ -319,6 +327,23 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
                     )}
                 </div>
 
+                {isOn && (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span
+                                className="flex items-center"
+                                onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleLayerOn?.(selectedLayer);
+                                }}
+                            >
+                                <MiniZapIcon className="w-6 h-6 text-black" />
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">Layer On</TooltipContent>
+                    </Tooltip>
+                )}
+
                 {/* Layer Name */}
                 {isEditing ? (
                     <Input
@@ -332,23 +357,16 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
                     />
                 ) : (
                     <span
-                        className="text-base font-medium text-black cursor-pointer hover:underline whitespace-nowrap select-none"
+                        className={cn(
+                            "text-base font-medium text-black cursor-pointer hover:underline whitespace-nowrap select-none",
+                            isOn && "underline"
+                        )}
+                        style={isOn ? { textUnderlineOffset: "2px" } : undefined}
                         onClick={handleStartEditing}
                         title="Click to rename layer"
                     >
                         {svalService.getLayerName(keyboard, selectedLayer)}
                     </span>
-                )}
-
-                {isOn && (
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span className="flex items-center">
-                                <MiniZapIcon className="w-6 h-6 text-black" />
-                            </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">Layer On</TooltipContent>
-                    </Tooltip>
                 )}
 
                 {/* Layer Actions Menu */}

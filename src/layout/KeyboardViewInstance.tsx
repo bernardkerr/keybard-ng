@@ -166,6 +166,10 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                 <ContextMenuTrigger asChild>
                     <button
                         onClick={handleSelectLayer(i)}
+                        onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            onToggleLayerOn(i);
+                        }}
                         className={cn(
                             "px-4 py-1 rounded-full transition-all text-sm font-medium cursor-pointer border-none outline-none whitespace-nowrap",
                             isActive
@@ -263,7 +267,11 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
 
             {/* Layer Name Badge Row */}
             <div className="pl-[27px] pt-[7px] pb-2 flex items-center gap-2">
-                <LayerNameBadge selectedLayer={selectedLayer} isOn={!!layerOnState?.[selectedLayer]} />
+                <LayerNameBadge
+                    selectedLayer={selectedLayer}
+                    isOn={!!layerOnState?.[selectedLayer]}
+                    onToggleLayerOn={onToggleLayerOn}
+                />
 
                 {/* Transparency Button */}
                 {selectedLayer !== 0 && (
