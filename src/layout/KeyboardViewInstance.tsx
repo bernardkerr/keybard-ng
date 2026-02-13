@@ -30,6 +30,8 @@ interface KeyboardViewInstanceProps {
     hideLayerTabs?: boolean;
     layerOnState: boolean[];
     onToggleLayerOn: (layer: number) => void;
+    transparencyByLayer: Record<number, boolean>;
+    onToggleTransparency: (layer: number, next: boolean) => void;
     showAllLayers: boolean;
     onToggleShowLayers: () => void;
     onRemove?: () => void;
@@ -50,6 +52,8 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     hideLayerTabs = false,
     layerOnState,
     onToggleLayerOn,
+    transparencyByLayer,
+    onToggleTransparency,
     showAllLayers,
     onToggleShowLayers,
     onRemove,
@@ -64,12 +68,10 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
 
     const [isTransparencyActive, setIsTransparencyActive] = useState(false);
 
-    // Reset transparency when Matrix Tester is active
+    // Track transparency per-layer when switching tabs
     useEffect(() => {
-        if (activePanel === "matrixtester") {
-            setIsTransparencyActive(false);
-        }
-    }, [activePanel]);
+        setIsTransparencyActive(!!transparencyByLayer[selectedLayer]);
+    }, [selectedLayer, transparencyByLayer]);
 
     // Ref for container
     const containerRef = useRef<HTMLDivElement>(null);
@@ -278,7 +280,11 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <button
-                                onClick={() => setIsTransparencyActive(!isTransparencyActive)}
+                                onClick={() => {
+                                    const next = !isTransparencyActive;
+                                    setIsTransparencyActive(next);
+                                    onToggleTransparency(selectedLayer, next);
+                                }}
                                 disabled={activePanel === "matrixtester"}
                                 className={cn(
                                     "p-1.5 rounded-full transition-all flex-shrink-0",

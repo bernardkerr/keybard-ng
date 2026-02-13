@@ -93,6 +93,7 @@ const EditorLayoutInner = () => {
     const [isMultiLayersActive, setIsMultiLayersActive] = React.useState(false);
     // UI-only layer on/off state. TODO: replace with device-provided layer state when available.
     const [layerOnState, setLayerOnState] = React.useState<boolean[]>([]);
+    const [transparencyByLayer, setTransparencyByLayer] = React.useState<Record<number, boolean>>({});
     const viewsScrollRef = React.useRef<HTMLDivElement>(null);
     const layerViewRefs = React.useRef<Map<number, HTMLDivElement>>(new Map());
     let nextViewId = React.useRef(1);
@@ -260,6 +261,10 @@ const EditorLayoutInner = () => {
             return base;
         });
     }, [keyboard?.layers]);
+
+    const handleToggleTransparency = React.useCallback((layerIndex: number, next: boolean) => {
+        setTransparencyByLayer(prev => ({ ...prev, [layerIndex]: next }));
+    }, []);
 
     const handleGhostNavigate = React.useCallback((sourceLayer: number) => {
         const targetEl = layerViewRefs.current.get(sourceLayer);
@@ -743,6 +748,8 @@ const EditorLayoutInner = () => {
                                         hideLayerTabs={isMultiLayersActive && view.id !== "primary"}
                                         layerOnState={layerOnState}
                                         onToggleLayerOn={handleToggleLayerOn}
+                                        transparencyByLayer={transparencyByLayer}
+                                        onToggleTransparency={handleToggleTransparency}
                                         showAllLayers={showAllLayers}
                                         onToggleShowLayers={handleToggleShowLayers}
                                         onRemove={!isMultiLayersActive && view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
