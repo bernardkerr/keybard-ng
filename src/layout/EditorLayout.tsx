@@ -91,6 +91,8 @@ const EditorLayoutInner = () => {
     ]);
     const [showAllLayers, setShowAllLayers] = React.useState(true);
     const [isMultiLayersActive, setIsMultiLayersActive] = React.useState(false);
+    // UI-only layer on/off state. TODO: replace with device-provided layer state when available.
+    const [layerOnState, setLayerOnState] = React.useState<boolean[]>([]);
     const viewsScrollRef = React.useRef<HTMLDivElement>(null);
     const layerViewRefs = React.useRef<Map<number, HTMLDivElement>>(new Map());
     let nextViewId = React.useRef(1);
@@ -115,6 +117,25 @@ const EditorLayoutInner = () => {
             if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
         };
     }, []);
+
+    // Initialize or resize layer "isOn" state when keyboard layer count changes.
+    // TODO: if/when the keyboard reports layer-on state, hydrate from that source instead.
+    React.useEffect(() => {
+        if (!keyboard) return;
+        const totalLayers = keyboard.layers || 16;
+        setLayerOnState(prev => {
+            if (!prev || prev.length === 0) {
+                return Array.from({ length: totalLayers }, (_, i) => i === 0);
+            }
+            if (prev.length === totalLayers) return prev;
+            const next = Array.from({ length: totalLayers }, (_, i) => {
+                const existing = prev[i];
+                if (existing === undefined) return i === 0;
+                return existing;
+            });
+            return next;
+        });
+    }, [keyboard]);
 
     const handleAddView = React.useCallback(() => {
         const newId = `secondary-${nextViewId.current++}`;
@@ -221,6 +242,24 @@ const EditorLayoutInner = () => {
         // Always sync LayerContext so sidebar panels reflect the last-interacted view
         setSelectedLayer(layer);
     }, [setSelectedLayer]);
+
+    // UI toggle for layer on/off. TODO: when hardware supports this, send the command
+    // and update state from the device response instead of flipping locally.
+    const handleToggleLayerOn = React.useCallback((layerIndex: number) => {
+        setLayerOnState(prev => {
+            const totalLayers = keyboard?.layers || 16;
+            const base = prev.length > 0
+                ? [...prev]
+                : Array.from({ length: totalLayers }, (_, i) => i === 0);
+            if (base.length < totalLayers) {
+                for (let i = base.length; i < totalLayers; i++) {
+                    base[i] = i === 0;
+                }
+            }
+            base[layerIndex] = !base[layerIndex];
+            return base;
+        });
+    }, [keyboard?.layers]);
 
     const handleGhostNavigate = React.useCallback((sourceLayer: number) => {
         const targetEl = layerViewRefs.current.get(sourceLayer);
@@ -702,6 +741,8 @@ const EditorLayoutInner = () => {
                                         setSelectedLayer={(layer) => handleSetViewLayer(view.id, layer)}
                                         isPrimary={view.id === "primary"}
                                         hideLayerTabs={isMultiLayersActive && view.id !== "primary"}
+                                        layerOnState={layerOnState}
+                                        onToggleLayerOn={handleToggleLayerOn}
                                         showAllLayers={showAllLayers}
                                         onToggleShowLayers={handleToggleShowLayers}
                                         onRemove={!isMultiLayersActive && view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}

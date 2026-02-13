@@ -32,6 +32,7 @@ interface KeyboardProps {
     setSelectedLayer: (layer: number) => void;
     showTransparency?: boolean;
     onGhostNavigate?: (sourceLayer: number) => void;
+    layerOnState?: boolean[];
 }
 
 /**
@@ -44,6 +45,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     setSelectedLayer,
     showTransparency = false,
     onGhostNavigate,
+    layerOnState,
 }) => {
     const {
         selectKeyboardKey,
@@ -192,20 +194,34 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     const KC_TRNS = 1;
 
     // Helper to find effective keycode for transparency
-    // Current behavior: always use Layer 0 as the ghost source.
-    const findEffectiveKey = (_startLayer: number, pos: number) => {
+    // Uses layerOnState (UI/device) to decide which lower layers are "active".
+    // Fallback is always Layer 0.
+    const findEffectiveKey = (startLayer: number, pos: number) => {
+        for (let l = startLayer - 1; l >= 0; l--) {
+            const isOn = layerOnState ? !!layerOnState[l] : false;
+            if (!isOn) continue;
+            const keymap = keyboard.keymap?.[l];
+            if (!keymap) continue;
+            const code = keymap[pos];
+            if (code !== KC_TRNS) {
+                return {
+                    keycode: code,
+                    sourceLayer: l,
+                    sourceLayerColor: keyboard.cosmetic?.layer_colors?.[l] || "primary"
+                };
+            }
+        }
+
+        // Fallback to layer 0 key
         const baseLayer = 0;
         const keymap = keyboard.keymap?.[baseLayer];
         if (!keymap) return null;
         const code = keymap[pos];
-        if (code !== KC_TRNS) {
-            return {
-                keycode: code,
-                sourceLayer: baseLayer,
-                sourceLayerColor: keyboard.cosmetic?.layer_colors?.[baseLayer] || "primary"
-            };
-        }
-        return null;
+        return {
+            keycode: code,
+            sourceLayer: baseLayer,
+            sourceLayerColor: keyboard.cosmetic?.layer_colors?.[baseLayer] || "primary"
+        };
     };
 
     return (
@@ -295,6 +311,13 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                             col={col}
                             selected={isKeySelected(row, col)}
                             onClick={handleKeyClick}
+                            onDoubleClick={isGhostKey ? () => {
+                                if (onGhostNavigate) {
+                                    onGhostNavigate(ghostSourceLayer);
+                                } else {
+                                    setSelectedLayer(ghostSourceLayer);
+                                }
+                            } : undefined}
                             keyContents={keyContents}
                             layerColor={activeLayerColor}
                             headerClassName={keyHeaderClassFull}

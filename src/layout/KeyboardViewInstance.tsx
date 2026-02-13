@@ -18,6 +18,7 @@ import {
     ContextMenu,
     ContextMenuContent,
     ContextMenuItem,
+    ContextMenuSeparator,
     ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 
@@ -27,6 +28,8 @@ interface KeyboardViewInstanceProps {
     setSelectedLayer: (layer: number) => void;
     isPrimary: boolean;
     hideLayerTabs?: boolean;
+    layerOnState: boolean[];
+    onToggleLayerOn: (layer: number) => void;
     showAllLayers: boolean;
     onToggleShowLayers: () => void;
     onRemove?: () => void;
@@ -45,6 +48,8 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     setSelectedLayer,
     isPrimary,
     hideLayerTabs = false,
+    layerOnState,
+    onToggleLayerOn,
     showAllLayers,
     onToggleShowLayers,
     onRemove,
@@ -146,6 +151,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     const renderLayerTab = (i: number) => {
         const layerData = keyboard.keymap?.[i];
         const isEmpty = layerData ? vialService.isLayerEmpty(layerData) : true;
+        const isOn = !!layerOnState?.[i];
 
         const shouldHideBlank = !showAllLayers;
         if (shouldHideBlank && isEmpty && i !== selectedLayer) {
@@ -167,7 +173,9 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                                 : "bg-transparent text-gray-600 hover:bg-gray-200"
                         )}
                     >
-                        <span className="select-none">{layerShortName}</span>
+                        <span className={cn("select-none", isOn && "underline underline-offset-2")}>
+                            {layerShortName}
+                        </span>
                     </button>
                 </ContextMenuTrigger>
                 <ContextMenuContent className="w-56">
@@ -176,6 +184,10 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     </ContextMenuItem>
                     <ContextMenuItem onSelect={handlePasteLayer}>
                         Paste Layer
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem onSelect={() => onToggleLayerOn(i)}>
+                        {isOn ? "Turn Off" : "Turn On"}
                     </ContextMenuItem>
                 </ContextMenuContent>
             </ContextMenu>
@@ -291,6 +303,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     setSelectedLayer={setSelectedLayer}
                     showTransparency={isTransparencyActive}
                     onGhostNavigate={onGhostNavigate}
+                    layerOnState={layerOnState}
                 />
             </div>
         </div>
