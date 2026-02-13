@@ -87,7 +87,7 @@ const OverridesPanel: React.FC = () => {
         handleEdit(emptyIndex);
     };
 
-    const updateOverrideOption = (index: number, bit: number, checked: boolean) => {
+    const updateOverrideOption = async (index: number, bit: number, checked: boolean) => {
         if (!keyboard) return;
         const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
         let options = updatedKeyboard.key_overrides?.[index].options || 0;
@@ -97,6 +97,13 @@ const OverridesPanel: React.FC = () => {
             updatedKeyboard.key_overrides[index].options = options;
         }
         setKeyboard(updatedKeyboard);
+
+        try {
+            await vialService.updateKeyoverride(updatedKeyboard, index);
+            await vialService.saveViable();
+        } catch (err) {
+            console.error("Failed to update override option:", err);
+        }
     };
 
     const renderSmallKey = (content: KeyContent, idx: number, overrideIndex: number) => {

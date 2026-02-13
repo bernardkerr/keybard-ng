@@ -93,6 +93,14 @@ const FragmentsPanel: React.FC = () => {
             }
 
             setKeyboard(newKeyboard);
+
+            if (deviceSuccess) {
+                try {
+                    await vialService.saveViable();
+                } catch (e) {
+                    console.error("Failed to save fragment selection:", e);
+                }
+            }
         } catch (error) {
             console.error("Failed to update fragment selection:", error);
         } finally {

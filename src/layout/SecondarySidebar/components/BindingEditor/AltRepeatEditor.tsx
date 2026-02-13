@@ -49,6 +49,7 @@ const AltRepeatEditor: FC = () => {
             setKeyboard(updatedKeyboard);
 
             vialService.updateAltRepeatKey(updatedKeyboard, itemToEdit)
+                .then(() => vialService.saveViable())
                 .catch(err => console.error("Failed to auto-enable alt repeat:", err));
         }
 
