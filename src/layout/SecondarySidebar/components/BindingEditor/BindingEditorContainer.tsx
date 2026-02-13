@@ -520,7 +520,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>Clear all data</p>
+                                    <p>Clear {getEditorTitle()}</p>
                                 </TooltipContent>
                             </DelayedTooltip>
                         </div>
