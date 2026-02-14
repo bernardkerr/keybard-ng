@@ -381,39 +381,33 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer, 
                         <div className="h-4 w-[1px] bg-slate-400 mx-0 flex-shrink-0" />
 
                         <div className="flex items-center gap-1">
-                            {/* Matrix Tester Button */}
+                            {/* Multi Layers Button */}
                             <Tooltip delayDuration={500}>
                                 <TooltipTrigger asChild>
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             if (activePanel === "matrixtester") {
-                                                // If already in matrix tester mode, exit it
                                                 setActivePanel(null);
-                                            } else {
-                                                // Enter matrix tester mode
-                                                setOpen(false);
-                                                setActivePanel("matrixtester");
-                                                setPanelToGoBack(null);
-                                                setItemToEdit(null);
                                             }
+                                            onToggleMultiLayers();
                                         }}
                                         className={cn(
                                             "p-2 rounded-full transition-all cursor-pointer",
-                                            activePanel === "matrixtester"
+                                            isMultiLayersActive
                                                 ? "bg-black hover:bg-gray-800"
                                                 : "hover:bg-gray-200"
                                         )}
-                                        aria-label={activePanel === "matrixtester" ? "Exit Matrix Tester" : "Matrix Tester"}
+                                        aria-label={isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
                                     >
-                                        <MatrixTesterIcon className={cn(
+                                        <LayoutMultiLayersIcon className={cn(
                                             "h-5 w-5",
-                                            activePanel === "matrixtester" ? "text-kb-gray" : "text-black"
+                                            isMultiLayersActive ? "text-kb-gray" : "text-black"
                                         )} />
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
-                                    {activePanel === "matrixtester" ? "Exit Matrix Tester" : "Matrix Tester"}
+                                    {isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
                                 </TooltipContent>
                             </Tooltip>
 
@@ -450,33 +444,39 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer, 
                                 </TooltipContent>
                             </Tooltip>
 
-                            {/* Multi Layers Button */}
+                            {/* Matrix Tester Button */}
                             <Tooltip delayDuration={500}>
                                 <TooltipTrigger asChild>
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             if (activePanel === "matrixtester") {
+                                                // If already in matrix tester mode, exit it
                                                 setActivePanel(null);
+                                            } else {
+                                                // Enter matrix tester mode
+                                                setOpen(false);
+                                                setActivePanel("matrixtester");
+                                                setPanelToGoBack(null);
+                                                setItemToEdit(null);
                                             }
-                                            onToggleMultiLayers();
                                         }}
                                         className={cn(
                                             "p-2 rounded-full transition-all cursor-pointer",
-                                            isMultiLayersActive
+                                            activePanel === "matrixtester"
                                                 ? "bg-black hover:bg-gray-800"
                                                 : "hover:bg-gray-200"
                                         )}
-                                        aria-label={isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
+                                        aria-label={activePanel === "matrixtester" ? "Exit Matrix Tester" : "Matrix Tester"}
                                     >
-                                        <LayoutMultiLayersIcon className={cn(
+                                        <MatrixTesterIcon className={cn(
                                             "h-5 w-5",
-                                            isMultiLayersActive ? "text-kb-gray" : "text-black"
+                                            activePanel === "matrixtester" ? "text-kb-gray" : "text-black"
                                         )} />
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
-                                    {isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
+                                    {activePanel === "matrixtester" ? "Exit Matrix Tester" : "Matrix Tester"}
                                 </TooltipContent>
                             </Tooltip>
 
