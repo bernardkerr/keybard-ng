@@ -287,6 +287,31 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                 style={style}
                 onClick={(e) => e.stopPropagation()}
             >
+                <div
+                    className="w-6 h-6 flex items-center justify-center flex-shrink-0 mr-[-3px]"
+                    onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        onToggleLayerOn?.(selectedLayer);
+                    }}
+                >
+                    {isActive ? (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="flex items-center">
+                                    {selectedLayer === defaultLayerIndex ? (
+                                        <MiniZapDefaultIcon className="w-6 h-6 text-gray-300" />
+                                    ) : (
+                                        <MiniZapIcon className="w-6 h-6 text-gray-300" />
+                                    )}
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                {selectedLayer === defaultLayerIndex ? "Default Layer" : "Active Layer"}
+                            </TooltipContent>
+                        </Tooltip>
+                    ) : null}
+                </div>
+
                 {/* Display Color Dot with Picker */}
                 <div className="relative" ref={pickerRef}>
                     <Tooltip>
@@ -330,29 +355,6 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                     )}
                 </div>
 
-                {isActive && (
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span
-                                className="flex items-center"
-                                onDoubleClick={(e) => {
-                                    e.stopPropagation();
-                                    onToggleLayerOn?.(selectedLayer);
-                                }}
-                            >
-                                {selectedLayer === defaultLayerIndex ? (
-                                    <MiniZapDefaultIcon className="w-6 h-6 text-black" />
-                                ) : (
-                                    <MiniZapIcon className="w-6 h-6 text-black" />
-                                )}
-                            </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                            {selectedLayer === defaultLayerIndex ? "Default Layer" : "Active Layer"}
-                        </TooltipContent>
-                    </Tooltip>
-                )}
-
                 {/* Layer Name */}
                 {isEditing ? (
                     <Input
@@ -367,10 +369,8 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                 ) : (
                     <span
                         className={cn(
-                            "text-base font-medium text-black cursor-pointer hover:underline whitespace-nowrap select-none",
-                            isActive && "underline"
+                            "text-base font-medium text-black cursor-pointer hover:underline whitespace-nowrap select-none"
                         )}
-                        style={isActive ? { textUnderlineOffset: "2px" } : undefined}
                         onClick={handleStartEditing}
                         title="Click to rename layer"
                     >

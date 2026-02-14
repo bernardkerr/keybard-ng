@@ -269,14 +269,16 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
             </div>
 
             {/* Layer Name Badge Row */}
-            <div className="pl-[27px] pt-[7px] pb-2 flex items-center gap-2">
-                <LayerNameBadge
-                    selectedLayer={selectedLayer}
-                    isActive={!!layerActiveState?.[selectedLayer]}
-                    onToggleLayerOn={onToggleLayerOn}
-                    // TODO: when firmware reports default layer, pass it here.
-                    defaultLayerIndex={0}
-                />
+            <div className="pl-5 pt-[7px] pb-2 flex items-center gap-2">
+                <div style={{ marginLeft: -20 }}>
+                    <LayerNameBadge
+                        selectedLayer={selectedLayer}
+                        isActive={!!layerActiveState?.[selectedLayer]}
+                        onToggleLayerOn={onToggleLayerOn}
+                        // TODO: when firmware reports default layer, pass it here.
+                        defaultLayerIndex={0}
+                    />
+                </div>
 
                 {/* Transparency Button (reserve space for layer 0 to avoid layout shift) */}
                 <Tooltip>
@@ -290,7 +292,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                             }}
                             disabled={activePanel === "matrixtester" || selectedLayer === 0}
                             className={cn(
-                                "p-1.5 rounded-full transition-all flex-shrink-0",
+                                "p-1.5 rounded-full transition-all flex-shrink-0 ml-[-4px]",
                                 activePanel === "matrixtester"
                                     ? "text-gray-400 cursor-not-allowed opacity-30"
                                     : isTransparencyActive
