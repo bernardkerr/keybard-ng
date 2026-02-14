@@ -15,6 +15,7 @@ import { svalService } from "@/services/sval.service";
 import { usbInstance } from "@/services/usb.service";
 import { layerColors } from "@/utils/colors";
 import MiniZapIcon from "@/components/icons/MiniZap";
+import MiniZapDefaultIcon from "@/components/icons/MiniZapDefault";
 import { getPresetHsv, hsvToHex, hexToHsv } from "@/utils/color-conversion";
 
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ interface LayerNameBadgeProps {
     className?: string;
     isActive?: boolean;
     onToggleLayerOn?: (layer: number) => void;
+    defaultLayerIndex?: number;
 }
 
 /**
@@ -44,6 +46,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
     className,
     isActive,
     onToggleLayerOn,
+    defaultLayerIndex = 0,
 }) => {
     const { keyboard, setKeyboard, isConnected, updateKey } = useVial();
     const { queue } = useChanges();
@@ -337,10 +340,16 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                                     onToggleLayerOn?.(selectedLayer);
                                 }}
                             >
-                                <MiniZapIcon className="w-6 h-6 text-black" />
+                                {selectedLayer === defaultLayerIndex ? (
+                                    <MiniZapDefaultIcon className="w-6 h-6 text-black" />
+                                ) : (
+                                    <MiniZapIcon className="w-6 h-6 text-black" />
+                                )}
                             </span>
                         </TooltipTrigger>
-                        <TooltipContent side="top">Layer Active</TooltipContent>
+                        <TooltipContent side="top">
+                            {selectedLayer === defaultLayerIndex ? "Default Layer" : "Active Layer"}
+                        </TooltipContent>
                     </Tooltip>
                 )}
 

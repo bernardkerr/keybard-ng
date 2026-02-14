@@ -273,6 +273,8 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     selectedLayer={selectedLayer}
                     isActive={!!layerActiveState?.[selectedLayer]}
                     onToggleLayerOn={onToggleLayerOn}
+                    // TODO: when firmware reports default layer, pass it here.
+                    defaultLayerIndex={0}
                 />
 
                 {/* Transparency Button (reserve space for layer 0 to avoid layout shift) */}
