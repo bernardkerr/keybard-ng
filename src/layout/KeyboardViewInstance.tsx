@@ -206,7 +206,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
             className="w-full flex-shrink-0"
             style={{
                 opacity: (isRevealing || isHiding) ? 0 : 1,
-                transition: isHiding ? 'none' : 'opacity 200ms ease-in-out',
+                transition: 'opacity 200ms ease-in-out',
             }}
         >
             {/* Layer Controls Row: Hide-blank-layers toggle + layer tabs + (optional) remove button */}
@@ -256,6 +256,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                                 className="p-2 rounded-full transition-colors text-gray-400 hover:text-black hover:bg-gray-200 ml-auto mr-4 flex-shrink-0"
                                 aria-label="Hide layer view"
                                 disabled={selectedLayer === 0}
+                                data-remove-view={instanceId}
                             >
                                 <LayersMinusIcon className="h-5 w-5" />
                             </button>

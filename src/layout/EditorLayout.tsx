@@ -182,6 +182,7 @@ const EditorLayoutInner = () => {
                     // Target not found, reveal immediately
                     setFlyingIcon(null);
                     setRevealingViewId(null);
+                    setHideAddButton(false);
                 }
                 pendingTargetId.current = null;
             });
