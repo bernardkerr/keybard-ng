@@ -28,7 +28,7 @@ interface KeyboardViewInstanceProps {
     setSelectedLayer: (layer: number) => void;
     isPrimary: boolean;
     hideLayerTabs?: boolean;
-    layerOnState: boolean[];
+    layerActiveState: boolean[];
     onToggleLayerOn: (layer: number) => void;
     transparencyByLayer: Record<number, boolean>;
     onToggleTransparency: (layer: number, next: boolean) => void;
@@ -50,7 +50,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     setSelectedLayer,
     isPrimary,
     hideLayerTabs = false,
-    layerOnState,
+    layerActiveState,
     onToggleLayerOn,
     transparencyByLayer,
     onToggleTransparency,
@@ -153,7 +153,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     const renderLayerTab = (i: number) => {
         const layerData = keyboard.keymap?.[i];
         const isEmpty = layerData ? vialService.isLayerEmpty(layerData) : true;
-        const isOn = !!layerOnState?.[i];
+        const isLayerActive = !!layerActiveState?.[i];
 
         const shouldHideBlank = !showAllLayers;
         if (shouldHideBlank && isEmpty && i !== selectedLayer) {
@@ -179,7 +179,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                                 : "bg-transparent text-gray-600 hover:bg-gray-200"
                         )}
                     >
-                        <span className={cn("select-none", isOn && "underline underline-offset-2")}>
+                        <span className={cn("select-none", isLayerActive && "underline underline-offset-2")}>
                             {layerShortName}
                         </span>
                     </button>
@@ -193,7 +193,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem onSelect={() => onToggleLayerOn(i)}>
-                        {isOn ? "Turn Layer Off" : "Turn Layer On"}
+                        {isLayerActive ? "Turn Layer Off" : "Turn Layer On"}
                     </ContextMenuItem>
                 </ContextMenuContent>
             </ContextMenu>
@@ -271,7 +271,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
             <div className="pl-[27px] pt-[7px] pb-2 flex items-center gap-2">
                 <LayerNameBadge
                     selectedLayer={selectedLayer}
-                    isOn={!!layerOnState?.[selectedLayer]}
+                    isActive={!!layerActiveState?.[selectedLayer]}
                     onToggleLayerOn={onToggleLayerOn}
                 />
 
@@ -319,7 +319,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     setSelectedLayer={setSelectedLayer}
                     showTransparency={isTransparencyActive}
                     onGhostNavigate={onGhostNavigate}
-                    layerOnState={layerOnState}
+                    layerActiveState={layerActiveState}
                 />
             </div>
         </div>

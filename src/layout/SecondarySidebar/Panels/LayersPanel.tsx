@@ -30,6 +30,16 @@ const MODIFIER_NAMES: Record<LayerModifier, string> = {
     LT: "Layer Tap",
 };
 
+const MODIFIER_DESCRIPTIONS: Record<LayerModifier, string> = {
+    DF: "Switches the default layer. The default layer is the always-active base layer that other layers stack on top of. This might be used to switch from QWERTY to Dvorak layout. Note that this is a temporary switch that only persists until the keyboard loses power.",
+    MO: "Momentarily activates the layer. As soon as you let go of the key, the layer is deactivated.",
+    LT: "Momentarily activates the layer when held, and sends the tapped key when tapped. Only supports layers 0-15.",
+    OSL: "Momentarily activates the layer until the next key is pressed.",
+    TG: "Toggles the layer, activating it if it's inactive and vice versa.",
+    TO: "Activates the layer and de-activates all other layers (except your default layer). This replaces your current active layers, and is activated on keydown.",
+    TT: "Layer Tap-Toggle. Hold to activate while held (like MO). Repeated taps toggle the layer on or off (like TG). Default is 5 taps; change with TAPPING_TOGGLE.",
+};
+
 /**
  * Main panel for managing and selecting layers.
  */
@@ -124,6 +134,16 @@ const LayersPanel = ({ isPicker }: Props) => {
                     })}
                 </div>
 
+                {/* Active Modifier Legend */}
+                <div className="flex flex-col gap-1 pl-1">
+                    <span className="text-xs font-semibold text-black">
+                        {MODIFIER_NAMES[activeModifier]}
+                    </span>
+                    <span className="text-xs text-slate-500 leading-relaxed max-w-[320px]">
+                        {MODIFIER_DESCRIPTIONS[activeModifier]}
+                    </span>
+                </div>
+
                 {/* Layer keys grid */}
                 <div className="flex flex-row gap-1 flex-wrap items-start">
                     {Array.from({ length: keyboard.layers || 16 }, (_, i) => {
@@ -187,9 +207,12 @@ const LayersPanel = ({ isPicker }: Props) => {
             </div>
 
             {/* Active Modifier Legend */}
-            <div className="text-black font-bold flex justify-start items-center pt-1 pl-[26px]">
-                <span className="text-md font-medium">
+            <div className="flex flex-col gap-1 pt-1 pl-[26px]">
+                <span className="text-md font-medium text-black">
                     {MODIFIER_NAMES[activeModifier]}
+                </span>
+                <span className="text-sm text-slate-500 leading-relaxed max-w-[560px]">
+                    {MODIFIER_DESCRIPTIONS[activeModifier]}
                 </span>
             </div>
 

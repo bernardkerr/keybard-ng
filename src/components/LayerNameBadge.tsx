@@ -29,7 +29,7 @@ interface LayerNameBadgeProps {
     x?: number;
     y?: number;
     className?: string;
-    isOn?: boolean;
+    isActive?: boolean;
     onToggleLayerOn?: (layer: number) => void;
 }
 
@@ -42,7 +42,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
     x,
     y,
     className,
-    isOn,
+    isActive,
     onToggleLayerOn,
 }) => {
     const { keyboard, setKeyboard, isConnected, updateKey } = useVial();
@@ -327,7 +327,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                     )}
                 </div>
 
-                {isOn && (
+                {isActive && (
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <span
@@ -340,7 +340,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                                 <MiniZapIcon className="w-6 h-6 text-black" />
                             </span>
                         </TooltipTrigger>
-                        <TooltipContent side="top">Layer On</TooltipContent>
+                        <TooltipContent side="top">Layer Active</TooltipContent>
                     </Tooltip>
                 )}
 
@@ -359,9 +359,9 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                     <span
                         className={cn(
                             "text-base font-medium text-black cursor-pointer hover:underline whitespace-nowrap select-none",
-                            isOn && "underline"
+                            isActive && "underline"
                         )}
-                        style={isOn ? { textUnderlineOffset: "2px" } : undefined}
+                        style={isActive ? { textUnderlineOffset: "2px" } : undefined}
                         onClick={handleStartEditing}
                         title="Click to rename layer"
                     >

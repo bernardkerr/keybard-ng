@@ -92,7 +92,7 @@ const EditorLayoutInner = () => {
     const [showAllLayers, setShowAllLayers] = React.useState(true);
     const [isMultiLayersActive, setIsMultiLayersActive] = React.useState(false);
     // UI-only layer on/off state. TODO: replace with device-provided layer state when available.
-    const [layerOnState, setLayerOnState] = React.useState<boolean[]>([]);
+    const [layerActiveState, setLayerActiveState] = React.useState<boolean[]>([]);
     const [transparencyByLayer, setTransparencyByLayer] = React.useState<Record<number, boolean>>({});
     const viewsScrollRef = React.useRef<HTMLDivElement>(null);
     const layerViewRefs = React.useRef<Map<number, HTMLDivElement>>(new Map());
@@ -119,12 +119,12 @@ const EditorLayoutInner = () => {
         };
     }, []);
 
-    // Initialize or resize layer "isOn" state when keyboard layer count changes.
+    // Initialize or resize layer "isActive" state when keyboard layer count changes.
     // TODO: if/when the keyboard reports layer-on state, hydrate from that source instead.
     React.useEffect(() => {
         if (!keyboard) return;
         const totalLayers = keyboard.layers || 16;
-        setLayerOnState(prev => {
+        setLayerActiveState(prev => {
             if (!prev || prev.length === 0) {
                 return Array.from({ length: totalLayers }, (_, i) => i === 0);
             }
@@ -247,7 +247,7 @@ const EditorLayoutInner = () => {
     // UI toggle for layer on/off. TODO: when hardware supports this, send the command
     // and update state from the device response instead of flipping locally.
     const handleToggleLayerOn = React.useCallback((layerIndex: number) => {
-        setLayerOnState(prev => {
+        setLayerActiveState(prev => {
             const totalLayers = keyboard?.layers || 16;
             const base = prev.length > 0
                 ? [...prev]
@@ -746,7 +746,7 @@ const EditorLayoutInner = () => {
                                         setSelectedLayer={(layer) => handleSetViewLayer(view.id, layer)}
                                         isPrimary={view.id === "primary"}
                                         hideLayerTabs={isMultiLayersActive && view.id !== "primary"}
-                                        layerOnState={layerOnState}
+                                        layerActiveState={layerActiveState}
                                         onToggleLayerOn={handleToggleLayerOn}
                                         transparencyByLayer={transparencyByLayer}
                                         onToggleTransparency={handleToggleTransparency}

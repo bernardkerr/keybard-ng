@@ -32,7 +32,7 @@ interface KeyboardProps {
     setSelectedLayer: (layer: number) => void;
     showTransparency?: boolean;
     onGhostNavigate?: (sourceLayer: number) => void;
-    layerOnState?: boolean[];
+    layerActiveState?: boolean[];
 }
 
 /**
@@ -45,7 +45,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     setSelectedLayer,
     showTransparency = false,
     onGhostNavigate,
-    layerOnState,
+    layerActiveState,
 }) => {
     const {
         selectKeyboardKey,
@@ -194,12 +194,12 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     const KC_TRNS = 1;
 
     // Helper to find effective keycode for transparency
-    // Uses layerOnState (UI/device) to decide which lower layers are "active".
+    // Uses layerActiveState (UI/device) to decide which lower layers are "active".
     // Fallback is always Layer 0.
     const findEffectiveKey = (startLayer: number, pos: number) => {
         for (let l = startLayer - 1; l >= 0; l--) {
-            const isOn = layerOnState ? !!layerOnState[l] : false;
-            if (!isOn) continue;
+            const isActive = layerActiveState ? !!layerActiveState[l] : false;
+            if (!isActive) continue;
             const keymap = keyboard.keymap?.[l];
             if (!keymap) continue;
             const code = keymap[pos];
