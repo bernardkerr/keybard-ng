@@ -91,6 +91,7 @@ const EditorLayoutInner = () => {
     ]);
     const [showAllLayers, setShowAllLayers] = React.useState(true);
     const [isMultiLayersActive, setIsMultiLayersActive] = React.useState(false);
+    const [isLayerOrderReversed, setIsLayerOrderReversed] = React.useState(false);
     // UI-only layer on/off state. TODO: replace with device-provided layer state when available.
     const [layerActiveState, setLayerActiveState] = React.useState<boolean[]>([]);
     const [transparencyByLayer, setTransparencyByLayer] = React.useState<Record<number, boolean>>({});
@@ -303,14 +304,15 @@ const EditorLayoutInner = () => {
             return viewInstances;
         }
         const extraLayers = multiLayerIds.filter(layerIndex => layerIndex !== primaryView.selectedLayer);
+        const orderedExtras = isLayerOrderReversed ? [...extraLayers].reverse() : extraLayers;
         return [
             primaryView,
-            ...extraLayers.map(layerIndex => ({
+            ...orderedExtras.map(layerIndex => ({
                 id: `multi-${layerIndex}`,
                 selectedLayer: layerIndex
             }))
         ];
-    }, [isMultiLayersActive, viewInstances, primaryView, multiLayerIds]);
+    }, [isMultiLayersActive, viewInstances, primaryView, multiLayerIds, isLayerOrderReversed]);
 
     // Ref for measuring container dimensions
     const contentContainerRef = React.useRef<HTMLDivElement>(null);
@@ -753,6 +755,8 @@ const EditorLayoutInner = () => {
                                         onToggleTransparency={handleToggleTransparency}
                                         showAllLayers={showAllLayers}
                                         onToggleShowLayers={handleToggleShowLayers}
+                                        isLayerOrderReversed={isLayerOrderReversed}
+                                        onToggleLayerOrder={() => setIsLayerOrderReversed(prev => !prev)}
                                         onRemove={!isMultiLayersActive && view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
                                         onGhostNavigate={isMultiLayersActive ? handleGhostNavigate : undefined}
                                         isRevealing={view.id === revealingViewId}

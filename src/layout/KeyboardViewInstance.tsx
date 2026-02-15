@@ -5,6 +5,8 @@ import { LayerNameBadge } from "@/components/LayerNameBadge";
 import LayersActiveIcon from "@/components/icons/LayersActive";
 import LayersDefaultIcon from "@/components/icons/LayersDefault";
 import LayersMinusIcon from "@/components/icons/LayersMinusIcon";
+import SquareArrowLeftIcon from "@/components/icons/SquareArrowLeft";
+import SquareArrowRightIcon from "@/components/icons/SquareArrowRight";
 import { Microscope } from "lucide-react";
 import { useVial } from "@/contexts/VialContext";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -34,6 +36,8 @@ interface KeyboardViewInstanceProps {
     onToggleTransparency: (layer: number, next: boolean) => void;
     showAllLayers: boolean;
     onToggleShowLayers: () => void;
+    isLayerOrderReversed: boolean;
+    onToggleLayerOrder: () => void;
     onRemove?: () => void;
     onGhostNavigate?: (sourceLayer: number) => void;
     isRevealing?: boolean;
@@ -56,6 +60,8 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     onToggleTransparency,
     showAllLayers,
     onToggleShowLayers,
+    isLayerOrderReversed,
+    onToggleLayerOrder,
     onRemove,
     onGhostNavigate,
     isRevealing = false,
@@ -67,6 +73,8 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     const { activePanel } = usePanels();
 
     const [isTransparencyActive, setIsTransparencyActive] = useState(false);
+    const [isHudMode, setIsHudMode] = useState(false);
+    const layerOrderClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Track transparency per-layer when switching tabs
     useEffect(() => {
@@ -176,7 +184,8 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                             "px-4 py-1 rounded-full transition-all text-sm font-medium cursor-pointer border-none outline-none whitespace-nowrap",
                             isActive
                                 ? "bg-gray-800 text-white shadow-md scale-105"
-                                : "bg-transparent text-gray-600 hover:bg-gray-200"
+                                : "bg-transparent text-gray-600 hover:bg-gray-200",
+                            isHudMode && !isActive && !isLayerActive && "text-gray-300"
                         )}
                     >
                         <span className={cn("select-none", isLayerActive && "underline underline-offset-2")}>
@@ -238,8 +247,47 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                         </div>
 
                         <div className={cn("flex items-center gap-1", activePanel === "matrixtester" && "opacity-30 pointer-events-none")}>
-                            {Array.from({ length: keyboard.layers || 16 }, (_, i) => renderLayerTab(i))}
+                            {(isLayerOrderReversed
+                                ? Array.from({ length: keyboard.layers || 16 }, (_, i) => i).reverse()
+                                : Array.from({ length: keyboard.layers || 16 }, (_, i) => i)
+                            ).map((i) => renderLayerTab(i))}
                         </div>
+
+                        <Tooltip delayDuration={500}>
+                            <TooltipTrigger asChild>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (layerOrderClickTimer.current) {
+                                            clearTimeout(layerOrderClickTimer.current);
+                                            layerOrderClickTimer.current = null;
+                                        }
+                                        if (e.detail >= 2) {
+                                            setIsHudMode((prev) => !prev);
+                                            return;
+                                        }
+                                        layerOrderClickTimer.current = setTimeout(() => {
+                                            onToggleLayerOrder();
+                                            layerOrderClickTimer.current = null;
+                                        }, 200);
+                                    }}
+                                    className={cn(
+                                        "p-2 rounded-full transition-colors",
+                                        isHudMode
+                                            ? "bg-black text-kb-gray"
+                                            : "text-gray-500 hover:text-gray-800 hover:bg-gray-200"
+                                    )}
+                                    aria-label="Reverse Layer Order"
+                                >
+                                    {isLayerOrderReversed
+                                        ? <SquareArrowRightIcon className="h-5 w-5" />
+                                        : <SquareArrowLeftIcon className="h-5 w-5" />}
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                Flip Layer View
+                            </TooltipContent>
+                        </Tooltip>
                     </>
                 )}
 
