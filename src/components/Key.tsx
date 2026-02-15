@@ -5,6 +5,8 @@ import { KeyContent } from "@/types/vial.types";
 import { DragItem } from "@/contexts/DragContext";
 import { getHeaderIcons, getCenterContent, getTypeIcon } from "@/utils/key-icons";
 import { useKeyDrag } from "@/hooks/useKeyDrag";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
+import { getLabelForKeycode, US_SHIFT_ALIASES } from "@/components/Keyboards/layouts";
 
 
 export interface KeyProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onClick' | 'onDoubleClick' | 'title'> {
@@ -66,9 +68,10 @@ export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const isMedium = variant === "medium";
 
     // --- Data processing ---
+    const { internationalLayout } = useLayoutSettings();
     const keyData = useMemo(() => {
-        return processKeyData(keycode, label, keyContents, forceLabel);
-    }, [label, keyContents, keycode, forceLabel]);
+        return processKeyData(keycode, label, keyContents, forceLabel, internationalLayout);
+    }, [label, keyContents, keycode, forceLabel, internationalLayout]);
 
     // --- Styling logic ---
     const styles = useMemo(() => {
@@ -238,7 +241,13 @@ Key.displayName = "Key";
 
 // --- Helper Functions ---
 
-function processKeyData(keycode: string, label: string, keyContents: KeyContent | undefined, forceLabel: boolean) {
+function processKeyData(
+    keycode: string,
+    label: string,
+    keyContents: KeyContent | undefined,
+    forceLabel: boolean,
+    layoutId: string
+) {
     let displayLabel = label;
     let bottomStr = "";
     let topLabel: React.ReactNode = "";
@@ -265,8 +274,27 @@ function processKeyData(keycode: string, label: string, keyContents: KeyContent 
 
 
         // Show modifier on bottom (e.g., "LGUI" from "LGUI(TAB)")
-        const modMatch = keycode.match(/^([A-Z]+)\(/);
+        const modMatch = keycode.match(/^([A-Z_]+)\(/);
         bottomStr = modMatch ? modMatch[1] : (keyContents.top || "MOD");
+
+        // Standalone mod (KC_NO) should render in center, not footer
+        if (keyStr === "" || keyStr === "KC_NO") {
+            displayLabel = bottomStr;
+            bottomStr = "";
+        } else {
+            const baseKeycodeMatch = keycode.match(/\((.*)\)$/);
+            let baseKeycode = baseKeycodeMatch ? baseKeycodeMatch[1] : null;
+            if (baseKeycode && baseKeycode in US_SHIFT_ALIASES) {
+                baseKeycode = US_SHIFT_ALIASES[baseKeycode];
+            }
+            const wrapper = modMatch ? modMatch[1] : "";
+            const hasShiftWrapper = wrapper.includes("S") || wrapper === "MEH" || wrapper === "HYPR" || wrapper === "ALL_T";
+            const hasShiftMod = (typeof keyContents.modids === "number" && (keyContents.modids & 0x0200) !== 0) || hasShiftWrapper;
+            if (hasShiftMod && baseKeycode) {
+                const shiftedLabel = getLabelForKeycode(`LSFT(${baseKeycode})`, layoutId);
+                if (shiftedLabel) displayLabel = shiftedLabel;
+            }
+        }
 
 
 
@@ -302,6 +330,19 @@ function processKeyData(keycode: string, label: string, keyContents: KeyContent 
         // Extract modifier prefix from keycode
         const modMatch = keycode.match(/^(\w+_T)\(/);
         topLabel = keyContents.top || (modMatch ? modMatch[1] : "MOD_T");
+
+        const baseKeycodeMatch = keycode.match(/\((.*)\)$/);
+        let baseKeycode = baseKeycodeMatch ? baseKeycodeMatch[1] : null;
+        if (baseKeycode && baseKeycode in US_SHIFT_ALIASES) {
+            baseKeycode = US_SHIFT_ALIASES[baseKeycode];
+        }
+        const wrapper = modMatch ? modMatch[1] : "";
+        const hasShiftWrapper = wrapper.includes("S") || wrapper === "MEH_T" || wrapper === "HYPR_T" || wrapper === "ALL_T";
+        const hasShiftMod = (typeof keyContents.modids === "number" && (keyContents.modids & 0x0200) !== 0) || hasShiftWrapper;
+        if (hasShiftMod && baseKeycode) {
+            const shiftedLabel = getLabelForKeycode(`LSFT(${baseKeycode})`, layoutId);
+            if (shiftedLabel) displayLabel = shiftedLabel;
+        }
 
     } else if (keyContents?.type === "layerhold") {
         // Layer-tap key (e.g., LT1(KC_ENTER))

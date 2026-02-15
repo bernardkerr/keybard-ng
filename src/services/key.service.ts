@@ -100,13 +100,19 @@ export class KeyService {
     if (keynum === undefined || keynum === null) {
       return "0x0000";
     }
+    const modmask = keynum & 0xff00;
+    const keyid = keynum & 0x00ff;
+    const modMaskStr = modmask in CODEMAP ? (CODEMAP[modmask] as string) : "";
+    if (modmask !== 0 && keyid === 0 && modMaskStr && modMaskStr.match(/^(\w+)\(kc\)/)) {
+      if (modMaskStr === "ALL_T(kc)") {
+        return "HYPR_T(KC_NO)";
+      }
+      return modMaskStr.replace(/\(kc\)/, "(KC_NO)");
+    }
     // Check full keycode first (handles OSM, special keycodes that aren't mod+key combos)
     if (keynum in CODEMAP) {
       return CODEMAP[keynum] as string;
     }
-
-    const modmask = keynum & 0xff00;
-    const keyid = keynum & 0x00ff;
 
     if (modmask !== 0 && keyid in CODEMAP) {
       const kcstr = CODEMAP[keyid];
@@ -115,6 +121,9 @@ export class KeyService {
         return '0x' + keynum.toString(16).padStart(4, '0');
       }
       if (maskstr.match(/^(\w+)\(kc\)/)) {
+        if (maskstr === "ALL_T(kc)") {
+          return `HYPR_T(${kcstr})`;
+        }
         return maskstr.replace(/\(kc\)/, '(' + kcstr + ')');
       } else if (keyid === 0) {
         return maskstr;
@@ -148,7 +157,11 @@ export class KeyService {
 
     const match = keystr.match(/^(\w+)\((\w+)\)$/);
     if (match) {
-      const cMask = KEYMAP[match[1] + '(kc)']?.code;
+      let maskKey = match[1] + '(kc)';
+      if (maskKey in KEYALIASES) {
+        maskKey = KEYALIASES[maskKey] as string;
+      }
+      const cMask = KEYMAP[maskKey]?.code;
       if (cMask !== undefined) {
         let keyPart = match[2];
         if (keyPart === 'kc') {

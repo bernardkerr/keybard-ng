@@ -10,6 +10,7 @@ import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import type { KeyboardInfo } from "../types/vial.types";
 import { Key } from "./Key";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { getLabelForKeycode } from "./Keyboards/layouts";
 import {
     headerClasses,
@@ -77,6 +78,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     const matrixCols = keyboard.cols || MATRIX_COLS;
 
     const { internationalLayout, keyVariant, fingerClusterSqueeze } = useLayoutSettings();
+    const { getSetting } = useSettings();
     const isTransmitting = useMemo(() =>
         itemToEdit !== null && ["tapdances", "combos", "macros", "overrides"].includes(activePanel || ""),
         [itemToEdit, activePanel]
@@ -151,16 +153,27 @@ export const Keyboard: React.FC<KeyboardProps> = ({
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.key === "Delete" || e.key === "Backspace") && selectedTarget?.type === "keyboard") {
-                if (selectedTarget.layer === selectedLayer && typeof selectedTarget.row === 'number') {
-                    assignKeycode("KC_NO");
-                }
+            const typingBindsKey = getSetting("typing-binds-key");
+            if (typingBindsKey) return;
+
+            if (!(e.key === "Delete" || e.key === "Backspace")) return;
+            if (selectedTarget?.type !== "keyboard") return;
+
+            // Ignore if user is typing in an input or textarea
+            const target = e.target as HTMLElement;
+            if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+
+            if (selectedTarget.layer === selectedLayer && typeof selectedTarget.row === 'number') {
+                e.preventDefault();
+                e.stopPropagation();
+                const shouldTransparent = e.key === "Delete" || (e.key === "Backspace" && e.shiftKey);
+                assignKeycode(shouldTransparent ? "KC_TRNS" : "KC_NO");
             }
         };
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [selectedTarget, selectedLayer, assignKeycode]);
+    }, [selectedTarget, selectedLayer, assignKeycode, getSetting]);
 
     const keyboardSize = useMemo(() => {
         let maxX = 0;

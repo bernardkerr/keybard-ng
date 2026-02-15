@@ -19,6 +19,8 @@ export interface DragItem {
     layer?: number;
     /** Layer data when dragging an entire layer */
     layerData?: LayerEntry;
+    /** Force assignment without wrapper-combine behavior */
+    forceAssign?: boolean;
 
     // Editor context for internal swapping
     editorType?: string;
