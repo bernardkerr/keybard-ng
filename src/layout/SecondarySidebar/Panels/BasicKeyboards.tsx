@@ -39,9 +39,7 @@ interface Props {
 
 const BasicKeyboards = ({ isPicker }: Props) => {
     const [activeModifiers, setActiveModifiers] = useState<Modifier[]>([]);
-    // Track whether the selected key is a modifier-type key (so we know whether to auto-write)
-    const [selectedKeyModType, setSelectedKeyModType] = useState<'mods' | 'modtap' | null>(null);
-    const { assignKeycode, assignKeycodeTo, isBinding, selectedTarget } = useKeyBinding();
+    const { assignKeycode, isBinding, selectedTarget } = useKeyBinding();
     const { keyboard } = useVial();
     const { selectedLayer } = useLayer();
     const { keyVariant, layoutMode, internationalLayout, setInternationalLayout } = useLayoutSettings();
@@ -93,7 +91,6 @@ const BasicKeyboards = ({ isPicker }: Props) => {
 
     const handleClearModifiers = () => {
         setActiveModifiers([]);
-        setSelectedKeyModType(null);
     };
 
     const handleModifierToggle = (modifier: Modifier) => {
@@ -287,7 +284,6 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                 hoverBorderColor={hasModifiers ? hoverBorderColor : undefined}
                                 hoverBackgroundColor={hasModifiers ? hoverBackgroundColor : undefined}
                                 hoverLayerColor={hasModifiers ? layerColorName : undefined}
-                                hoverHeaderClassName={hasModifiers ? hoverHeaderClass : undefined}
                                 dragItemData={{ forceAssign: true, keycode: standaloneModifierKeycode }}
                                 disableHover={!hasModifiers}
                                 disableTooltip={true}
@@ -307,7 +303,6 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                 hoverBorderColor={hasModifiers ? hoverBorderColor : undefined}
                                 hoverBackgroundColor={hasModifiers ? hoverBackgroundColor : undefined}
                                 hoverLayerColor={hasModifiers ? layerColorName : undefined}
-                                hoverHeaderClassName={hasModifiers ? hoverHeaderClass : undefined}
                                 disableHover={!hasModifiers}
                                 disableTooltip={true}
                             />
@@ -326,7 +321,6 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                 hoverBorderColor={hasModifiers ? hoverBorderColor : undefined}
                                 hoverBackgroundColor={hasModifiers ? hoverBackgroundColor : undefined}
                                 hoverLayerColor={hasModifiers ? layerColorName : undefined}
-                                hoverHeaderClassName={hasModifiers ? hoverHeaderClass : undefined}
                                 disableHover={!hasModifiers}
                                 disableTooltip={true}
                             />
@@ -345,7 +339,6 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                 hoverBorderColor={hasModifiers ? hoverBorderColor : undefined}
                                 hoverBackgroundColor={hasModifiers ? hoverBackgroundColor : undefined}
                                 hoverLayerColor={hasModifiers ? layerColorName : undefined}
-                                hoverHeaderClassName={hasModifiers ? hoverHeaderClass : undefined}
                                 disableHover={!hasModifiers}
                                 disableTooltip={true}
                             />
@@ -590,7 +583,6 @@ const BasicKeyboards = ({ isPicker }: Props) => {
                                     hoverBorderColor={hasModifiers ? hoverBorderColor : undefined}
                                     hoverBackgroundColor={hasModifiers ? hoverBackgroundColor : undefined}
                                     hoverLayerColor={hasModifiers ? layerColorName : undefined}
-                                    hoverHeaderClassName={hasModifiers ? hoverHeaderClass : undefined}
                                     dragItemData={k.dragItemData}
                                     disableHover={!hasModifiers}
                                     disableTooltip={true}
