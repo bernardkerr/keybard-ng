@@ -164,7 +164,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         const isLayerActive = !!layerActiveState?.[i];
 
         const shouldHideBlank = !showAllLayers;
-        if (shouldHideBlank && isEmpty && i !== selectedLayer) {
+        if (shouldHideBlank && isEmpty && i !== selectedLayer && !isLayerActive) {
             return null;
         }
 

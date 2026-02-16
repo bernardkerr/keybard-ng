@@ -614,7 +614,9 @@ const EditorLayoutInner = () => {
         );
     }, [registerPrimarySidebarControl]);
 
-    const contentOffset = showDetailsSidebar ? `calc(${primaryOffset ?? "0px"} + ${DETAIL_SIDEBAR_WIDTH})` : primaryOffset ?? undefined;
+    const contentOffset = showDetailsSidebar
+        ? `calc(${primaryOffset ?? "0px"} + ${DETAIL_SIDEBAR_WIDTH} + 6px)`
+        : primaryOffset ?? undefined;
 
     // Calculate dynamic top padding for keyboard
     // Ideal: 1 key height gap between layer selector and keyboard
