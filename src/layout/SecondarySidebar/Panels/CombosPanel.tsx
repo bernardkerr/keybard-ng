@@ -17,6 +17,7 @@ import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
 import { KeyContent, ComboOptions } from "@/types/vial.types";
 import { cn } from "@/lib/utils";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 const CombosPanel: React.FC = () => {
     const { keyboard, isConnected, setKeyboard } = useVial();
@@ -247,31 +248,32 @@ const CombosPanel: React.FC = () => {
 
     // Vertical list layout for sidebar (original)
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
-            {/* Combo Timeout Setting */}
-            {isTimeoutSupported && isConnected && (
-                <div className="px-3 pb-2 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex flex-col">
-                            <span className="text-sm font-medium">Combo Timeout</span>
-                            <span className="text-xs text-muted-foreground">0-10000 ms</span>
-                        </div>
-                        <Input
-                            type="number"
-                            value={timeoutInput}
-                            min={0}
-                            max={10000}
-                            onChange={(e) => setTimeoutInput(e.target.value)}
-                            onBlur={handleTimeoutBlur}
-                            disabled={saving}
-                            className={cn("w-24 text-right select-text", saving && "opacity-50")}
-                        />
-                    </div>
-                </div>
-            )}
-
-            {/* Scrollable Combos List */}
+        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+                <DescriptionBlock>
+                    A chording type solution for adding custom actions. It lets you hit multiple keys at once and produce a different effect. For instance, hitting A and B within the combo term would hit ESC instead, or have it perform even more complex tasks.
+                </DescriptionBlock>
+                {/* Combo Timeout Setting */}
+                {isTimeoutSupported && isConnected && (
+                    <div className="px-3 pb-3 pt-3 border-t border-b border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex flex-col">
+                                <span className="text-sm font-medium">Combo Timeout</span>
+                                <span className="text-xs text-muted-foreground">0-10000 ms</span>
+                            </div>
+                            <Input
+                                type="number"
+                                value={timeoutInput}
+                                min={0}
+                                max={10000}
+                                onChange={(e) => setTimeoutInput(e.target.value)}
+                                onBlur={handleTimeoutBlur}
+                                disabled={saving}
+                                className={cn("w-24 text-right select-text", saving && "opacity-50")}
+                            />
+                        </div>
+                    </div>
+                )}
                 {combos.map((comboEntry, i) => {
                     const combo = comboEntry as any as import("@/types/vial.types").ComboEntry;
 

@@ -10,6 +10,7 @@ import { useVial } from "@/contexts/VialContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { KeyContent } from "@/types/vial.types";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 const TapdancePanel: React.FC = () => {
     const { keyboard } = useVial();
@@ -170,19 +171,23 @@ const TapdancePanel: React.FC = () => {
 
     // Vertical list layout for sidebar (original)
     return (
-        <div className="space-y-3 pt-3 pb-8 relative">
-            {/* Header Row - Sticky */}
-            <div className="sticky top-0 z-20 bg-white pt-4 pb-4 -mt-4 flex flex-row items-end pl-12 pr-12 mb-2">
-                <div className="flex-grow flex flex-row justify-between w-full max-w-[240px] ml-6">
-                    <span className="text-xs font-bold text-center w-[30px]">Tap</span>
-                    <span className="text-xs font-bold text-center w-[30px]">Hold</span>
-                    <span className="text-xs font-bold text-center w-[30px] whitespace-nowrap">Tap-Hold</span>
-                    <span className="text-xs font-bold text-center w-[30px] whitespace-nowrap">Double-Tap</span>
+        <div className="space-y-3 pt-0 pb-8 relative h-full max-h-full flex flex-col">
+            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+                <DescriptionBlock>
+                    Allows a single key to perform multiple, different actions based on the number of times it is tapped in sequence (e.g., tap once for 'A', twice for 'B', or hold for a modifier).
+                </DescriptionBlock>
+                {/* Header Row - Sticky */}
+                <div className="sticky top-0 z-20 bg-white pt-4 pb-4 -mt-4 flex flex-row items-end pl-12 pr-12 mb-2">
+                    <div className="flex-grow flex flex-row justify-between w-full max-w-[240px] ml-6">
+                        <span className="text-xs font-bold text-center w-[30px]">Tap</span>
+                        <span className="text-xs font-bold text-center w-[30px]">Hold</span>
+                        <span className="text-xs font-bold text-center w-[30px] whitespace-nowrap">Tap-Hold</span>
+                        <span className="text-xs font-bold text-center w-[30px] whitespace-nowrap">Double-Tap</span>
+                    </div>
                 </div>
-            </div>
 
-            <div className="flex flex-col">
-                {tapdances.map((tdEntry, i) => {
+                <div className="flex flex-col">
+                    {tapdances.map((tdEntry, i) => {
                     const keycode = `TD(${i})`;
                     const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
 
@@ -231,12 +236,13 @@ const TapdancePanel: React.FC = () => {
                             {rowChildren}
                         </SidebarItemRow>
                     );
-                })}
-                {tapdances.length === 0 && (
-                    <div className="text-center text-gray-500 mt-10">
-                        No tapdances found.
-                    </div>
-                )}
+                    })}
+                    {tapdances.length === 0 && (
+                        <div className="text-center text-gray-500 mt-10">
+                            No tapdances found.
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

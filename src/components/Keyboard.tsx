@@ -166,7 +166,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
             if (selectedTarget.layer === selectedLayer && typeof selectedTarget.row === 'number') {
                 e.preventDefault();
                 e.stopPropagation();
-                const shouldTransparent = e.key === "Backspace" && !e.shiftKey;
+                const shouldTransparent = e.key === "Delete" || (e.key === "Backspace" && e.shiftKey);
                 assignKeycode(shouldTransparent ? "KC_TRNS" : "KC_NO");
             }
         };

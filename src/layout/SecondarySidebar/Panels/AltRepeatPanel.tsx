@@ -14,6 +14,7 @@ import { Key } from "@/components/Key";
 import { KeyContent, AltRepeatKeyOptions } from "@/types/vial.types";
 import { vialService } from "@/services/vial.service";
 import { cn } from "@/lib/utils";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 const AltRepeatPanel: React.FC = () => {
     const { keyboard, setKeyboard } = useVial();
@@ -211,32 +212,29 @@ const AltRepeatPanel: React.FC = () => {
     }
 
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
-            <div className="px-2 pb-2 text-sm text-muted-foreground">
-                Alt-Repeat keys remap what happens when you press Alt-Repeat after a specific key.
-                Click on a key slot to assign a keycode.
-            </div>
-
-            {/* Placeable Alt-Repeat key */}
-            <div className="pl-6 pr-2 flex">
-                <Key
-                    isRelative
-                    x={0} y={0} w={1} h={1} row={-1} col={-1}
-                    keycode="QK_ALT_REPEAT_KEY"
-                    label="Alt-Rep"
-                    keyContents={altRepeatKeyContents}
-                    layerColor="sidebar"
-                    className={cn(
-                        "border-kb-gray cursor-pointer",
-                        isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor} `
-                    )}
-                    headerClassName="bg-kb-sidebar-dark"
-                    onClick={handleAssignAltRepeatKey}
-                    disableTooltip={true}
-                />
-            </div>
-
+        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+                <DescriptionBlock>
+                    Alt-Repeat keys remap what happens when you press Alt-Repeat after a specific key. Click on a key slot to assign a keycode.
+                </DescriptionBlock>
+                {/* Placeable Alt-Repeat key */}
+                <div className="pl-6 pr-2 flex sticky top-0 z-20 bg-white pb-3 pt-2">
+                    <Key
+                        isRelative
+                        x={0} y={0} w={1} h={1} row={-1} col={-1}
+                        keycode="QK_ALT_REPEAT_KEY"
+                        label="Alt-Rep"
+                        keyContents={altRepeatKeyContents}
+                        layerColor="sidebar"
+                        className={cn(
+                            "border-kb-gray cursor-pointer",
+                            isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor} `
+                        )}
+                        headerClassName="bg-kb-sidebar-dark"
+                        onClick={handleAssignAltRepeatKey}
+                        disableTooltip={true}
+                    />
+                </div>
                 {altRepeatKeys.map((entry, i) => {
                     const enabled = isEnabled(entry.options);
                     const hasKeycode = entry.keycode !== "KC_NO" && entry.keycode !== "";

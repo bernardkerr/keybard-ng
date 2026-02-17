@@ -326,7 +326,7 @@ const LayoutsPanel: FC = () => {
     return (
         <section
             ref={dropZoneRef}
-            className="space-y-3 h-full max-h-full flex flex-col pt-3"
+            className="space-y-3 h-full max-h-full flex flex-col pt-0"
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOver}

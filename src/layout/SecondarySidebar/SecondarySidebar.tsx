@@ -199,11 +199,11 @@ const SecondarySidebar = () => {
             } as React.CSSProperties}
         >
             <div className="absolute inset-0 bg-sidebar-background pointer-events-none" />
-            <SidebarHeader className="px-4 py-6 z-10 bg-sidebar-background">
+            <SidebarHeader className="px-4 py-6 pt-7 z-10 bg-sidebar-background">
                 {(alternativeHeader || showPicker) ? (
                     <AlternativeHeader menus={keyboard?.menus} />
                 ) : (
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center justify-between gap-4 pt-1.5">
                         <div>
                             <h2 className="text-[22px] font-semibold leading-none text-black">
                                 {getPanelTitle(activePanel, keyboard?.menus)}

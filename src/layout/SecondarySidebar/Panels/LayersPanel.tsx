@@ -13,6 +13,7 @@ import { KeyContent } from "@/types/vial.types";
 import { CODEMAP } from "@/constants/keygen";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 /**
  * Valid layer modifiers supported by the UI
@@ -153,7 +154,7 @@ const LayersPanel = ({ isPicker }: Props) => {
                 </div>
 
                 {/* Active Modifier Legend */}
-                <div className="flex flex-col gap-1 pl-1">
+                <div className="flex flex-col gap-1 pl-1 pr-1 w-full box-border">
                     <span className="text-xs font-semibold text-black">
                         {MODIFIER_NAMES[activeModifier]}
                     </span>
@@ -224,47 +225,47 @@ const LayersPanel = ({ isPicker }: Props) => {
                 </div>
             </div>
 
-            {/* Active Modifier Legend */}
-            <div className="flex flex-col gap-1 pt-1 pl-[26px]">
-                <span className="text-md font-medium text-black">
-                    {MODIFIER_NAMES[activeModifier]}
-                </span>
-                <span className="text-sm text-slate-500 leading-relaxed max-w-[560px]">
-                    {MODIFIER_DESCRIPTIONS[activeModifier]}
-                </span>
-            </div>
-
             {/* Scrollable Layer List */}
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
-                {Array.from({ length: keyboard.layers || 16 }, (_, i) => {
-                    const layerName = (svalService.getLayerCosmetic(keyboard, i) || "").trim();
-                    const hasCustomName = layerName !== "";
-                    const layerColor = keyboard?.cosmetic?.layer_colors?.[i] ?? "primary";
-                    // LT uses format LT#(key) instead of LT(#)
-                    const keycode = getLayerKeycode(activeModifier, i);
-                    const keyContents = getLayerKeyContents(activeModifier, i, keycode);
+                <DescriptionBlock wrapText={false}>
+                    <span className="text-md font-medium text-black">
+                        {MODIFIER_NAMES[activeModifier]}
+                    </span>
+                    <span className="text-sm text-slate-500 leading-relaxed max-w-[560px]">
+                        {MODIFIER_DESCRIPTIONS[activeModifier]}
+                    </span>
+                </DescriptionBlock>
+                <div className="pr-[26px]">
+                    {Array.from({ length: keyboard.layers || 16 }, (_, i) => {
+                        const layerName = (svalService.getLayerCosmetic(keyboard, i) || "").trim();
+                        const hasCustomName = layerName !== "";
+                        const layerColor = keyboard?.cosmetic?.layer_colors?.[i] ?? "primary";
+                        // LT uses format LT#(key) instead of LT(#)
+                        const keycode = getLayerKeycode(activeModifier, i);
+                        const keyContents = getLayerKeyContents(activeModifier, i, keycode);
 
-                    return (
-                        <SidebarItemRow
-                            key={i}
-                            index={i}
-                            keyboard={keyboard}
-                            keycode={keycode}
-                            label={i.toString()}
-                            keyContents={keyContents}
-                            color={layerColor}
-                            hasCustomName={hasCustomName}
-                            customName={layerName}
-                            onAssignKeycode={assignKeycode}
-                            onColorChange={isPicker ? undefined : handleColorChange}
-                            onNameChange={isPicker ? undefined : handleNameChange}
-                            hoverBorderColor={hoverBorderColor}
-                            hoverBackgroundColor={hoverBackgroundColor}
-                            hoverLayerColor={layerColorName}
-                            hoverHeaderClass={hoverHeaderClass}
-                        />
-                    );
-                })}
+                        return (
+                            <SidebarItemRow
+                                key={i}
+                                index={i}
+                                keyboard={keyboard}
+                                keycode={keycode}
+                                label={i.toString()}
+                                keyContents={keyContents}
+                                color={layerColor}
+                                hasCustomName={hasCustomName}
+                                customName={layerName}
+                                onAssignKeycode={assignKeycode}
+                                onColorChange={isPicker ? undefined : handleColorChange}
+                                onNameChange={isPicker ? undefined : handleNameChange}
+                                hoverBorderColor={hoverBorderColor}
+                                hoverBackgroundColor={hoverBackgroundColor}
+                                hoverLayerColor={layerColorName}
+                                hoverHeaderClass={hoverHeaderClass}
+                            />
+                        );
+                    })}
+                </div>
             </div>
         </section>
     );

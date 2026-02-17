@@ -27,6 +27,7 @@ interface SidebarItemRowProps {
     hoverLayerColor?: string;
     hoverHeaderClass?: string;
     showDottedLine?: boolean;
+    dottedLineAfterLabel?: boolean;
     showIndex?: boolean;
     showPreviewKey?: boolean;
     showEditIcon?: boolean;
@@ -60,6 +61,7 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
         hoverLayerColor,
         hoverHeaderClass,
         showDottedLine = true,
+        dottedLineAfterLabel = false,
         showIndex = true,
         showPreviewKey = true,
         showEditIcon = true,
@@ -210,10 +212,6 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                     ) : (
                         <>
                             {/* Visual dotted border baseline */}
-                            {showDottedLine && !isEditing && (
-                                <div className="absolute left-[-4px] right-0 bottom-[2px] h-[2px] sidebar-dotted-line pointer-events-none" />
-                            )}
-
                             {isEditing && onNameChange ? (
                                 <div
                                     className="absolute left-[-4px] right-0 bottom-[-7px] flex items-center bg-white rounded-md px-2 py-1.5 border border-black shadow-sm"
@@ -230,13 +228,24 @@ const SidebarItemRow: React.FC<SidebarItemRowProps> = React.memo(
                                     />
                                 </div>
                             ) : (
-                                <div className="relative z-10 flex flex-row items-center gap-2 bg-transparent min-w-0 flex-shrink">
+                                <div
+                                    className={cn(
+                                        "relative z-10 flex flex-row gap-2 bg-transparent min-w-0 flex-shrink w-full",
+                                        dottedLineAfterLabel ? "items-baseline" : "items-center"
+                                    )}
+                                >
                                     {(hasCustomName || (label && label !== index.toString())) && (
                                         <span className="text-base font-medium truncate pr-0">
                                             {hasCustomName ? customName : label}
                                         </span>
                                     )}
+                                    {showDottedLine && dottedLineAfterLabel ? (
+                                        <div className="flex-grow h-[2px] sidebar-dotted-line pointer-events-none relative top-[2px]" />
+                                    ) : null}
                                 </div>
+                            )}
+                            {showDottedLine && !isEditing && !dottedLineAfterLabel && (
+                                <div className="absolute left-[-4px] right-0 bottom-[2px] h-[2px] sidebar-dotted-line pointer-events-none" />
                             )}
                         </>
                     )}

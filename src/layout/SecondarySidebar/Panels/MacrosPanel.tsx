@@ -11,6 +11,7 @@ import { useVial } from "@/contexts/VialContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { KeyContent } from "@/types/vial.types";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 interface Props {
     isPicker?: boolean;
@@ -217,13 +218,16 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
 
     // Vertical list layout for sidebar (original)
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
+        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
             {isPicker && (
                 <div className="pb-2">
                     <span className="font-semibold text-xl text-black">Macros</span>
                 </div>
             )}
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+                <DescriptionBlock>
+                    Send customizable sequences of keystrokes to trigger text strings, complex shortcuts, or automated actions with a single keypress.
+                </DescriptionBlock>
                 {macros.map((macroEntry, i) => {
                     const keycode = `M${i}`;
                     const keyContents = getKeyContents(keyboard, keycode) as KeyContent;

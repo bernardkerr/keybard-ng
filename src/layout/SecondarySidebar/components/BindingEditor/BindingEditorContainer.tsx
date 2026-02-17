@@ -16,7 +16,7 @@ import {
 import { DelayedTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 
-import { LeaderOptions, AltRepeatKeyOptions } from "@/types/vial.types";
+import { LeaderOptions, AltRepeatKeyOptions, ComboOptions } from "@/types/vial.types";
 import { vialService } from "@/services/vial.service";
 import { Input } from "@/components/ui/input";
 import AltRepeatEditor from "./AltRepeatEditor";
@@ -426,6 +426,28 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                     await vialService.saveViable();
                                 } catch (err) {
                                     console.error("Failed to update alt-repeat key:", err);
+                                }
+                            }}
+                        />
+                    </div>
+                )}
+
+                {bindingTypeToEdit === "combos" && keyboard?.combos && itemToEdit !== null && (
+                    <div className="mt-[20px]">
+                        <OnOffToggle
+                            value={(keyboard.combos[itemToEdit]?.options & ComboOptions.ENABLED) !== 0}
+                            onToggle={async (enabled) => {
+                                const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+                                let options = updatedKeyboard.combos[itemToEdit].options;
+                                if (enabled) options |= ComboOptions.ENABLED;
+                                else options &= ~ComboOptions.ENABLED;
+                                updatedKeyboard.combos[itemToEdit].options = options;
+                                setKeyboard(updatedKeyboard);
+                                try {
+                                    await vialService.updateCombo(updatedKeyboard, itemToEdit);
+                                    await vialService.saveViable();
+                                } catch (err) {
+                                    console.error("Failed to update combo:", err);
                                 }
                             }}
                         />

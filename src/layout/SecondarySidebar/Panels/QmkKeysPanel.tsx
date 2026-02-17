@@ -83,7 +83,7 @@ const QmkKeyPanel = ({ isPicker }: Props) => {
     }
 
     return (
-        <div className="space-y-6 pt-3 pb-8">
+        <div className="space-y-6 pt-0 pb-8">
             {isPicker && (
                 <div className="pb-2">
                     <span className="font-semibold text-xl text-black">One-Shot</span>

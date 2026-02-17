@@ -103,7 +103,7 @@ const FragmentsPanel: React.FC = () => {
     // Check if keyboard has fragments
     if (!keyboard || !fragmentService.hasFragments(keyboard)) {
         return (
-            <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
+            <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
                 <div className="text-center text-gray-500 mt-10">
                     No fragment configuration available for this keyboard.
                 </div>
@@ -115,7 +115,7 @@ const FragmentsPanel: React.FC = () => {
 
     if (selectableInstances.length === 0) {
         return (
-            <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
+            <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
                 <div className="text-center text-gray-500 mt-10">
                     No selectable fragment positions available.
                 </div>

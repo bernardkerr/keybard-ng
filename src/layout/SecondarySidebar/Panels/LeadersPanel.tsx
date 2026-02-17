@@ -16,6 +16,7 @@ import { Key } from "@/components/Key";
 import { KeyContent, LeaderOptions } from "@/types/vial.types";
 import { vialService } from "@/services/vial.service";
 import { cn } from "@/lib/utils";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 const LeadersPanel: React.FC = () => {
     const { keyboard, isConnected, setKeyboard } = useVial();
@@ -277,69 +278,65 @@ const LeadersPanel: React.FC = () => {
     }
 
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
-            <div className="px-2 pb-2 text-sm text-muted-foreground">
-                Leader sequences trigger an output when you press a specific sequence of keys after the Leader key.
-                Click on a key slot to assign a keycode.
-            </div>
-
-            {/* Placeable Leader key */}
-            <div className="pl-6 pr-2 flex">
-                <Key
-                    isRelative
-                    x={0} y={0} w={1} h={1} row={-1} col={-1}
-                    keycode="QK_LEADER"
-                    label="Leader"
-                    keyContents={leaderKeyContents}
-                    layerColor="sidebar"
-                    className={cn(
-                        "border-kb-gray cursor-pointer",
-                        isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor}`
-                    )}
-                    headerClassName="bg-kb-sidebar-dark"
-                    onClick={handleAssignLeaderKey}
-                    disableTooltip={true}
-                />
-            </div>
-
-            {/* Leader Timing Settings */}
-            {isConnected && (isTimeoutSupported || isPerKeySupported) && (
-                <div className="pl-6 pr-2 pb-3 border-b border-gray-200 dark:border-gray-700 space-y-3">
-                    {isTimeoutSupported && (
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="flex flex-col">
-                                <span className="text-sm font-medium">Leader Timeout</span>
-                                <span className="text-xs text-muted-foreground">50-5000 ms</span>
-                            </div>
-                            <Input
-                                type="number"
-                                value={timeoutInput}
-                                min={50}
-                                max={5000}
-                                onChange={(e) => setTimeoutInput(e.target.value)}
-                                onBlur={handleTimeoutBlur}
-                                disabled={savingTimeout}
-                                className={cn("w-24 text-right select-text", savingTimeout && "opacity-50")}
-                            />
-                        </div>
-                    )}
-                    {isPerKeySupported && (
-                        <div className="flex items-center justify-between">
-                            <div className="flex flex-col">
-                                <span className="text-sm font-medium">Per-key timing</span>
-                                <span className="text-xs text-muted-foreground">Reset timeout on each key</span>
-                            </div>
-                            <OnOffToggle
-                                value={perKeyTiming}
-                                onToggle={handlePerKeyToggle}
-                                className={cn(savingPerKey && "opacity-50")}
-                            />
-                        </div>
-                    )}
-                </div>
-            )}
-
+        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+                <DescriptionBlock>
+                    Leader sequences trigger an output when you press a specific sequence of keys after the Leader key. Click on a key slot to assign a keycode.
+                </DescriptionBlock>
+                {/* Placeable Leader key */}
+                <div className="pl-6 pr-2 flex sticky top-0 z-20 bg-white pb-3 pt-2">
+                    <Key
+                        isRelative
+                        x={0} y={0} w={1} h={1} row={-1} col={-1}
+                        keycode="QK_LEADER"
+                        label="Leader"
+                        keyContents={leaderKeyContents}
+                        layerColor="sidebar"
+                        className={cn(
+                            "border-kb-gray cursor-pointer",
+                            isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor}`
+                        )}
+                        headerClassName="bg-kb-sidebar-dark"
+                        onClick={handleAssignLeaderKey}
+                        disableTooltip={true}
+                    />
+                </div>
+                {/* Leader Timing Settings */}
+                {isConnected && (isTimeoutSupported || isPerKeySupported) && (
+                    <div className="pl-6 pr-2 pb-3 pt-4 border-t border-b border-gray-200 dark:border-gray-700 space-y-3">
+                        {isTimeoutSupported && (
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-medium">Leader Timeout</span>
+                                    <span className="text-xs text-muted-foreground">50-5000 ms</span>
+                                </div>
+                                <Input
+                                    type="number"
+                                    value={timeoutInput}
+                                    min={50}
+                                    max={5000}
+                                    onChange={(e) => setTimeoutInput(e.target.value)}
+                                    onBlur={handleTimeoutBlur}
+                                    disabled={savingTimeout}
+                                    className={cn("w-24 text-right select-text", savingTimeout && "opacity-50")}
+                                />
+                            </div>
+                        )}
+                        {isPerKeySupported && (
+                            <div className="flex items-center justify-between">
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-medium">Per-key timing</span>
+                                    <span className="text-xs text-muted-foreground">Reset timeout on each key</span>
+                                </div>
+                                <OnOffToggle
+                                    value={perKeyTiming}
+                                    onToggle={handlePerKeyToggle}
+                                    className={cn(savingPerKey && "opacity-50")}
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
                 {leaders.map((entry, i) => {
                     const enabled = isEnabled(entry.options);
                     const hasSequence = entry.sequence.some(k => k !== "KC_NO" && k !== "");

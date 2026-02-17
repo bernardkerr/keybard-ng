@@ -11,6 +11,7 @@ import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
 import { KeyContent } from "@/types/vial.types";
 import { cn } from "@/lib/utils";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 const ENABLED_BIT = 1 << 7;
 
@@ -165,8 +166,11 @@ const OverridesPanel: React.FC = () => {
 
     // Vertical list layout for sidebar (original)
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
+        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+                <DescriptionBlock>
+                    Reconfiguration of modifier-key combinations to send a different modifier-key combination or perform completely custom actions. e.g. Send delete when pressing shift + backspace
+                </DescriptionBlock>
                 {overrides.map((override, i) => {
                     const isEnabled = (override.options & ENABLED_BIT) !== 0;
                     const isDefined = (override.trigger && override.trigger !== "KC_NO") || (override.replacement && override.replacement !== "KC_NO");

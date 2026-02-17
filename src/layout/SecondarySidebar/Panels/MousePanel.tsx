@@ -10,6 +10,7 @@ import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "
 import { getKeyContents } from "@/utils/keys";
 import { keyService } from "@/services/key.service";
 import { KeyContent } from "@/types/vial.types";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 /**
  * Mouse key definition with keycode and display label
@@ -159,35 +160,41 @@ const MousePanel: React.FC<Props> = ({ isPicker }) => {
     }
 
     return (
-        <section className="flex h-full max-h-full flex-col space-y-3 pt-3">
+        <section className="flex h-full max-h-full flex-col space-y-3 pt-0">
             {isPicker && (
                 <div className="pb-2">
                     <span className="font-semibold text-xl text-black">Mouse Keys</span>
                 </div>
             )}
             <div className="scrollbar-thin flex flex-grow flex-col overflow-auto">
-                {MOUSE_KEYS.map((mouseKey, index) => {
-                    const keyContents = getKeyContents(keyboard, mouseKey.keycode) as KeyContent;
-                    const displayLabel = keyService.define(mouseKey.keycode)?.str || mouseKey.label;
+                <DescriptionBlock>
+                    Emulate a mouse using your keyboard. You can move the pointer at different speeds, press 5 buttons and scroll in 8 directions.
+                </DescriptionBlock>
+                <div className="pr-[26px]">
+                    {MOUSE_KEYS.map((mouseKey, index) => {
+                        const keyContents = getKeyContents(keyboard, mouseKey.keycode) as KeyContent;
+                        const displayLabel = keyService.define(mouseKey.keycode)?.str || mouseKey.label;
 
-                    return (
-                        <SidebarItemRow
-                            key={mouseKey.keycode}
-                            index={index}
-                            keyboard={keyboard}
-                            keycode={mouseKey.keycode}
-                            label={displayLabel}
-                            keyContents={keyContents}
-                            onAssignKeycode={assignKeycode}
-                            hoverBorderColor={hoverStyles.hoverBorderColor}
+                        return (
+                            <SidebarItemRow
+                                key={mouseKey.keycode}
+                                index={index}
+                                keyboard={keyboard}
+                                keycode={mouseKey.keycode}
+                                label={displayLabel}
+                                keyContents={keyContents}
+                                onAssignKeycode={assignKeycode}
+                                hoverBorderColor={hoverStyles.hoverBorderColor}
                             hoverBackgroundColor={hoverStyles.hoverBackgroundColor}
                             hoverLayerColor={hoverStyles.layerColorName}
                             hoverHeaderClass={hoverStyles.hoverHeaderClass}
                             showIndex={false}
+                            dottedLineAfterLabel
                             className="py-2"
                         />
                     );
                 })}
+                </div>
             </div>
         </section>
     );
