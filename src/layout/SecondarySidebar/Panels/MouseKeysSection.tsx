@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 import { Modifier, modifierOptions, applyModifiers } from "@/utils/modifierUtils";
 import { getKeyContents } from "@/utils/keys";
 import { KeyContent } from "@/types/vial.types";
-import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 interface Props {
     compact?: boolean;
