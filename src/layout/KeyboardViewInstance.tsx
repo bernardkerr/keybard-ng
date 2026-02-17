@@ -13,7 +13,6 @@ import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useChanges } from "@/contexts/ChangesContext";
 import { cn } from "@/lib/utils";
 import { svalService } from "@/services/sval.service";
-import { vialService } from "@/services/vial.service";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
 import { usePanels } from "@/contexts/PanelsContext";
 import {
@@ -75,6 +74,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     const [isTransparencyActive, setIsTransparencyActive] = useState(false);
     const [isHudMode, setIsHudMode] = useState(false);
     const layerOrderClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const KC_TRNS = 1;
 
     // Track transparency per-layer when switching tabs
     useEffect(() => {
@@ -160,11 +160,11 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
 
     const renderLayerTab = (i: number) => {
         const layerData = keyboard.keymap?.[i];
-        const isEmpty = layerData ? vialService.isLayerEmpty(layerData) : true;
+        const isTransparentLayer = layerData ? layerData.every((keycode) => keycode === KC_TRNS) : true;
         const isLayerActive = !!layerActiveState?.[i];
 
-        const shouldHideBlank = !showAllLayers;
-        if (shouldHideBlank && isEmpty && i !== selectedLayer && !isLayerActive) {
+        const shouldHideTransparent = !showAllLayers;
+        if (shouldHideTransparent && isTransparentLayer && i !== selectedLayer && !isLayerActive) {
             return null;
         }
 
@@ -234,13 +234,13 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                                                 ? "text-gray-400 cursor-not-allowed opacity-30"
                                                 : "text-black hover:bg-gray-200"
                                         )}
-                                        aria-label={showAllLayers ? "Hide Blank Layers" : "Show All Layers"}
+                                        aria-label={showAllLayers ? "Hide Transparent Layers" : "Show All Layers"}
                                     >
                                         {!showAllLayers ? <LayersActiveIcon className="h-5 w-5" /> : <LayersDefaultIcon className="h-5 w-5" />}
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
-                                    {showAllLayers ? "Hide Blank Layers" : "Show All Layers"}
+                                    {showAllLayers ? "Hide Transparent Layers" : "Show All Layers"}
                                 </TooltipContent>
                             </Tooltip>
 

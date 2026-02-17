@@ -36,7 +36,6 @@ import { MATRIX_COLS } from "@/constants/svalboard-layout";
 import EditorSidePanel, { PickerMode } from "./SecondarySidebar/components/EditorSidePanel";
 import { InfoPanelWidget } from "@/components/InfoPanelWidget";
 import { EditorControls } from "./EditorControls";
-import { vialService } from "@/services/vial.service";
 
 const EditorLayout = () => {
     const { assignKeycodeTo } = useKeyBinding();
@@ -76,6 +75,7 @@ const EditorLayoutInner = () => {
     const { keyVariant, layoutMode, setSecondarySidebarOpen, setPrimarySidebarExpanded, registerPrimarySidebarControl, setMeasuredDimensions } = useLayoutSettings();
     const { layerClipboard, copyLayer, openPasteDialog } = useLayoutLibrary();
     const { isDragging, draggedItem, markDropConsumed } = useDrag();
+    const KC_TRNS = 1;
 
     // Track if we're dragging a layer over the keyboard area
     const [isLayerDragOver, setIsLayerDragOver] = React.useState(false);
@@ -294,8 +294,8 @@ const EditorLayoutInner = () => {
         const keymap = keyboard.keymap || [];
         return Array.from({ length: totalLayers }, (_, i) => i).filter((layerIndex) => {
             const layerData = keymap[layerIndex];
-            const isEmpty = layerData ? vialService.isLayerEmpty(layerData) : true;
-            return !isEmpty || layerIndex === primaryView.selectedLayer;
+            const isTransparentLayer = layerData ? layerData.every((keycode) => keycode === KC_TRNS) : true;
+            return !isTransparentLayer || layerIndex === primaryView.selectedLayer;
         });
     }, [keyboard, showAllLayers, primaryView.selectedLayer]);
 
