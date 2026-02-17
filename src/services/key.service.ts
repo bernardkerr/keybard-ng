@@ -83,6 +83,8 @@ export class KeyService {
         KEYMAP[key].subtype = k;
         KEYMAP[key].idx = i;
       }
+      // Alias persistent default layer to DF until keygen provides PDF codes
+      KEYALIASES[`PDF(${i})`] = `DF(${i})`;
     }
 
     // 255 tap dances

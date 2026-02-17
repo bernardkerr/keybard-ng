@@ -212,30 +212,28 @@ const AltRepeatPanel: React.FC = () => {
 
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
-            {/* Placeable Alt-Repeat key */}
-            <div className="px-3 flex flex-col gap-2">
-                <div className="flex">
-                    <Key
-                        isRelative
-                        x={0} y={0} w={1} h={1} row={-1} col={-1}
-                        keycode="QK_ALT_REPEAT_KEY"
-                        label="Alt-Rep"
-                        keyContents={altRepeatKeyContents}
-                        layerColor="sidebar"
-                        className={cn(
-                            "border-kb-gray cursor-pointer",
-                            isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor} `
-                        )}
-                        headerClassName="bg-kb-sidebar-dark"
-                        onClick={handleAssignAltRepeatKey}
-                        disableTooltip={true}
-                    />
-                </div>
-            </div>
-
             <div className="px-2 pb-2 text-sm text-muted-foreground">
                 Alt-Repeat keys remap what happens when you press Alt-Repeat after a specific key.
                 Click on a key slot to assign a keycode.
+            </div>
+
+            {/* Placeable Alt-Repeat key */}
+            <div className="pl-6 pr-2 flex">
+                <Key
+                    isRelative
+                    x={0} y={0} w={1} h={1} row={-1} col={-1}
+                    keycode="QK_ALT_REPEAT_KEY"
+                    label="Alt-Rep"
+                    keyContents={altRepeatKeyContents}
+                    layerColor="sidebar"
+                    className={cn(
+                        "border-kb-gray cursor-pointer",
+                        isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor} `
+                    )}
+                    headerClassName="bg-kb-sidebar-dark"
+                    onClick={handleAssignAltRepeatKey}
+                    disableTooltip={true}
+                />
             </div>
 
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">

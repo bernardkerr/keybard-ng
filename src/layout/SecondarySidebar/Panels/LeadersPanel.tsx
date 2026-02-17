@@ -278,30 +278,28 @@ const LeadersPanel: React.FC = () => {
 
     return (
         <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
-            {/* Placeable Leader key */}
-            <div className="px-3 flex flex-col gap-2">
-                <div className="flex">
-                    <Key
-                        isRelative
-                        x={0} y={0} w={1} h={1} row={-1} col={-1}
-                        keycode="QK_LEADER"
-                        label="Leader"
-                        keyContents={leaderKeyContents}
-                        layerColor="sidebar"
-                        className={cn(
-                            "border-kb-gray cursor-pointer",
-                            isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor}`
-                        )}
-                        headerClassName="bg-kb-sidebar-dark"
-                        onClick={handleAssignLeaderKey}
-                        disableTooltip={true}
-                    />
-                </div>
-            </div>
-
             <div className="px-2 pb-2 text-sm text-muted-foreground">
                 Leader sequences trigger an output when you press a specific sequence of keys after the Leader key.
                 Click on a key slot to assign a keycode.
+            </div>
+
+            {/* Placeable Leader key */}
+            <div className="pl-6 pr-2 flex">
+                <Key
+                    isRelative
+                    x={0} y={0} w={1} h={1} row={-1} col={-1}
+                    keycode="QK_LEADER"
+                    label="Leader"
+                    keyContents={leaderKeyContents}
+                    layerColor="sidebar"
+                    className={cn(
+                        "border-kb-gray cursor-pointer",
+                        isBinding && `hover:${hoverBorderColor} hover:${hoverBackgroundColor}`
+                    )}
+                    headerClassName="bg-kb-sidebar-dark"
+                    onClick={handleAssignLeaderKey}
+                    disableTooltip={true}
+                />
             </div>
 
             {/* Leader Timing Settings */}

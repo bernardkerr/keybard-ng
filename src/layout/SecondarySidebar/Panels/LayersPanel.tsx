@@ -17,12 +17,13 @@ import { getKeyContents } from "@/utils/keys";
 /**
  * Valid layer modifiers supported by the UI
  */
-const LAYER_MODIFIERS = ["MO", "DF", "TG", "TT", "OSL", "TO", "LT"] as const;
+const LAYER_MODIFIERS = ["MO", "DF", "PDF", "TG", "TT", "OSL", "TO", "LT"] as const;
 type LayerModifier = (typeof LAYER_MODIFIERS)[number];
 
 const MODIFIER_NAMES: Record<LayerModifier, string> = {
     MO: "Momentary",
     DF: "Default Layer",
+    PDF: "Persistent Default Layer",
     TG: "Toggle Layer",
     TT: "Tap Toggle",
     OSL: "One Shot Layer",
@@ -32,6 +33,7 @@ const MODIFIER_NAMES: Record<LayerModifier, string> = {
 
 const MODIFIER_DESCRIPTIONS: Record<LayerModifier, string> = {
     DF: "Switches the default layer. The default layer is the always-active base layer that other layers stack on top of. This might be used to switch from QWERTY to Dvorak layout. Note that this is a temporary switch that only persists until the keyboard loses power.",
+    PDF: "Sets a persistent default layer. This switch, which will last through a power loss, might be used to switch from QWERTY to Dvorak layout and only switch again when you want to.",
     MO: "Momentarily activates the layer. As soon as you let go of the key, the layer is deactivated.",
     LT: "Momentarily activates the layer when held, and sends the tapped key when tapped. Only supports layers 0-15.",
     OSL: "Momentarily activates the layer until the next key is pressed.",
@@ -110,6 +112,22 @@ const LayersPanel = ({ isPicker }: Props) => {
         }
     };
 
+    const getLayerKeycode = (modifier: LayerModifier, layerIndex: number) => {
+        if (modifier === "LT") {
+            return `LT${layerIndex}(${baseKeyStr})`;
+        }
+        return `${modifier}(${layerIndex})`;
+    };
+
+    const getLayerKeyContents = (modifier: LayerModifier, layerIndex: number, keycode: string) => {
+        if (modifier === "PDF") {
+            const dfKeycode = `DF(${layerIndex})`;
+            const dfContents = getKeyContents(keyboard, dfKeycode) as KeyContent;
+            return dfContents ? { ...dfContents, layertext: "PDF", top: keycode } : dfContents;
+        }
+        return getKeyContents(keyboard, keycode) as KeyContent;
+    };
+
     // Horizontal layout for bottom panel
     if (isHorizontal) {
         return (
@@ -124,8 +142,8 @@ const LayersPanel = ({ isPicker }: Props) => {
                                 key={modifier}
                                 onClick={() => setActiveModifier(modifier)}
                                 className={cn(
-                                    "px-2 py-0.5 text-[10px] font-bold rounded transition-all",
-                                    isActive ? "bg-black text-white" : "text-gray-500 hover:bg-gray-100"
+                                    "px-3 py-1 text-[11px] font-medium rounded-full transition-all",
+                                    isActive ? "bg-gray-800 text-white shadow-sm" : "text-gray-600 hover:bg-gray-200"
                                 )}
                             >
                                 {modifier}
@@ -149,8 +167,8 @@ const LayersPanel = ({ isPicker }: Props) => {
                     {Array.from({ length: keyboard.layers || 16 }, (_, i) => {
                         const layerName = (svalService.getLayerCosmetic(keyboard, i) || "").trim();
                         // LT uses format LT#(key) instead of LT(#)
-                        const keycode = activeModifier === "LT" ? `LT${i}(${baseKeyStr})` : `${activeModifier}(${i})`;
-                        const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
+                        const keycode = getLayerKeycode(activeModifier, i);
+                        const keyContents = getLayerKeyContents(activeModifier, i, keycode);
 
                         return (
                             <Key
@@ -184,7 +202,7 @@ const LayersPanel = ({ isPicker }: Props) => {
                 </div>
             )}
             {/* Layer Modifier Selection Tabs */}
-            <div className="flex flex-wrap items-center justify-start gap-4">
+            <div className="flex flex-wrap items-center justify-start gap-3">
                 <div className="flex items-center justify-start gap-1">
                     {LAYER_MODIFIERS.map((modifier) => {
                         const isActive = modifier === activeModifier;
@@ -194,8 +212,8 @@ const LayersPanel = ({ isPicker }: Props) => {
                                 type="button"
                                 variant={isActive ? "default" : "ghost"}
                                 className={cn(
-                                    "px-5 py-2 text-base font-semibold rounded-full transition-all min-w-[3rem]",
-                                    isActive ? "shadow-sm bg-slate-900 text-white hover:bg-slate-800" : "text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                                    "px-4 py-1 text-sm font-medium rounded-full transition-all min-w-[2.5rem]",
+                                    isActive ? "shadow-sm bg-gray-800 text-white hover:bg-gray-700" : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
                                 )}
                                 onClick={() => setActiveModifier(modifier)}
                             >
@@ -223,8 +241,8 @@ const LayersPanel = ({ isPicker }: Props) => {
                     const hasCustomName = layerName !== "";
                     const layerColor = keyboard?.cosmetic?.layer_colors?.[i] ?? "primary";
                     // LT uses format LT#(key) instead of LT(#)
-                    const keycode = activeModifier === "LT" ? `LT${i}(${baseKeyStr})` : `${activeModifier}(${i})`;
-                    const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
+                    const keycode = getLayerKeycode(activeModifier, i);
+                    const keyContents = getLayerKeyContents(activeModifier, i, keycode);
 
                     return (
                         <SidebarItemRow
