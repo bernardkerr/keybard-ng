@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, X, ArrowRightFromLine } from "lucide-react";
+import { Plus, ArrowRightFromLine } from "lucide-react";
 
 import ComboIcon from "@/components/ComboIcon";
 import OnOffToggle from "@/components/ui/OnOffToggle";
@@ -17,9 +17,10 @@ import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
 import { KeyContent, ComboOptions } from "@/types/vial.types";
 import { cn } from "@/lib/utils";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 const CombosPanel: React.FC = () => {
-    const { keyboard, setKeyboard, isConnected } = useVial();
+    const { keyboard, isConnected, setKeyboard } = useVial();
     const { assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
@@ -35,26 +36,6 @@ const CombosPanel: React.FC = () => {
     const isHorizontal = layoutMode === "bottombar";
 
     if (!keyboard) return null;
-
-    const clearCombo = async (index: number) => {
-        if (!keyboard.combos) return;
-        const updatedCombos = [...keyboard.combos];
-        updatedCombos[index] = {
-            ...updatedCombos[index],
-            keys: ["KC_NO", "KC_NO", "KC_NO", "KC_NO"],
-            output: "KC_NO",
-            options: ComboOptions.ENABLED,
-        };
-        const updatedKeyboard = { ...keyboard, combos: updatedCombos };
-        setKeyboard(updatedKeyboard);
-
-        try {
-            await vialService.updateCombo(updatedKeyboard, index);
-            await vialService.saveViable();
-        } catch (err) {
-            console.error("Failed to clear combo:", err);
-        }
-    };
 
     const findFirstEmptyCombo = (): number => {
         if (!keyboard.combos) return 0;
@@ -217,17 +198,6 @@ const CombosPanel: React.FC = () => {
                             )}
                             onClick={() => handleEdit(i)}
                         >
-                            {/* Delete button */}
-                            <button
-                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    clearCombo(i);
-                                }}
-                                title="Clear combo"
-                            >
-                                <X className="w-3 h-3 text-white" />
-                            </button>
                             {/* Header with icon and label */}
                             <div className="flex flex-row items-center gap-2 mb-2">
                                 <div className="w-5 h-5 text-slate-600 flex-shrink-0">
@@ -278,31 +248,32 @@ const CombosPanel: React.FC = () => {
 
     // Vertical list layout for sidebar (original)
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
-            {/* Combo Timeout Setting */}
-            {isTimeoutSupported && isConnected && (
-                <div className="px-3 pb-2 border-b border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex flex-col">
-                            <span className="text-sm font-medium">Combo Timeout</span>
-                            <span className="text-xs text-muted-foreground">0-10000 ms</span>
-                        </div>
-                        <Input
-                            type="number"
-                            value={timeoutInput}
-                            min={0}
-                            max={10000}
-                            onChange={(e) => setTimeoutInput(e.target.value)}
-                            onBlur={handleTimeoutBlur}
-                            disabled={saving}
-                            className={cn("w-24 text-right select-text", saving && "opacity-50")}
-                        />
-                    </div>
-                </div>
-            )}
-
-            {/* Scrollable Combos List */}
+        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+                <DescriptionBlock>
+                    A chording type solution for adding custom actions. It lets you hit multiple keys at once and produce a different effect. For instance, hitting A and B within the combo term would hit ESC instead, or have it perform even more complex tasks.
+                </DescriptionBlock>
+                {/* Combo Timeout Setting */}
+                {isTimeoutSupported && isConnected && (
+                    <div className="px-3 pb-3 pt-3 border-t border-b border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center justify-between gap-4">
+                            <div className="flex flex-col">
+                                <span className="text-sm font-medium">Combo Timeout</span>
+                                <span className="text-xs text-muted-foreground">0-10000 ms</span>
+                            </div>
+                            <Input
+                                type="number"
+                                value={timeoutInput}
+                                min={0}
+                                max={10000}
+                                onChange={(e) => setTimeoutInput(e.target.value)}
+                                onBlur={handleTimeoutBlur}
+                                disabled={saving}
+                                className={cn("w-24 text-right select-text", saving && "opacity-50")}
+                            />
+                        </div>
+                    </div>
+                )}
                 {combos.map((comboEntry, i) => {
                     const combo = comboEntry as any as import("@/types/vial.types").ComboEntry;
 
@@ -346,7 +317,6 @@ const CombosPanel: React.FC = () => {
                             keycode={resultKeycode || "KC_NO"}
                             keyContents={keyContents}
                             onEdit={handleEdit}
-                            onDelete={hasAssignment ? clearCombo : undefined}
                             onAssignKeycode={assignKeycode}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}

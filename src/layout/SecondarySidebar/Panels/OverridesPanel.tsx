@@ -1,17 +1,17 @@
 import React from "react";
-import { ArrowRight, Plus, X } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import OnOffToggle from "@/components/ui/OnOffToggle";
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useLayer } from "@/contexts/LayerContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
-import { vialService } from "@/services/vial.service";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { Key } from "@/components/Key";
 import { KeyContent } from "@/types/vial.types";
 import { cn } from "@/lib/utils";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 const ENABLED_BIT = 1 << 7;
 
@@ -43,30 +43,6 @@ const OverridesPanel: React.FC = () => {
         setAlternativeHeader(true);
         if (slot) {
             setInitialEditorSlot(slot);
-        }
-    };
-
-    const clearOverride = async (index: number) => {
-        if (!keyboard.key_overrides) return;
-        const updatedOverrides = [...keyboard.key_overrides];
-        updatedOverrides[index] = {
-            ...updatedOverrides[index],
-            trigger: "KC_NO",
-            replacement: "KC_NO",
-            options: 0,
-            layers: 0xFFFF,
-            negative_mod_mask: 0,
-            suppressed_mods: 0,
-            trigger_mods: 0
-        };
-        const updatedKeyboard = { ...keyboard, key_overrides: updatedOverrides };
-        setKeyboard(updatedKeyboard);
-
-        try {
-            await vialService.updateKeyoverride(updatedKeyboard, index);
-            await vialService.saveViable();
-        } catch (err) {
-            console.error("Failed to clear override:", err);
         }
     };
 
@@ -153,17 +129,6 @@ const OverridesPanel: React.FC = () => {
                             )}
                             onClick={() => handleEdit(i)}
                         >
-                            {/* Delete button */}
-                            <button
-                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    clearOverride(i);
-                                }}
-                                title="Clear override"
-                            >
-                                <X className="w-3 h-3 text-white" />
-                            </button>
                             <div className="flex flex-row items-center justify-between mb-1">
                                 <span className="text-xs font-bold text-slate-600">OR {i}</span>
                                 <OnOffToggle
@@ -201,8 +166,11 @@ const OverridesPanel: React.FC = () => {
 
     // Vertical list layout for sidebar (original)
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
+        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+                <DescriptionBlock>
+                    Reconfiguration of modifier-key combinations to send a different modifier-key combination or perform completely custom actions. e.g. Send delete when pressing shift + backspace
+                </DescriptionBlock>
                 {overrides.map((override, i) => {
                     const isEnabled = (override.options & ENABLED_BIT) !== 0;
                     const isDefined = (override.trigger && override.trigger !== "KC_NO") || (override.replacement && override.replacement !== "KC_NO");
@@ -238,7 +206,6 @@ const OverridesPanel: React.FC = () => {
                             label={i.toString()}
                             keyContents={keyContents}
                             onEdit={handleEdit}
-                            onDelete={isDefined ? clearOverride : undefined}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}

@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowRight, Plus, X } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import OnOffToggle from "@/components/ui/OnOffToggle";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
@@ -14,6 +14,7 @@ import { Key } from "@/components/Key";
 import { KeyContent, AltRepeatKeyOptions } from "@/types/vial.types";
 import { vialService } from "@/services/vial.service";
 import { cn } from "@/lib/utils";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 const AltRepeatPanel: React.FC = () => {
     const { keyboard, setKeyboard } = useVial();
@@ -45,26 +46,6 @@ const AltRepeatPanel: React.FC = () => {
         setAlternativeHeader(true);
         if (slot) {
             setInitialEditorSlot(slot);
-        }
-    };
-
-    const clearAltRepeat = async (index: number) => {
-        if (!keyboard.alt_repeat_keys) return;
-        const updatedKeys = [...keyboard.alt_repeat_keys];
-        updatedKeys[index] = {
-            ...updatedKeys[index],
-            keycode: "KC_NO",
-            alt_keycode: "KC_NO",
-            options: 0
-        };
-        const updatedKeyboard = { ...keyboard, alt_repeat_keys: updatedKeys };
-        setKeyboard(updatedKeyboard);
-
-        try {
-            await vialService.updateAltRepeatKey(updatedKeyboard, index);
-            await vialService.saveViable();
-        } catch (err) {
-            console.error("Failed to clear alt-repeat:", err);
         }
     };
 
@@ -201,17 +182,6 @@ const AltRepeatPanel: React.FC = () => {
                                 )}
                                 onClick={() => handleEdit(i)}
                             >
-                                {/* Delete button */}
-                                <button
-                                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        clearAltRepeat(i);
-                                    }}
-                                    title="Clear alt-repeat"
-                                >
-                                    <X className="w-3 h-3 text-white" />
-                                </button>
                                 <span className="text-[9px] font-bold text-slate-600 mb-1">AR {i}</span>
                                 <div className="flex flex-row items-center gap-1">
                                     {renderSmallKey(entry.keycode, i, "keycode", false)}
@@ -242,10 +212,13 @@ const AltRepeatPanel: React.FC = () => {
     }
 
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
-            {/* Placeable Alt-Repeat key */}
-            <div className="px-3 flex flex-col gap-2">
-                <div className="flex">
+        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
+            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+                <DescriptionBlock>
+                    Alt-Repeat keys remap what happens when you press Alt-Repeat after a specific key. Click on a key slot to assign a keycode.
+                </DescriptionBlock>
+                {/* Placeable Alt-Repeat key */}
+                <div className="pl-6 pr-2 flex sticky top-0 z-20 bg-white pb-3 pt-2">
                     <Key
                         isRelative
                         x={0} y={0} w={1} h={1} row={-1} col={-1}
@@ -262,14 +235,6 @@ const AltRepeatPanel: React.FC = () => {
                         disableTooltip={true}
                     />
                 </div>
-            </div>
-
-            <div className="px-2 pb-2 text-sm text-muted-foreground">
-                Alt-Repeat keys remap what happens when you press Alt-Repeat after a specific key.
-                Click on a key slot to assign a keycode.
-            </div>
-
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
                 {altRepeatKeys.map((entry, i) => {
                     const enabled = isEnabled(entry.options);
                     const hasKeycode = entry.keycode !== "KC_NO" && entry.keycode !== "";
@@ -310,7 +275,6 @@ const AltRepeatPanel: React.FC = () => {
                             label={i.toString()}
                             keyContents={keyContents}
                             onEdit={handleEdit}
-                            onDelete={isDefined ? clearAltRepeat : undefined}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}

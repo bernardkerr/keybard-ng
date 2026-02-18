@@ -8,10 +8,13 @@ import SecondarySidebar, { DETAIL_SIDEBAR_WIDTH } from "./SecondarySidebar/Secon
 import { BottomPanel, BOTTOM_PANEL_HEIGHT } from "./BottomPanel";
 import BindingEditorContainer from "./SecondarySidebar/components/BindingEditor/BindingEditorContainer";
 
-import { Keyboard } from "@/components/Keyboard";
+
 import { useVial } from "@/contexts/VialContext";
 import { cn } from "@/lib/utils";
 import LayerSelector from "./LayerSelector";
+import KeyboardViewInstance from "./KeyboardViewInstance";
+import LayersPlusIcon from "@/components/icons/LayersPlusIcon";
+import LayersMinusIcon from "@/components/icons/LayersMinusIcon";
 import AppSidebar from "./Sidebar";
 
 import { LayerProvider, useLayer } from "@/contexts/LayerContext";
@@ -26,6 +29,7 @@ import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useChanges } from "@/hooks/useChanges";
 // import { PanelBottom, PanelRight, X } from "lucide-react";
 import { X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import { MatrixTester } from "@/components/MatrixTester";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
@@ -71,10 +75,244 @@ const EditorLayoutInner = () => {
     const { keyVariant, layoutMode, setSecondarySidebarOpen, setPrimarySidebarExpanded, registerPrimarySidebarControl, setMeasuredDimensions } = useLayoutSettings();
     const { layerClipboard, copyLayer, openPasteDialog } = useLayoutLibrary();
     const { isDragging, draggedItem, markDropConsumed } = useDrag();
+    const KC_TRNS = 1;
 
     // Track if we're dragging a layer over the keyboard area
     const [isLayerDragOver, setIsLayerDragOver] = React.useState(false);
     const isDraggingLayer = isDragging && draggedItem?.type === "layer" && draggedItem?.component === "Layer";
+
+    // Dynamic view instances for stacking keyboard views
+    interface ViewInstance {
+        id: string;
+        selectedLayer: number;
+    }
+    const [viewInstances, setViewInstances] = React.useState<ViewInstance[]>([
+        { id: "primary", selectedLayer: 0 }
+    ]);
+    const [showAllLayers, setShowAllLayers] = React.useState(true);
+    const [isMultiLayersActive, setIsMultiLayersActive] = React.useState(false);
+    const [isLayerOrderReversed, setIsLayerOrderReversed] = React.useState(false);
+    // UI-only layer on/off state. TODO: replace with device-provided layer state when available.
+    const [layerActiveState, setLayerActiveState] = React.useState<boolean[]>([]);
+    const [transparencyByLayer, setTransparencyByLayer] = React.useState<Record<number, boolean>>({});
+    const viewsScrollRef = React.useRef<HTMLDivElement>(null);
+    const layerViewRefs = React.useRef<Map<number, HTMLDivElement>>(new Map());
+    let nextViewId = React.useRef(1);
+
+    // Animation: flying icon between layers-plus and layers-minus
+    const addViewButtonRef = React.useRef<HTMLButtonElement>(null);
+    const [flyingIcon, setFlyingIcon] = React.useState<{
+        startX: number; startY: number;
+        endX?: number; endY?: number;
+        iconType: 'plus' | 'minus';
+    } | null>(null);
+    const pendingTargetId = React.useRef<string | null>(null);
+    const pendingRemoveId = React.useRef<string | null>(null);
+    const [revealingViewId, setRevealingViewId] = React.useState<string | null>(null);
+    const [hidingViewId, setHidingViewId] = React.useState<string | null>(null);
+    const [hideAddButton, setHideAddButton] = React.useState(false);
+    const animationTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Clean up animation timer on unmount
+    React.useEffect(() => {
+        return () => {
+            if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+        };
+    }, []);
+
+    // Initialize or resize layer "isActive" state when keyboard layer count changes.
+    // TODO: if/when the keyboard reports layer-on state, hydrate from that source instead.
+    React.useEffect(() => {
+        if (!keyboard) return;
+        const totalLayers = keyboard.layers || 16;
+        setLayerActiveState(prev => {
+            if (!prev || prev.length === 0) {
+                return Array.from({ length: totalLayers }, (_, i) => i === 0);
+            }
+            if (prev.length === totalLayers) return prev;
+            const next = Array.from({ length: totalLayers }, (_, i) => {
+                const existing = prev[i];
+                if (existing === undefined) return i === 0;
+                return existing;
+            });
+            return next;
+        });
+    }, [keyboard]);
+
+    const handleAddView = React.useCallback(() => {
+        const newId = `secondary-${nextViewId.current++}`;
+
+        // Capture start position of the layers-plus button
+        const rect = addViewButtonRef.current?.getBoundingClientRect();
+        if (rect) {
+            setFlyingIcon({ startX: rect.left, startY: rect.top, iconType: 'plus' });
+            pendingTargetId.current = newId;
+        }
+
+        // Hide the add button and view until halfway through animation
+        setHideAddButton(true);
+        setRevealingViewId(newId);
+        setViewInstances(prev => {
+            const lastView = prev[prev.length - 1];
+            const totalLayers = keyboard?.layers || 16;
+            const nextLayer = lastView ? (lastView.selectedLayer + 1) % totalLayers : 0;
+            return [...prev, { id: newId, selectedLayer: nextLayer }];
+        });
+    }, [keyboard?.layers]);
+
+    // After the new view renders, find the layers-minus button and start the transition
+    React.useEffect(() => {
+        if (!flyingIcon || flyingIcon.endX !== undefined || !pendingTargetId.current) return;
+        // Double rAF ensures DOM is painted before querying
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const target = document.querySelector(`[data-remove-view="${pendingTargetId.current}"]`);
+                if (target) {
+                    const targetRect = target.getBoundingClientRect();
+                    setFlyingIcon(prev => prev ? {
+                        ...prev,
+                        endX: targetRect.left,
+                        endY: targetRect.top,
+                    } : null);
+                    // Reveal view and add button at halfway point of the 400ms transition
+                    animationTimerRef.current = setTimeout(() => {
+                        setRevealingViewId(null);
+                        setHideAddButton(false);
+                    }, 200);
+                } else {
+                    // Target not found, reveal immediately
+                    setFlyingIcon(null);
+                    setRevealingViewId(null);
+                    setHideAddButton(false);
+                }
+                pendingTargetId.current = null;
+            });
+        });
+    }, [flyingIcon, viewInstances]);
+
+    const handleRemoveView = React.useCallback((id: string) => {
+        // Capture positions before any state changes
+        const minusBtn = document.querySelector(`[data-remove-view="${id}"]`);
+        const plusBtn = addViewButtonRef.current;
+
+        if (minusBtn && plusBtn) {
+            const minusRect = minusBtn.getBoundingClientRect();
+            const plusRect = plusBtn.getBoundingClientRect();
+
+            // Hide view and add button immediately, then animate icon horizontally back to plus
+            setHideAddButton(true);
+            setHidingViewId(id);
+            pendingRemoveId.current = id;
+            setFlyingIcon({ startX: minusRect.left, startY: minusRect.top, iconType: 'minus' });
+
+            // Set end position after DOM paints the start position
+            // Only animate X (horizontal), keep same Y since plus button will end up on this row
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    setFlyingIcon(prev => prev ? {
+                        ...prev,
+                        endX: plusRect.left,
+                        endY: prev.startY, // horizontal only
+                    } : null);
+                    // Remove view and show add button at halfway point of the 400ms transition
+                    animationTimerRef.current = setTimeout(() => {
+                        setViewInstances(prev => prev.filter(v => v.id !== pendingRemoveId.current));
+                        setHidingViewId(null);
+                        setHideAddButton(false);
+                        pendingRemoveId.current = null;
+                    }, 200);
+                });
+            });
+        } else {
+            // Fallback: remove immediately
+            setViewInstances(prev => prev.filter(v => v.id !== id));
+        }
+    }, []);
+
+    // Clean up flying icon when animation completes
+    const handleFlyingIconEnd = React.useCallback(() => {
+        setFlyingIcon(null);
+    }, []);
+
+    const handleToggleShowLayers = React.useCallback(() => {
+        setShowAllLayers(prev => !prev);
+    }, []);
+
+    const handleSetViewLayer = React.useCallback((id: string, layer: number) => {
+        setViewInstances(prev => prev.map(v =>
+            v.id === id ? { ...v, selectedLayer: layer } : v
+        ));
+        // Always sync LayerContext so sidebar panels reflect the last-interacted view
+        setSelectedLayer(layer);
+    }, [setSelectedLayer]);
+
+    // UI toggle for layer on/off. TODO: when hardware supports this, send the command
+    // and update state from the device response instead of flipping locally.
+    const handleToggleLayerOn = React.useCallback((layerIndex: number) => {
+        setLayerActiveState(prev => {
+            const totalLayers = keyboard?.layers || 16;
+            const base = prev.length > 0
+                ? [...prev]
+                : Array.from({ length: totalLayers }, (_, i) => i === 0);
+            if (base.length < totalLayers) {
+                for (let i = base.length; i < totalLayers; i++) {
+                    base[i] = i === 0;
+                }
+            }
+            base[layerIndex] = !base[layerIndex];
+            return base;
+        });
+    }, [keyboard?.layers]);
+
+    const handleToggleTransparency = React.useCallback((layerIndex: number, next: boolean) => {
+        setTransparencyByLayer(prev => ({ ...prev, [layerIndex]: next }));
+    }, []);
+
+    const handleGhostNavigate = React.useCallback((sourceLayer: number) => {
+        const targetEl = layerViewRefs.current.get(sourceLayer);
+        const container = viewsScrollRef.current;
+        if (targetEl && container) {
+            const top = targetEl.offsetTop;
+            container.scrollTo({ top, behavior: "smooth" });
+        }
+        setSelectedLayer(sourceLayer);
+    }, [setSelectedLayer]);
+
+    const primaryView = React.useMemo(
+        () => viewInstances.find(v => v.id === "primary") ?? { id: "primary", selectedLayer },
+        [viewInstances, selectedLayer]
+    );
+
+    const multiLayerIds = React.useMemo(() => {
+        if (!keyboard) return [] as number[];
+        const totalLayers = keyboard.layers || 16;
+
+        if (showAllLayers) {
+            return Array.from({ length: totalLayers }, (_, i) => i);
+        }
+
+        const keymap = keyboard.keymap || [];
+        return Array.from({ length: totalLayers }, (_, i) => i).filter((layerIndex) => {
+            const layerData = keymap[layerIndex];
+            const isTransparentLayer = layerData ? layerData.every((keycode) => keycode === KC_TRNS) : true;
+            return !isTransparentLayer || layerIndex === primaryView.selectedLayer;
+        });
+    }, [keyboard, showAllLayers, primaryView.selectedLayer]);
+
+    const renderedViews = React.useMemo(() => {
+        if (!isMultiLayersActive) {
+            return viewInstances;
+        }
+        const extraLayers = multiLayerIds.filter(layerIndex => layerIndex !== primaryView.selectedLayer);
+        const orderedExtras = isLayerOrderReversed ? [...extraLayers].reverse() : extraLayers;
+        return [
+            primaryView,
+            ...orderedExtras.map(layerIndex => ({
+                id: `multi-${layerIndex}`,
+                selectedLayer: layerIndex
+            }))
+        ];
+    }, [isMultiLayersActive, viewInstances, primaryView, multiLayerIds, isLayerOrderReversed]);
 
     // Ref for measuring container dimensions
     const contentContainerRef = React.useRef<HTMLDivElement>(null);
@@ -376,7 +614,9 @@ const EditorLayoutInner = () => {
         );
     }, [registerPrimarySidebarControl]);
 
-    const contentOffset = showDetailsSidebar ? `calc(${primaryOffset ?? "0px"} + ${DETAIL_SIDEBAR_WIDTH})` : primaryOffset ?? undefined;
+    const contentOffset = showDetailsSidebar
+        ? `calc(${primaryOffset ?? "0px"} + ${DETAIL_SIDEBAR_WIDTH} + 6px)`
+        : primaryOffset ?? undefined;
 
     // Calculate dynamic top padding for keyboard
     // Ideal: 1 key height gap between layer selector and keyboard
@@ -477,17 +717,105 @@ const EditorLayoutInner = () => {
                 <LayerSelector
                     selectedLayer={selectedLayer}
                     setSelectedLayer={setSelectedLayer}
+                    isMultiLayersActive={isMultiLayersActive}
+                    onToggleMultiLayers={() => setIsMultiLayersActive(prev => !prev)}
                 />
 
                 <div
-                    className="flex-1 overflow-hidden flex items-start justify-center max-w-full relative transition-[padding] duration-200"
-                    style={{ paddingTop: dynamicTopPadding }}
+                    className="flex-1 overflow-y-auto flex flex-col items-center max-w-full relative"
+                    ref={viewsScrollRef}
                 >
 
                     {activePanel === "matrixtester" ? (
                         <MatrixTester />
                     ) : (
-                        <Keyboard keyboard={keyboard!} selectedLayer={selectedLayer} setSelectedLayer={setSelectedLayer} />
+                        <>
+                            {renderedViews.map((view) => (
+                                <div
+                                    key={view.id}
+                                    ref={(el) => {
+                                        if (el) {
+                                            const existing = layerViewRefs.current.get(view.selectedLayer);
+                                            if (view.id === "primary" || !existing) {
+                                                layerViewRefs.current.set(view.selectedLayer, el);
+                                            }
+                                        } else {
+                                            layerViewRefs.current.delete(view.selectedLayer);
+                                        }
+                                    }}
+                                    className="w-full"
+                                >
+                                    <KeyboardViewInstance
+                                        instanceId={view.id}
+                                        selectedLayer={view.selectedLayer}
+                                        setSelectedLayer={(layer) => handleSetViewLayer(view.id, layer)}
+                                        isPrimary={view.id === "primary"}
+                                        hideLayerTabs={isMultiLayersActive && view.id !== "primary"}
+                                        layerActiveState={layerActiveState}
+                                        onToggleLayerOn={handleToggleLayerOn}
+                                        transparencyByLayer={transparencyByLayer}
+                                        onToggleTransparency={handleToggleTransparency}
+                                        showAllLayers={showAllLayers}
+                                        onToggleShowLayers={handleToggleShowLayers}
+                                        isLayerOrderReversed={isLayerOrderReversed}
+                                        onToggleLayerOrder={() => setIsLayerOrderReversed(prev => !prev)}
+                                        onRemove={!isMultiLayersActive && view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
+                                        onGhostNavigate={isMultiLayersActive ? handleGhostNavigate : undefined}
+                                        isRevealing={view.id === revealingViewId}
+                                        isHiding={view.id === hidingViewId}
+                                    />
+                                </div>
+                            ))}
+
+                            {/* Add View Button */}
+                            {!isMultiLayersActive && (
+                                <div
+                                    className="flex items-center pl-5 pb-2 w-full"
+                                    style={{
+                                        opacity: hideAddButton ? 0 : 1,
+                                        transition: hideAddButton ? 'none' : 'opacity 150ms ease-in-out',
+                                    }}
+                                >
+                                    <Tooltip delayDuration={500}>
+                                        <TooltipTrigger asChild>
+                                            <button
+                                                ref={addViewButtonRef}
+                                                onClick={handleAddView}
+                                                className="p-2 rounded-full transition-colors text-gray-500 hover:text-gray-800 hover:bg-gray-200"
+                                                aria-label="Add keyboard layer view"
+                                            >
+                                                <LayersPlusIcon className="h-5 w-5" />
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="right">
+                                            Show another layer view
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </div>
+                            )}
+
+                            {/* Flying icon animation (add: plus→minus, remove: minus→plus) */}
+                            {flyingIcon && !isMultiLayersActive && (
+                                <div
+                                    className="fixed pointer-events-none"
+                                    style={{
+                                        left: flyingIcon.endX !== undefined ? flyingIcon.endX : flyingIcon.startX,
+                                        top: flyingIcon.endY !== undefined ? flyingIcon.endY : flyingIcon.startY,
+                                        transition: flyingIcon.endX !== undefined
+                                            ? 'left 400ms cubic-bezier(0.42, 0, 0.58, 1), top 400ms cubic-bezier(0.42, 0, 0.58, 1)'
+                                            : 'none',
+                                        zIndex: 40,
+                                    }}
+                                    onTransitionEnd={handleFlyingIconEnd}
+                                >
+                                    <div className="p-2">
+                                        {flyingIcon.iconType === 'plus'
+                                            ? <LayersPlusIcon className="h-5 w-5 text-gray-500" />
+                                            : <LayersMinusIcon className="h-5 w-5 text-gray-400" />}
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
 
                     {/* Editor overlay for bottom bar mode - picker tabs + editor */}

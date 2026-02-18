@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, PlugZap, Unplug } from "lucide-react";
 
 import { useVial } from "@/contexts/VialContext";
+import KeybardLogo from "@/components/icons/KeybardLogo";
 
 const ConnectKeyboard = () => {
     const { isConnected, connect, disconnect, loadKeyboard, loadFromFile } = useVial();
@@ -125,7 +126,7 @@ const ConnectKeyboard = () => {
                             fill="black"
                         ></path>
                     </svg>
-                    <span className="text-[33px] font-semibold tracking-tight">keybard</span>
+                    <KeybardLogo className="!h-[24px] !w-auto" />
                 </div>
             </div>
             <div className="p-10 max-w-xl mx-auto rounded-md border-dashed border-1 border-gray-300">
@@ -151,7 +152,7 @@ const ConnectKeyboard = () => {
                                     disabled={loading}
                                     className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-primary text-white hover:bg-kb-primary/90 px-5 py-1.5 rounded-full w-full"
                                 >
-                                    {loading ? "Connecting..." : "Connect Keyboard"}
+                                    {loading ? <><PlugZap className="h-4 w-4" /><span>Connecting...</span></> : <><Unplug className="h-4 w-4" /><span>Connect Keyboard</span></>}
                                 </button>
                             ) : (
                                 <button

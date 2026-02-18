@@ -5,9 +5,11 @@ import { KeyContent } from "@/types/vial.types";
 import { DragItem } from "@/contexts/DragContext";
 import { getHeaderIcons, getCenterContent, getTypeIcon } from "@/utils/key-icons";
 import { useKeyDrag } from "@/hooks/useKeyDrag";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
+import { getLabelForKeycode, US_SHIFT_ALIASES } from "@/components/Keyboards/layouts";
 
 
-export interface KeyProps {
+export interface KeyProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onClick' | 'onDoubleClick' | 'title'> {
     x: number;
     y: number;
     w: number;
@@ -19,6 +21,8 @@ export interface KeyProps {
     layerIndex?: number;
     selected?: boolean;
     onClick?: (row: number, col: number) => void;
+    onDoubleClick?: (row: number, col: number) => void;
+    title?: string; // Override default tooltip
     keyContents?: KeyContent;
     layerColor?: string;
     isRelative?: boolean;
@@ -36,18 +40,21 @@ export interface KeyProps {
     dragH?: number;
     disableDrag?: boolean;
     dragItemData?: Partial<DragItem>;
+    style?: React.CSSProperties;
 }
 
 /**
  * Renders a single key in the keyboard layout.
  */
-export const Key: React.FC<KeyProps> = (props) => {
+export const Key = React.forwardRef<HTMLDivElement, KeyProps>((props, ref) => {
     const {
         x, y, w, h, keycode, label, row, col, layerIndex = 0, layerColor = "primary",
-        selected = false, onClick, keyContents,
+        selected = false, onClick, onDoubleClick, title, keyContents,
         isRelative = false, className = "", headerClassName = "bg-black/30", variant = "default",
         hoverBorderColor, hoverBackgroundColor, hoverLayerColor, disableHover = false,
-        hasPendingChange = false, forceLabel = false, dragW, dragH, disableDrag = false
+        hasPendingChange = false, forceLabel = false, dragW, dragH, disableDrag = false,
+        style,
+        ...rest
     } = props;
 
     const uniqueId = React.useId();
@@ -61,9 +68,10 @@ export const Key: React.FC<KeyProps> = (props) => {
     const isMedium = variant === "medium";
 
     // --- Data processing ---
+    const { internationalLayout } = useLayoutSettings();
     const keyData = useMemo(() => {
-        return processKeyData(keycode, label, keyContents, forceLabel);
-    }, [label, keyContents, keycode, forceLabel]);
+        return processKeyData(keycode, label, keyContents, forceLabel, internationalLayout);
+    }, [label, keyContents, keycode, forceLabel, internationalLayout]);
 
     // --- Styling logic ---
     const styles = useMemo(() => {
@@ -72,6 +80,7 @@ export const Key: React.FC<KeyProps> = (props) => {
             top: isRelative ? undefined : `${y * drag.currentUnitSize}px`,
             width: `${w * drag.currentUnitSize}px`,
             height: `${h * drag.currentUnitSize}px`,
+            ...style
         };
 
         // Check if the key is "crowded" (has both top label/icon AND bottom badge)
@@ -132,7 +141,7 @@ export const Key: React.FC<KeyProps> = (props) => {
         );
 
         return { boxStyle, textStyle, bottomTextStyle, containerClasses };
-    }, [x, y, w, h, drag, isRelative, isSmall, isMedium, keyContents, keyData, layerColor, hoverLayerColor, selected, disableHover, hoverBorderColor, hoverBackgroundColor, hasPendingChange, className]);
+    }, [x, y, w, h, drag, isRelative, isSmall, isMedium, keyContents, keyData, layerColor, hoverLayerColor, selected, disableHover, hoverBorderColor, hoverBackgroundColor, hasPendingChange, className, style]);
 
     // Forced height logic for strict grid alignment without !important
     const forcedHeight = isSmall ? "10px" : isMedium ? "14px" : "18px";
@@ -157,19 +166,27 @@ export const Key: React.FC<KeyProps> = (props) => {
         onClick?.(row, col);
     };
 
+    const handleDoubleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onDoubleClick?.(row, col);
+    };
+
     // --- Sub-renderer for layer keys ---
     if (keyContents?.type === "layer") {
         const targetLayer = keyContents?.top?.split("(")[1]?.replace(")", "") || "";
         return (
             <div
+                ref={ref}
                 className={styles.containerClasses}
                 style={styles.boxStyle}
                 onClick={handleClick}
+                onDoubleClick={handleDoubleClick}
                 onMouseEnter={drag.handleMouseEnter}
                 onMouseLeave={drag.handleMouseLeave}
                 onMouseDown={drag.handleMouseDown}
                 onMouseUp={drag.handleMouseUp}
-                title={props.disableTooltip ? undefined : keycode}
+                title={props.disableTooltip ? undefined : (title || keycode)}
+                {...rest}
             >
                 <span className={headerClass} style={headerStyle}>{keyContents?.layertext}</span>
                 <div className={cn("flex flex-row flex-1 w-full items-center justify-center", isSmall ? "gap-1" : isMedium ? "gap-1.5" : "gap-2")}>
@@ -185,14 +202,17 @@ export const Key: React.FC<KeyProps> = (props) => {
     // --- Regular key render ---
     return (
         <div
+            ref={ref}
             className={styles.containerClasses}
             style={styles.boxStyle}
             onClick={handleClick}
+            onDoubleClick={handleDoubleClick}
             onMouseEnter={drag.handleMouseEnter}
             onMouseLeave={drag.handleMouseLeave}
             onMouseDown={drag.handleMouseDown}
             onMouseUp={drag.handleMouseUp}
-            title={props.disableTooltip ? undefined : keycode}
+            title={props.disableTooltip ? undefined : (title || keycode)}
+            {...rest}
         >
             {keyData.topLabel && (
                 <span className={cn(headerClass)} style={headerStyle}>
@@ -216,11 +236,18 @@ export const Key: React.FC<KeyProps> = (props) => {
             )}
         </div>
     );
-};
+});
+Key.displayName = "Key";
 
 // --- Helper Functions ---
 
-function processKeyData(keycode: string, label: string, keyContents: KeyContent | undefined, forceLabel: boolean) {
+function processKeyData(
+    keycode: string,
+    label: string,
+    keyContents: KeyContent | undefined,
+    forceLabel: boolean,
+    layoutId: string
+) {
     let displayLabel = label;
     let bottomStr = "";
     let topLabel: React.ReactNode = "";
@@ -247,8 +274,27 @@ function processKeyData(keycode: string, label: string, keyContents: KeyContent 
 
 
         // Show modifier on bottom (e.g., "LGUI" from "LGUI(TAB)")
-        const modMatch = keycode.match(/^([A-Z]+)\(/);
+        const modMatch = keycode.match(/^([A-Z_]+)\(/);
         bottomStr = modMatch ? modMatch[1] : (keyContents.top || "MOD");
+
+        // Standalone mod (KC_NO) should render in center, not footer
+        if (keyStr === "" || keyStr === "KC_NO") {
+            displayLabel = bottomStr;
+            bottomStr = "";
+        } else {
+            const baseKeycodeMatch = keycode.match(/\((.*)\)$/);
+            let baseKeycode = baseKeycodeMatch ? baseKeycodeMatch[1] : null;
+            if (baseKeycode && baseKeycode in US_SHIFT_ALIASES) {
+                baseKeycode = US_SHIFT_ALIASES[baseKeycode];
+            }
+            const wrapper = modMatch ? modMatch[1] : "";
+            const hasShiftWrapper = wrapper.includes("S") || wrapper === "MEH" || wrapper === "HYPR" || wrapper === "ALL_T";
+            const hasShiftMod = (typeof keyContents.modids === "number" && (keyContents.modids & 0x0200) !== 0) || hasShiftWrapper;
+            if (hasShiftMod && baseKeycode) {
+                const shiftedLabel = getLabelForKeycode(`LSFT(${baseKeycode})`, layoutId);
+                if (shiftedLabel) displayLabel = shiftedLabel;
+            }
+        }
 
 
 
@@ -284,6 +330,19 @@ function processKeyData(keycode: string, label: string, keyContents: KeyContent 
         // Extract modifier prefix from keycode
         const modMatch = keycode.match(/^(\w+_T)\(/);
         topLabel = keyContents.top || (modMatch ? modMatch[1] : "MOD_T");
+
+        const baseKeycodeMatch = keycode.match(/\((.*)\)$/);
+        let baseKeycode = baseKeycodeMatch ? baseKeycodeMatch[1] : null;
+        if (baseKeycode && baseKeycode in US_SHIFT_ALIASES) {
+            baseKeycode = US_SHIFT_ALIASES[baseKeycode];
+        }
+        const wrapper = modMatch ? modMatch[1] : "";
+        const hasShiftWrapper = wrapper.includes("S") || wrapper === "MEH_T" || wrapper === "HYPR_T" || wrapper === "ALL_T";
+        const hasShiftMod = (typeof keyContents.modids === "number" && (keyContents.modids & 0x0200) !== 0) || hasShiftWrapper;
+        if (hasShiftMod && baseKeycode) {
+            const shiftedLabel = getLabelForKeycode(`LSFT(${baseKeycode})`, layoutId);
+            if (shiftedLabel) displayLabel = shiftedLabel;
+        }
 
     } else if (keyContents?.type === "layerhold") {
         // Layer-tap key (e.g., LT1(KC_ENTER))
@@ -324,7 +383,7 @@ function processKeyData(keycode: string, label: string, keyContents: KeyContent 
         displayLabel = label;
     }
 
-    if (displayLabel === "KC_NO") displayLabel = "";
+    if (displayLabel === "KC_NO" || displayLabel.toLowerCase() === "0x0000" || displayLabel.toLowerCase() === "0xnan") displayLabel = "";
 
     const { icons, isMouse } = getHeaderIcons(keycode, displayLabel);
     if (icons.length > 0) {

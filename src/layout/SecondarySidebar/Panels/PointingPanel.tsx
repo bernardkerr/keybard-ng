@@ -2,6 +2,7 @@ import DynamicMenuPanel from "./DynamicMenuPanel";
 import MouseKeysSection from "./MouseKeysSection";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useVial } from "@/contexts/VialContext";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 /**
  * Unified Pointing Devices panel
@@ -23,15 +24,15 @@ const PointingPanel = () => {
     if (!isConnected) {
         return (
             <section className="h-full flex flex-col pt-2">
-                <p className="text-muted-foreground text-sm">
+                <DescriptionBlock>
                     <button
                         onClick={() => connect()}
-                        className="underline underline-offset-2 hover:text-foreground transition-all"
+                        className="underline underline-offset-2 hover:text-foreground transition-all text-inherit"
                     >
                         Connect
                     </button>
-                    {" keyboard to view pointing devices settings"}
-                </p>
+                    {" keyboard to view pointing devices settings."}
+                </DescriptionBlock>
             </section>
         );
     }
@@ -52,6 +53,9 @@ const PointingPanel = () => {
     return (
         <section className="h-full flex flex-col overflow-hidden">
             <div className="flex-1 overflow-auto">
+                <DescriptionBlock>
+                    Emulate a mouse using the Mouse Button keys, adjust the Track Ball speed with the Sniper keys, and adjust the settings for your pointing devices.
+                </DescriptionBlock>
                 {/* Mouse Keys section at top */}
                 <div className="pb-4">
                     <MouseKeysSection />

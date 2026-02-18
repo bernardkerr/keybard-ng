@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Ellipsis, Settings } from "lucide-react";
+import { EllipsisVertical, Settings } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,6 +14,8 @@ import { useChanges } from "@/contexts/ChangesContext";
 import { svalService } from "@/services/sval.service";
 import { usbInstance } from "@/services/usb.service";
 import { layerColors } from "@/utils/colors";
+import MiniZapIcon from "@/components/icons/MiniZap";
+import MiniZapDefaultIcon from "@/components/icons/MiniZapDefault";
 import { getPresetHsv, hsvToHex, hexToHsv } from "@/utils/color-conversion";
 
 import { cn } from "@/lib/utils";
@@ -28,13 +30,24 @@ interface LayerNameBadgeProps {
     x?: number;
     y?: number;
     className?: string;
+    isActive?: boolean;
+    onToggleLayerOn?: (layer: number) => void;
+    defaultLayerIndex?: number;
 }
 
 /**
  * Centered layer name badge with color picker.
  * Positioned between thumb clusters in the keyboard layout.
  */
-export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x, y, className }) => {
+export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
+    selectedLayer,
+    x,
+    y,
+    className,
+    isActive,
+    onToggleLayerOn,
+    defaultLayerIndex = 0,
+}) => {
     const { keyboard, setKeyboard, isConnected, updateKey } = useVial();
     const { queue } = useChanges();
     const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
@@ -245,6 +258,15 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
         const KC_NO = 0;
         batchWipeKeys(KC_TRNS, (v) => v === KC_NO);
     };
+    const handleChangeTransparentToDisabled = () => {
+        const KC_TRNS = KEYMAP['KC_TRNS']?.code ?? 1;
+        const KC_NO = 0;
+        batchWipeKeys(KC_NO, (v) => v === KC_TRNS);
+    };
+
+    const layerKeymap = keyboard?.keymap?.[selectedLayer] || [];
+    const hasBlankKeys = layerKeymap.some((v) => v === 0);
+    const hasTransparentKeys = layerKeymap.some((v) => v === (KEYMAP['KC_TRNS']?.code ?? 1));
 
     const style: React.CSSProperties = (x !== undefined && y !== undefined) ? {
         left: `${x}px`,
@@ -265,6 +287,31 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
                 style={style}
                 onClick={(e) => e.stopPropagation()}
             >
+                <div
+                    className="w-6 h-6 flex items-center justify-center flex-shrink-0 mr-[-3px]"
+                    onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        onToggleLayerOn?.(selectedLayer);
+                    }}
+                >
+                    {isActive ? (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="flex items-center">
+                                    {selectedLayer === defaultLayerIndex ? (
+                                        <MiniZapDefaultIcon className="w-6 h-6 text-gray-300" />
+                                    ) : (
+                                        <MiniZapIcon className="w-6 h-6 text-gray-300" />
+                                    )}
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                {selectedLayer === defaultLayerIndex ? "Default Layer" : "Active Layer"}
+                            </TooltipContent>
+                        </Tooltip>
+                    ) : null}
+                </div>
+
                 {/* Display Color Dot with Picker */}
                 <div className="relative" ref={pickerRef}>
                     <Tooltip>
@@ -321,7 +368,9 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
                     />
                 ) : (
                     <span
-                        className="text-base font-medium text-black cursor-pointer hover:underline whitespace-nowrap select-none"
+                        className={cn(
+                            "text-base font-medium text-black cursor-pointer hover:underline whitespace-nowrap select-none"
+                        )}
                         onClick={handleStartEditing}
                         title="Click to rename layer"
                     >
@@ -333,7 +382,7 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <button className="hover:bg-black/10 p-1 rounded-full transition-colors flex items-center justify-center text-black outline-none">
-                            <Ellipsis size={16} strokeWidth={1.5} />
+                            <EllipsisVertical size={16} strokeWidth={1.5} />
                         </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-56">
@@ -350,8 +399,12 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({ selectedLayer, x
                         <DropdownMenuItem onSelect={handleWipeTransparent}>
                             Make All Transparent
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={handleChangeDisabledToTransparent}>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={handleChangeDisabledToTransparent} disabled={!hasBlankKeys}>
                             Switch Blank to Transparent
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={handleChangeTransparentToDisabled} disabled={!hasTransparentKeys}>
+                            Switch Transparent to Blank
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={() => setIsPublishDialogOpen(true)}>

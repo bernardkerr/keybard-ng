@@ -65,11 +65,9 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const [hoveredKey, setHoveredKey] = useState<BindingTarget | null>(null);
     const [isBinding, setIsBinding] = useState(false);
 
-
-
-
     // Use a ref to always have access to the current selectedTarget value
     const selectedTargetRef = useRef<BindingTarget | null>(null);
+    const modifierStateRef = useRef<Set<string>>(new Set());
 
     // Keep the ref in sync with the state
     selectedTargetRef.current = selectedTarget;
@@ -691,6 +689,31 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     );
 
     useEffect(() => {
+        const isModifierCode = (code: string) =>
+            code === "ShiftLeft" || code === "ShiftRight" ||
+            code === "ControlLeft" || code === "ControlRight" ||
+            code === "AltLeft" || code === "AltRight" ||
+            code === "MetaLeft" || code === "MetaRight";
+
+        const handleModifierDown = (event: KeyboardEvent) => {
+            if (!isModifierCode(event.code)) return;
+            modifierStateRef.current.add(event.code);
+        };
+
+        const handleModifierUp = (event: KeyboardEvent) => {
+            if (!isModifierCode(event.code)) return;
+            modifierStateRef.current.delete(event.code);
+        };
+
+        window.addEventListener("keydown", handleModifierDown);
+        window.addEventListener("keyup", handleModifierUp);
+        return () => {
+            window.removeEventListener("keydown", handleModifierDown);
+            window.removeEventListener("keyup", handleModifierUp);
+        };
+    }, []);
+
+    useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             const typingBindsKey = getSetting("typing-binds-key");
 
@@ -702,10 +725,72 @@ export const KeyBindingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
             const qmkKeycode = KEYBOARD_EVENT_MAP[event.code];
 
+            const isModifierOnly =
+                event.code === "ShiftLeft" || event.code === "ShiftRight" ||
+                event.code === "ControlLeft" || event.code === "ControlRight" ||
+                event.code === "AltLeft" || event.code === "AltRight" ||
+                event.code === "MetaLeft" || event.code === "MetaRight";
+
+            if (isModifierOnly) return;
+
             if (qmkKeycode) {
                 event.preventDefault();
                 event.stopPropagation();
-                assignKeycode(qmkKeycode);
+                const modifiers = {
+                    ctrl: event.ctrlKey,
+                    shift: event.shiftKey,
+                    alt: event.altKey,
+                    gui: event.metaKey,
+                };
+                const comboKey = [
+                    modifiers.ctrl ? "C" : "",
+                    modifiers.shift ? "S" : "",
+                    modifiers.alt ? "A" : "",
+                    modifiers.gui ? "G" : "",
+                ].join("");
+
+                const modWrapperMap: Record<string, string> = {
+                    C: "LCTL",
+                    S: "LSFT",
+                    A: "LALT",
+                    G: "LGUI",
+                    CS: "C_S",
+                    CA: "LCA",
+                    CG: "LCG",
+                    SA: "LSA",
+                    SG: "LSG",
+                    AG: "LAG",
+                    CSA: "MEH",
+                    CSG: "LSCG",
+                    CAG: "LCAG",
+                    SAG: "LSAG",
+                    CSAG: "HYPR",
+                };
+
+                const rightWrapperMap: Record<string, string> = {
+                    C: "RCTL",
+                    S: "RSFT",
+                    A: "RALT",
+                    G: "RGUI",
+                    CS: "RSC",
+                    CA: "RCA",
+                    CG: "RCG",
+                    SG: "RSG",
+                    AG: "RAG",
+                    CSA: "RSCA",
+                    CSG: "RSCG",
+                    CAG: "RCAG",
+                    SAG: "RSAG",
+                    CSAG: "HYPR",
+                };
+
+                const mods = modifierStateRef.current;
+                const anyLeft = mods.has("ControlLeft") || mods.has("ShiftLeft") || mods.has("AltLeft") || mods.has("MetaLeft");
+                const anyRight = mods.has("ControlRight") || mods.has("ShiftRight") || mods.has("AltRight") || mods.has("MetaRight");
+                const useRight = anyRight && !anyLeft;
+
+                const wrapper = (useRight ? rightWrapperMap[comboKey] : undefined) || modWrapperMap[comboKey];
+                assignKeycode(wrapper ? `${wrapper}(${qmkKeycode})` : qmkKeycode);
             }
         };
 

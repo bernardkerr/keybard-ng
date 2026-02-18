@@ -1,18 +1,13 @@
-import LayersActiveIcon from "@/components/icons/LayersActive";
-import LayersDefaultIcon from "@/components/icons/LayersDefault";
 import { LayoutImport } from "@/components/icons/LayoutImport";
 import { LayoutExport } from "@/components/icons/LayoutExport";
 import MatrixTesterIcon from "@/components/icons/MatrixTesterSvg";
-import { LayerNameBadge } from "@/components/LayerNameBadge";
+import LayoutMultiLayersIcon from "@/components/icons/LayoutMultiLayersIcon";
 import { ArrowLeft, ChevronDown, Unplug, Undo2, Zap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useVial } from "@/contexts/VialContext";
 import { useChanges } from "@/contexts/ChangesContext";
 import { useSettings } from "@/contexts/SettingsContext";
-import { MATRIX_COLS } from "@/constants/svalboard-layout";
 import { cn } from "@/lib/utils";
-import { svalService } from "@/services/sval.service";
 
 import { fileService } from "@/services/file.service";
 import {
@@ -28,31 +23,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 
-import { vialService } from "@/services/vial.service";
 import { FC, useState, useEffect, useRef } from "react";
-import {
-    ContextMenu,
-    ContextMenuContent,
-    ContextMenuItem,
-    ContextMenuSeparator,
-    ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import { KEYMAP } from "@/constants/keygen";
 import { usePanels } from "@/contexts/PanelsContext";
 
 
 interface LayerSelectorProps {
     selectedLayer: number;
     setSelectedLayer: (layer: number) => void;
+    isMultiLayersActive: boolean;
+    onToggleMultiLayers: () => void;
 }
 
 /**
  * Component for selecting and managing active layers in the keyboard editor.
  * Displays a horizontal bar of layer tabs with a filter toggle for hiding blank layers.
  */
-const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer }) => {
-    const { keyboard, setKeyboard, updateKey, isConnected, connect, resetToOriginal, setIsImporting } = useVial();
-    const { clearSelection } = useKeyBinding();
+const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer, isMultiLayersActive, onToggleMultiLayers }) => {
+    const { keyboard, setKeyboard, isConnected, connect, resetToOriginal, setIsImporting } = useVial();
     const { queue, commit, getPendingCount, clearAll } = useChanges();
     const { getSetting, updateSetting } = useSettings();
 
@@ -156,12 +143,9 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
         }
     };
 
-    // User preference for showing all layers
-    const [showAllLayers, setShowAllLayers] = useState(true);
-
-    // Track container width for auto-hiding blank layers when narrow
+    // Track container width for collapsing behavior
     const containerRef = useRef<HTMLDivElement>(null);
-    const [containerWidth, setContainerWidth] = useState(0);
+    const [, setContainerWidth] = useState(0);
 
     const [windowHeight, setWindowHeight] = useState(window.innerHeight);
     const [isHovered, setIsHovered] = useState(false);
@@ -185,234 +169,13 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
         return () => window.removeEventListener("resize", handleResize);
     }, []);
 
-    // When narrow: force-hide blank layers (override user toggle)
-    // When wide: respect user's showAllLayers toggle
-    // Threshold of 800px accounts for sidebar + layer tabs needing room
-    const isNarrow = containerWidth > 0 && containerWidth < 800;
-
     // When vertically constrained, go into hover-only mode
-    // Threshold of 550px is when keyboard + layer bar start competing for space
     const isVerticallyConstrained = windowHeight < 550;
     const showFullBar = !isVerticallyConstrained || isHovered;
 
     if (!keyboard) return null;
 
-    const handleSelectLayer = (layer: number) => () => {
-        setSelectedLayer(layer);
-        clearSelection();
-    };
-
-    const toggleShowLayers = () => {
-        setShowAllLayers((prev) => !prev);
-    };
-
-    // Layer Actions
-
-
-
-    const handleCopyLayer = () => {
-        if (!keyboard?.keymap) return;
-        const layerData = keyboard.keymap[selectedLayer];
-        navigator.clipboard.writeText(JSON.stringify(layerData));
-    };
-
-    const handlePasteLayer = async () => {
-        if (!keyboard || !keyboard.keymap) return;
-        try {
-            const text = await navigator.clipboard.readText();
-            const layerData = JSON.parse(text);
-            if (Array.isArray(layerData)) {
-                if (layerData.length === 0) return;
-
-                const matrixCols = keyboard.cols || MATRIX_COLS;
-                const currentLayerKeymap = keyboard.keymap[selectedLayer] || [];
-
-                // Clone keyboard once for all changes
-                const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-                if (!updatedKeyboard.keymap[selectedLayer]) {
-                    updatedKeyboard.keymap[selectedLayer] = [];
-                }
-
-                let hasChanges = false;
-
-                for (let r = 0; r < keyboard.rows; r++) {
-                    for (let c = 0; c < keyboard.cols; c++) {
-                        const idx = r * matrixCols + c;
-                        if (idx < layerData.length) {
-                            const newValue = layerData[idx];
-                            const currentValue = currentLayerKeymap[idx];
-
-                            // Only queue change if value is different
-                            if (newValue !== currentValue) {
-                                hasChanges = true;
-
-                                // Update the cloned keyboard
-                                updatedKeyboard.keymap[selectedLayer][idx] = newValue;
-
-                                // Queue change for tracking
-                                const row = r;
-                                const col = c;
-                                const previousValue = currentValue;
-                                const changeDesc = `key_${selectedLayer}_${row}_${col}`;
-
-                                queue(
-                                    changeDesc,
-                                    async () => {
-                                        console.log(`Committing key change: Layer ${selectedLayer}, Key [${row},${col}] → ${newValue}`);
-                                        updateKey(selectedLayer, row, col, newValue);
-                                    },
-                                    {
-                                        type: "key",
-                                        layer: selectedLayer,
-                                        row,
-                                        col,
-                                        keycode: newValue,
-                                        previousValue,
-                                    }
-                                );
-                            }
-                        }
-                    }
-                }
-
-                // Only update state if there were changes
-                if (hasChanges) {
-                    setKeyboard(updatedKeyboard);
-                }
-            }
-        } catch (e) {
-            console.error("Failed to paste layer", e);
-        }
-    };
-
-    // Batch wipe helper - clones keyboard once, makes all changes, queues each for tracking, then updates state once
-    const batchWipeKeys = (targetKeycode: number, filterFn: (currentValue: number) => boolean) => {
-        if (!keyboard || !keyboard.keymap) return;
-
-        const matrixCols = keyboard.cols || MATRIX_COLS;
-        const currentLayerKeymap = keyboard.keymap[selectedLayer] || [];
-
-        // Clone keyboard once for all changes
-        const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
-        if (!updatedKeyboard.keymap[selectedLayer]) {
-            updatedKeyboard.keymap[selectedLayer] = [];
-        }
-
-        // Track if any changes were made
-        let hasChanges = false;
-
-        for (let r = 0; r < keyboard.rows; r++) {
-            for (let c = 0; c < keyboard.cols; c++) {
-                const idx = r * matrixCols + c;
-                const currentValue = currentLayerKeymap[idx];
-
-                // Only process keys that pass the filter
-                if (filterFn(currentValue)) {
-                    hasChanges = true;
-
-                    // Update the cloned keyboard
-                    updatedKeyboard.keymap[selectedLayer][idx] = targetKeycode;
-
-                    // Queue change for tracking (captures row, col, targetKeycode by value)
-                    const row = r;
-                    const col = c;
-                    const previousValue = currentValue;
-                    const changeDesc = `key_${selectedLayer}_${row}_${col}`;
-
-                    queue(
-                        changeDesc,
-                        async () => {
-                            console.log(`Committing key change: Layer ${selectedLayer}, Key [${row},${col}] → ${targetKeycode}`);
-                            updateKey(selectedLayer, row, col, targetKeycode);
-                        },
-                        {
-                            type: "key",
-                            layer: selectedLayer,
-                            row,
-                            col,
-                            keycode: targetKeycode,
-                            previousValue,
-                        }
-                    );
-                }
-            }
-        }
-
-        // Only update state if there were changes
-        if (hasChanges) {
-            setKeyboard(updatedKeyboard);
-        }
-    };
-
-    const handleWipeDisable = () => {
-        const KC_NO = 0;
-        batchWipeKeys(KC_NO, (currentValue) => currentValue !== KC_NO);
-    };
-
-    const handleWipeTransparent = () => {
-        const KC_TRNS = KEYMAP['KC_TRNS']?.code ?? 1;
-        batchWipeKeys(KC_TRNS, (currentValue) => currentValue !== KC_TRNS);
-    };
-
-    const handleChangeDisabledToTransparent = () => {
-        const KC_TRNS = KEYMAP['KC_TRNS']?.code ?? 1;
-        const KC_NO = 0;
-        batchWipeKeys(KC_TRNS, (currentValue) => currentValue === KC_NO);
-    };
-
     const { activePanel, setActivePanel, setOpen, setItemToEdit, setPanelToGoBack } = usePanels();
-
-    // Render a layer tab with context menu for right-click actions
-    const renderLayerTab = (i: number) => {
-        const layerData = keyboard.keymap?.[i];
-        const isEmpty = layerData ? vialService.isLayerEmpty(layerData) : true;
-
-        // When narrow: always hide blank layers (except selected)
-        // When wide: respect user's showAllLayers preference
-        const shouldHideBlank = isNarrow || !showAllLayers;
-        if (shouldHideBlank && isEmpty && i !== selectedLayer) {
-            return null;
-        }
-
-        const layerShortName = svalService.getLayerNameNoLabel(keyboard, i);
-        const isActive = selectedLayer === i;
-
-        return (
-            <ContextMenu key={`layer-tab-${i}`}>
-                <ContextMenuTrigger asChild>
-                    <button
-                        onClick={handleSelectLayer(i)}
-                        className={cn(
-                            "px-4 py-1 rounded-full transition-all text-sm font-medium cursor-pointer border-none outline-none whitespace-nowrap",
-                            isActive
-                                ? "bg-gray-800 text-white shadow-md scale-105"
-                                : "bg-transparent text-gray-600 hover:bg-gray-200"
-                        )}
-                    >
-                        <span className="select-none">{layerShortName}</span>
-                    </button>
-                </ContextMenuTrigger>
-                <ContextMenuContent className="w-56">
-                    <ContextMenuItem onSelect={handleCopyLayer}>
-                        Copy Layer
-                    </ContextMenuItem>
-                    <ContextMenuItem onSelect={handlePasteLayer}>
-                        Paste Layer
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem onSelect={handleWipeDisable}>
-                        Make All Blank
-                    </ContextMenuItem>
-                    <ContextMenuItem onSelect={handleWipeTransparent}>
-                        Make All Transparent
-                    </ContextMenuItem>
-                    <ContextMenuItem onSelect={handleChangeDisabledToTransparent}>
-                        Switch Blank to Transparent
-                    </ContextMenuItem>
-                </ContextMenuContent>
-            </ContextMenu>
-        );
-    };
 
     // Single clean render - horizontal bar of layer tabs (single line, no wrap, no scroll)
     // When vertically constrained: hover-only mode with collapsed hint bar
@@ -580,7 +343,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                                     >
                                         <span className="select-none">
                                             {getPendingCount() > 0
-                                                ? `Update ${getPendingCount()} Change${getPendingCount() === 1 ? '' : 's'}`
+                                                ? `Update ${getPendingCount()} Change${getPendingCount() === 1 ? '' : 's'} `
                                                 : 'Update Changes'}
                                         </span>
                                     </button>
@@ -618,6 +381,69 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                         <div className="h-4 w-[1px] bg-slate-400 mx-0 flex-shrink-0" />
 
                         <div className="flex items-center gap-1">
+                            {/* Multi Layers Button */}
+                            <Tooltip delayDuration={500}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (activePanel === "matrixtester") {
+                                                setActivePanel(null);
+                                            }
+                                            onToggleMultiLayers();
+                                        }}
+                                        className={cn(
+                                            "p-2 rounded-full transition-all cursor-pointer",
+                                            isMultiLayersActive
+                                                ? "bg-black hover:bg-gray-800"
+                                                : "hover:bg-gray-200"
+                                        )}
+                                        aria-label={isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
+                                    >
+                                        <LayoutMultiLayersIcon className={cn(
+                                            "h-5 w-5",
+                                            isMultiLayersActive ? "text-kb-gray" : "text-black"
+                                        )} />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    {isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
+                                </TooltipContent>
+                            </Tooltip>
+
+                            {/* Import Button */}
+                            <Tooltip delayDuration={500}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                                        className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-200"
+                                        aria-label="Import Layout"
+                                    >
+                                        <LayoutImport className="h-5 w-5 text-black" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    Import Layout
+                                </TooltipContent>
+                            </Tooltip>
+
+                            {/* Export Button */}
+                            <Tooltip delayDuration={500}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }}
+                                        className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-200"
+                                        disabled={!keyboard}
+                                        aria-label="Export Layout"
+                                    >
+                                        <LayoutExport className="h-5 w-5 text-black" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    Export Layout
+                                </TooltipContent>
+                            </Tooltip>
+
                             {/* Matrix Tester Button */}
                             <Tooltip delayDuration={500}>
                                 <TooltipTrigger asChild>
@@ -654,73 +480,15 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                                 </TooltipContent>
                             </Tooltip>
 
-                            {/* Import Button */}
-                            <Tooltip delayDuration={500}>
-                                <TooltipTrigger asChild>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                                        className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-200"
-                                        aria-label="Import"
-                                    >
-                                        <LayoutImport className="h-5 w-5 text-black" />
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                    Import
-                                </TooltipContent>
-                            </Tooltip>
-
-                            {/* Export Button */}
-                            <Tooltip delayDuration={500}>
-                                <TooltipTrigger asChild>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); setIsExportOpen(true); }}
-                                        className="p-2 rounded-full transition-all cursor-pointer hover:bg-gray-200"
-                                        disabled={!keyboard}
-                                        aria-label="Export"
-                                    >
-                                        <LayoutExport className="h-5 w-5 text-black" />
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                    Export
-                                </TooltipContent>
-                            </Tooltip>
+                            {/* Divider */}
+                            <div className="h-4 w-[1px] bg-slate-400 ml-2 mr-0 flex-shrink-0" />
                         </div>
 
-                        {/* Divider */}
-                        <div className="h-4 w-[1px] bg-slate-400 mx-2 flex-shrink-0" />
-
-                        <Tooltip delayDuration={500}>
-                            <TooltipTrigger asChild>
-                                <button
-                                    onClick={toggleShowLayers}
-                                    disabled={isNarrow || activePanel === "matrixtester"}
-                                    className={cn(
-                                        "p-2 rounded-full transition-colors flex-shrink-0",
-                                        (isNarrow || activePanel === "matrixtester")
-                                            ? "text-gray-400 cursor-not-allowed opacity-30"
-                                            : "text-black hover:bg-gray-200"
-                                    )}
-                                    aria-label={isNarrow ? "Blank layers auto-hidden" : (showAllLayers ? "Hide Blank Layers" : "Show All Layers")}
-                                >
-                                    {(isNarrow || !showAllLayers) ? <LayersActiveIcon className="h-5 w-5" /> : <LayersDefaultIcon className="h-5 w-5" />}
-                                </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                                {isNarrow ? "Blank layers auto-hidden (narrow)" : (showAllLayers ? "Hide Blank Layers" : "Show All Layers")}
-                            </TooltipContent>
-                        </Tooltip>
-
-                        {/* Layer tabs - single line */}
-                        <div className={cn("flex items-center gap-1", activePanel === "matrixtester" && "opacity-30 pointer-events-none")}>
-                            {Array.from({ length: keyboard.layers || 16 }, (_, i) => renderLayerTab(i))}
-                        </div>
                     </div>
 
-                    {/* Bottom Row: Layer Name Badge or Matrix Tester Title */}
-                    <div className="pl-[27px] pt-[7px] pb-2">
-                        {activePanel === "matrixtester" ? (
+                    {/* Matrix Tester Title - shown only when matrix tester is active */}
+                    {activePanel === "matrixtester" && (
+                        <div className="pl-[27px] pt-[7px] pb-2">
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => setActivePanel(null)}
@@ -731,10 +499,8 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer, setSelectedLayer
                                     <span className="font-bold text-lg text-black">Matrix Tester</span>
                                 </button>
                             </div>
-                        ) : (
-                            <LayerNameBadge selectedLayer={selectedLayer} />
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

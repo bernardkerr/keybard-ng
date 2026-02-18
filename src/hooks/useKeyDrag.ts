@@ -160,6 +160,12 @@ export const useKeyDrag = (props: UseKeyDragProps) => {
                 const matrixPos = row * matrixCols + col;
                 const existingNumeric = keyboard?.keymap?.[layerIndex]?.[matrixPos] || 0;
 
+                if (draggedItem.forceAssign) {
+                    assignKeycodeTo({ type: "keyboard", layer: layerIndex, row, col }, dragKc);
+                    setIsDragHover(false);
+                    return;
+                }
+
                 // Check if the dragged item is a "wrapper" template (e.g., LCTL(KC_NO), LSFT_T(KC_NO), LT1(KC_NO))
                 // OR if it's a smart preview being dragged from the sidebar (draggedItem.row is undefined)
                 const isDragWrapper = (dragNumeric >= 0x0100 && dragNumeric <= 0x4FFF) &&

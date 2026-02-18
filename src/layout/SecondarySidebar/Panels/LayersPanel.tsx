@@ -13,21 +13,34 @@ import { KeyContent } from "@/types/vial.types";
 import { CODEMAP } from "@/constants/keygen";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 /**
  * Valid layer modifiers supported by the UI
  */
-const LAYER_MODIFIERS = ["MO", "DF", "TG", "TT", "OSL", "TO", "LT"] as const;
+const LAYER_MODIFIERS = ["MO", "DF", "PDF", "TG", "TT", "OSL", "TO", "LT"] as const;
 type LayerModifier = (typeof LAYER_MODIFIERS)[number];
 
 const MODIFIER_NAMES: Record<LayerModifier, string> = {
     MO: "Momentary",
     DF: "Default Layer",
+    PDF: "Persistent Default Layer",
     TG: "Toggle Layer",
     TT: "Tap Toggle",
     OSL: "One Shot Layer",
     TO: "To Layer",
     LT: "Layer Tap",
+};
+
+const MODIFIER_DESCRIPTIONS: Record<LayerModifier, string> = {
+    DF: "Switches the default layer. The default layer is the always-active base layer that other layers stack on top of. This might be used to switch from QWERTY to Dvorak layout. Note that this is a temporary switch that only persists until the keyboard loses power.",
+    PDF: "Sets a persistent default layer. This switch, which will last through a power loss, might be used to switch from QWERTY to Dvorak layout and only switch again when you want to.",
+    MO: "Momentarily activates the layer. As soon as you let go of the key, the layer is deactivated.",
+    LT: "Momentarily activates the layer when held, and sends the tapped key when tapped. Only supports layers 0-15.",
+    OSL: "Momentarily activates the layer until the next key is pressed.",
+    TG: "Toggles the layer, activating it if it's inactive and vice versa.",
+    TO: "Activates the layer and de-activates all other layers (except your default layer). This replaces your current active layers, and is activated on keydown.",
+    TT: "Layer Tap-Toggle. Hold to activate while held (like MO). Repeated taps toggle the layer on or off (like TG). Default is 5 taps; change with TAPPING_TOGGLE.",
 };
 
 /**
@@ -100,6 +113,22 @@ const LayersPanel = ({ isPicker }: Props) => {
         }
     };
 
+    const getLayerKeycode = (modifier: LayerModifier, layerIndex: number) => {
+        if (modifier === "LT") {
+            return `LT${layerIndex}(${baseKeyStr})`;
+        }
+        return `${modifier}(${layerIndex})`;
+    };
+
+    const getLayerKeyContents = (modifier: LayerModifier, layerIndex: number, keycode: string) => {
+        if (modifier === "PDF") {
+            const dfKeycode = `DF(${layerIndex})`;
+            const dfContents = getKeyContents(keyboard, dfKeycode) as KeyContent;
+            return dfContents ? { ...dfContents, layertext: "PDF", top: keycode } : dfContents;
+        }
+        return getKeyContents(keyboard, keycode) as KeyContent;
+    };
+
     // Horizontal layout for bottom panel
     if (isHorizontal) {
         return (
@@ -114,8 +143,8 @@ const LayersPanel = ({ isPicker }: Props) => {
                                 key={modifier}
                                 onClick={() => setActiveModifier(modifier)}
                                 className={cn(
-                                    "px-2 py-0.5 text-[10px] font-bold rounded transition-all",
-                                    isActive ? "bg-black text-white" : "text-gray-500 hover:bg-gray-100"
+                                    "px-3 py-1 text-[11px] font-medium rounded-full transition-all",
+                                    isActive ? "bg-gray-800 text-white shadow-sm" : "text-gray-600 hover:bg-gray-200"
                                 )}
                             >
                                 {modifier}
@@ -124,13 +153,23 @@ const LayersPanel = ({ isPicker }: Props) => {
                     })}
                 </div>
 
+                {/* Active Modifier Legend */}
+                <div className="flex flex-col gap-1 pl-1 pr-1 w-full box-border">
+                    <span className="text-xs font-semibold text-black">
+                        {MODIFIER_NAMES[activeModifier]}
+                    </span>
+                    <span className="text-xs text-slate-500 leading-relaxed max-w-[320px]">
+                        {MODIFIER_DESCRIPTIONS[activeModifier]}
+                    </span>
+                </div>
+
                 {/* Layer keys grid */}
                 <div className="flex flex-row gap-1 flex-wrap items-start">
                     {Array.from({ length: keyboard.layers || 16 }, (_, i) => {
                         const layerName = (svalService.getLayerCosmetic(keyboard, i) || "").trim();
                         // LT uses format LT#(key) instead of LT(#)
-                        const keycode = activeModifier === "LT" ? `LT${i}(${baseKeyStr})` : `${activeModifier}(${i})`;
-                        const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
+                        const keycode = getLayerKeycode(activeModifier, i);
+                        const keyContents = getLayerKeyContents(activeModifier, i, keycode);
 
                         return (
                             <Key
@@ -164,7 +203,7 @@ const LayersPanel = ({ isPicker }: Props) => {
                 </div>
             )}
             {/* Layer Modifier Selection Tabs */}
-            <div className="flex flex-wrap items-center justify-start gap-4">
+            <div className="flex flex-wrap items-center justify-start gap-3">
                 <div className="flex items-center justify-start gap-1">
                     {LAYER_MODIFIERS.map((modifier) => {
                         const isActive = modifier === activeModifier;
@@ -174,8 +213,8 @@ const LayersPanel = ({ isPicker }: Props) => {
                                 type="button"
                                 variant={isActive ? "default" : "ghost"}
                                 className={cn(
-                                    "px-5 py-2 text-base font-semibold rounded-full transition-all min-w-[3rem]",
-                                    isActive ? "shadow-sm bg-slate-900 text-white hover:bg-slate-800" : "text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                                    "px-4 py-1 text-sm font-medium rounded-full transition-all min-w-[2.5rem]",
+                                    isActive ? "shadow-sm bg-gray-800 text-white hover:bg-gray-700" : "text-gray-600 hover:bg-gray-200 hover:text-gray-900"
                                 )}
                                 onClick={() => setActiveModifier(modifier)}
                             >
@@ -186,44 +225,47 @@ const LayersPanel = ({ isPicker }: Props) => {
                 </div>
             </div>
 
-            {/* Active Modifier Legend */}
-            <div className="text-black font-bold flex justify-start items-center pt-1 pl-[26px]">
-                <span className="text-md font-medium">
-                    {MODIFIER_NAMES[activeModifier]}
-                </span>
-            </div>
-
             {/* Scrollable Layer List */}
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
-                {Array.from({ length: keyboard.layers || 16 }, (_, i) => {
-                    const layerName = (svalService.getLayerCosmetic(keyboard, i) || "").trim();
-                    const hasCustomName = layerName !== "";
-                    const layerColor = keyboard?.cosmetic?.layer_colors?.[i] ?? "primary";
-                    // LT uses format LT#(key) instead of LT(#)
-                    const keycode = activeModifier === "LT" ? `LT${i}(${baseKeyStr})` : `${activeModifier}(${i})`;
-                    const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
+                <DescriptionBlock wrapText={false}>
+                    <span className="text-md font-medium text-black">
+                        {MODIFIER_NAMES[activeModifier]}
+                    </span>
+                    <span className="text-sm text-slate-500 leading-relaxed max-w-[560px]">
+                        {MODIFIER_DESCRIPTIONS[activeModifier]}
+                    </span>
+                </DescriptionBlock>
+                <div className="pr-[26px]">
+                    {Array.from({ length: keyboard.layers || 16 }, (_, i) => {
+                        const layerName = (svalService.getLayerCosmetic(keyboard, i) || "").trim();
+                        const hasCustomName = layerName !== "";
+                        const layerColor = keyboard?.cosmetic?.layer_colors?.[i] ?? "primary";
+                        // LT uses format LT#(key) instead of LT(#)
+                        const keycode = getLayerKeycode(activeModifier, i);
+                        const keyContents = getLayerKeyContents(activeModifier, i, keycode);
 
-                    return (
-                        <SidebarItemRow
-                            key={i}
-                            index={i}
-                            keyboard={keyboard}
-                            keycode={keycode}
-                            label={i.toString()}
-                            keyContents={keyContents}
-                            color={layerColor}
-                            hasCustomName={hasCustomName}
-                            customName={layerName}
-                            onAssignKeycode={assignKeycode}
-                            onColorChange={isPicker ? undefined : handleColorChange}
-                            onNameChange={isPicker ? undefined : handleNameChange}
-                            hoverBorderColor={hoverBorderColor}
-                            hoverBackgroundColor={hoverBackgroundColor}
-                            hoverLayerColor={layerColorName}
-                            hoverHeaderClass={hoverHeaderClass}
-                        />
-                    );
-                })}
+                        return (
+                            <SidebarItemRow
+                                key={i}
+                                index={i}
+                                keyboard={keyboard}
+                                keycode={keycode}
+                                label={i.toString()}
+                                keyContents={keyContents}
+                                color={layerColor}
+                                hasCustomName={hasCustomName}
+                                customName={layerName}
+                                onAssignKeycode={assignKeycode}
+                                onColorChange={isPicker ? undefined : handleColorChange}
+                                onNameChange={isPicker ? undefined : handleNameChange}
+                                hoverBorderColor={hoverBorderColor}
+                                hoverBackgroundColor={hoverBackgroundColor}
+                                hoverLayerColor={layerColorName}
+                                hoverHeaderClass={hoverHeaderClass}
+                            />
+                        );
+                    })}
+                </div>
             </div>
         </section>
     );

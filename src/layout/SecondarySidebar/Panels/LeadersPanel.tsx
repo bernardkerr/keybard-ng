@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ArrowRight, Plus, X, ArrowRightFromLine } from "lucide-react";
+import { ArrowRight, Plus, ArrowRightFromLine } from "lucide-react";
 
 import OnOffToggle from "@/components/ui/OnOffToggle";
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
@@ -16,9 +16,10 @@ import { Key } from "@/components/Key";
 import { KeyContent, LeaderOptions } from "@/types/vial.types";
 import { vialService } from "@/services/vial.service";
 import { cn } from "@/lib/utils";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 const LeadersPanel: React.FC = () => {
-    const { keyboard, setKeyboard, isConnected } = useVial();
+    const { keyboard, isConnected, setKeyboard } = useVial();
     const { assignKeycode, isBinding } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
@@ -104,26 +105,6 @@ const LeadersPanel: React.FC = () => {
         setAlternativeHeader(true);
         if (slot) {
             setInitialEditorSlot(slot);
-        }
-    };
-
-    const clearLeader = async (index: number) => {
-        if (!keyboard.leaders) return;
-        const updatedLeaders = [...keyboard.leaders];
-        updatedLeaders[index] = {
-            ...updatedLeaders[index],
-            sequence: ["KC_NO", "KC_NO", "KC_NO", "KC_NO", "KC_NO"],
-            output: "KC_NO",
-            options: 0
-        };
-        const updatedKeyboard = { ...keyboard, leaders: updatedLeaders };
-        setKeyboard(updatedKeyboard);
-
-        try {
-            await vialService.updateLeader(updatedKeyboard, index);
-            await vialService.saveViable();
-        } catch (err) {
-            console.error("Failed to clear leader:", err);
         }
     };
 
@@ -259,17 +240,6 @@ const LeadersPanel: React.FC = () => {
                                 )}
                                 onClick={() => handleEdit(i)}
                             >
-                                {/* Delete button */}
-                                <button
-                                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        clearLeader(i);
-                                    }}
-                                    title="Clear leader"
-                                >
-                                    <X className="w-3 h-3 text-white" />
-                                </button>
                                 <span className="text-[9px] font-bold text-slate-600 mb-1">L{i}</span>
                                 <div className="flex flex-row items-center gap-0.5">
                                     {entry.sequence.slice(0, 5).map((keycode, seqIdx) => {
@@ -308,10 +278,13 @@ const LeadersPanel: React.FC = () => {
     }
 
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
-            {/* Placeable Leader key */}
-            <div className="px-3 flex flex-col gap-2">
-                <div className="flex">
+        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
+            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+                <DescriptionBlock>
+                    Leader sequences trigger an output when you press a specific sequence of keys after the Leader key. Click on a key slot to assign a keycode.
+                </DescriptionBlock>
+                {/* Placeable Leader key */}
+                <div className="pl-6 pr-2 flex sticky top-0 z-20 bg-white pb-3 pt-2">
                     <Key
                         isRelative
                         x={0} y={0} w={1} h={1} row={-1} col={-1}
@@ -328,51 +301,42 @@ const LeadersPanel: React.FC = () => {
                         disableTooltip={true}
                     />
                 </div>
-            </div>
-
-            <div className="px-2 pb-2 text-sm text-muted-foreground">
-                Leader sequences trigger an output when you press a specific sequence of keys after the Leader key.
-                Click on a key slot to assign a keycode.
-            </div>
-
-            {/* Leader Timing Settings */}
-            {isConnected && (isTimeoutSupported || isPerKeySupported) && (
-                <div className="pl-6 pr-2 pb-3 border-b border-gray-200 dark:border-gray-700 space-y-3">
-                    {isTimeoutSupported && (
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="flex flex-col">
-                                <span className="text-sm font-medium">Leader Timeout</span>
-                                <span className="text-xs text-muted-foreground">50-5000 ms</span>
+                {/* Leader Timing Settings */}
+                {isConnected && (isTimeoutSupported || isPerKeySupported) && (
+                    <div className="pl-6 pr-2 pb-3 pt-4 border-t border-b border-gray-200 dark:border-gray-700 space-y-3">
+                        {isTimeoutSupported && (
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-medium">Leader Timeout</span>
+                                    <span className="text-xs text-muted-foreground">50-5000 ms</span>
+                                </div>
+                                <Input
+                                    type="number"
+                                    value={timeoutInput}
+                                    min={50}
+                                    max={5000}
+                                    onChange={(e) => setTimeoutInput(e.target.value)}
+                                    onBlur={handleTimeoutBlur}
+                                    disabled={savingTimeout}
+                                    className={cn("w-24 text-right select-text", savingTimeout && "opacity-50")}
+                                />
                             </div>
-                            <Input
-                                type="number"
-                                value={timeoutInput}
-                                min={50}
-                                max={5000}
-                                onChange={(e) => setTimeoutInput(e.target.value)}
-                                onBlur={handleTimeoutBlur}
-                                disabled={savingTimeout}
-                                className={cn("w-24 text-right select-text", savingTimeout && "opacity-50")}
-                            />
-                        </div>
-                    )}
-                    {isPerKeySupported && (
-                        <div className="flex items-center justify-between">
-                            <div className="flex flex-col">
-                                <span className="text-sm font-medium">Per-key timing</span>
-                                <span className="text-xs text-muted-foreground">Reset timeout on each key</span>
+                        )}
+                        {isPerKeySupported && (
+                            <div className="flex items-center justify-between">
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-medium">Per-key timing</span>
+                                    <span className="text-xs text-muted-foreground">Reset timeout on each key</span>
+                                </div>
+                                <OnOffToggle
+                                    value={perKeyTiming}
+                                    onToggle={handlePerKeyToggle}
+                                    className={cn(savingPerKey && "opacity-50")}
+                                />
                             </div>
-                            <OnOffToggle
-                                value={perKeyTiming}
-                                onToggle={handlePerKeyToggle}
-                                className={cn(savingPerKey && "opacity-50")}
-                            />
-                        </div>
-                    )}
-                </div>
-            )}
-
-            <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+                        )}
+                    </div>
+                )}
                 {leaders.map((entry, i) => {
                     const enabled = isEnabled(entry.options);
                     const hasSequence = entry.sequence.some(k => k !== "KC_NO" && k !== "");
@@ -425,7 +389,6 @@ const LeadersPanel: React.FC = () => {
                             label={i.toString()}
                             keyContents={keyContents}
                             onEdit={handleEdit}
-                            onDelete={isDefined ? clearLeader : undefined}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
                             hoverLayerColor={layerColorName}

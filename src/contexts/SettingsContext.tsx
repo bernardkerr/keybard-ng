@@ -15,8 +15,8 @@ export const SETTINGS: SettingDefinition[] = [
     },
     {
         name: "typing-binds-key",
-        label: "Typing binds a key",
-        description: "When enabled, typing on your physical keyboard will bind the corresponding key on the layout.",
+        label: "Typing Binds a Key",
+        description: "Use your physical keyboard to assign selected keys. You can also hold down a modifier key or combinations of modifier keys when you press a key.",
         defaultValue: true,
         type: "boolean",
     },

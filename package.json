@@ -5,6 +5,7 @@
     "type": "module",
     "scripts": {
         "dev": "vite --host",
+        "dev:local": "vite --host --port 5174",
         "build": "tsc && vite build",
         "preview": "vite preview",
         "test": "vitest run",

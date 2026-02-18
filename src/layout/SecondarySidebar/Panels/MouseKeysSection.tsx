@@ -158,7 +158,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                             variant={activeModifiers.length === 0 ? "default" : "secondary"}
                             size="sm"
                             className={cn(
-                                "rounded-md px-6 h-8 transition-all text-sm font-bold border-none",
+                                "rounded-md h-8 transition-all text-sm font-bold border-none w-[84px]",
                                 activeModifiers.length === 0 ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
                             )}
                             onClick={handleClearModifiers}
@@ -175,7 +175,7 @@ const MouseKeysSection = ({ compact, variant: variantOverride }: Props) => {
                                     variant={isActive ? "default" : "secondary"}
                                     size="sm"
                                     className={cn(
-                                        "rounded-md px-6 h-8 transition-all text-sm font-bold border-none",
+                                        "rounded-md h-8 transition-all text-sm font-bold border-none w-[84px]",
                                         isActive ? "bg-kb-sidebar-dark text-white shadow-sm" : "bg-kb-gray-medium text-slate-700 hover:bg-white"
                                     )}
                                     onClick={() => handleModifierToggle(modifier)}

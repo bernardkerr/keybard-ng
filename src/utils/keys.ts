@@ -89,6 +89,7 @@ function describeMacro(KBINFO: KeyboardInfo, mid: any, macro?: any) {
 const LAYERKEYS: any = {
     MO: ["MO", "While pressed, activate layer: ", "key-layer key-layer-mo"],
     DF: ["DF", "Switch default layer: ", "key-layer key-layer-df"],
+    PDF: ["PDF", "Sets a persistent default layer: ", "key-layer key-layer-df"],
     TG: ["TG", "Toggle layer: ", "key-layer key-layer-tg"],
     TT: ["TT", "Tap-Toggle: ", "key-layer key-layer-tt"],
     OSL: ["OSL", "Toggle layer active for one key: ", "key-layer key-layer-osl"],

@@ -1,4 +1,5 @@
 import "./Keyboard.css";
+import { cn } from "@/lib/utils";
 
 import { getKeyLabel, getKeycodeName } from "@/utils/layers";
 import React, { useMemo, useEffect, useRef } from "react";
@@ -9,13 +10,18 @@ import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import type { KeyboardInfo } from "../types/vial.types";
 import { Key } from "./Key";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
+import { useSettings } from "@/contexts/SettingsContext";
 import { getLabelForKeycode } from "./Keyboards/layouts";
 import {
     headerClasses,
     hoverHeaderClasses,
     hoverBackgroundClasses,
-    hoverBorderClasses
+    hoverBorderClasses,
+    colorClasses,
+    layerColors
 } from "@/utils/colors";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { svalService } from "@/services/sval.service";
 // import { InfoIcon } from "./icons/InfoIcon";
 import { usePanels } from "@/contexts/PanelsContext";
 import { useChanges } from "@/hooks/useChanges";
@@ -25,13 +31,23 @@ interface KeyboardProps {
     onKeyClick?: (layer: number, row: number, col: number) => void;
     selectedLayer: number;
     setSelectedLayer: (layer: number) => void;
+    showTransparency?: boolean;
+    onGhostNavigate?: (sourceLayer: number) => void;
+    layerActiveState?: boolean[];
 }
 
 /**
  * Main Keyboard component for the Svalboard layout.
  * Renders individual keys, cluster backgrounds, and an information panel.
  */
-export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) => {
+export const Keyboard: React.FC<KeyboardProps> = ({
+    keyboard,
+    selectedLayer,
+    setSelectedLayer,
+    showTransparency = false,
+    onGhostNavigate,
+    layerActiveState,
+}) => {
     const {
         selectKeyboardKey,
         selectedTarget,
@@ -62,6 +78,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
     const matrixCols = keyboard.cols || MATRIX_COLS;
 
     const { internationalLayout, keyVariant, fingerClusterSqueeze } = useLayoutSettings();
+    const { getSetting } = useSettings();
     const isTransmitting = useMemo(() =>
         itemToEdit !== null && ["tapdances", "combos", "macros", "overrides"].includes(activePanel || ""),
         [itemToEdit, activePanel]
@@ -136,16 +153,27 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.key === "Delete" || e.key === "Backspace") && selectedTarget?.type === "keyboard") {
-                if (selectedTarget.layer === selectedLayer && typeof selectedTarget.row === 'number') {
-                    assignKeycode("KC_NO");
-                }
+            const typingBindsKey = getSetting("typing-binds-key");
+            if (typingBindsKey) return;
+
+            if (!(e.key === "Delete" || e.key === "Backspace")) return;
+            if (selectedTarget?.type !== "keyboard") return;
+
+            // Ignore if user is typing in an input or textarea
+            const target = e.target as HTMLElement;
+            if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+
+            if (selectedTarget.layer === selectedLayer && typeof selectedTarget.row === 'number') {
+                e.preventDefault();
+                e.stopPropagation();
+                const shouldTransparent = e.key === "Delete" || (e.key === "Backspace" && e.shiftKey);
+                assignKeycode(shouldTransparent ? "KC_TRNS" : "KC_NO");
             }
         };
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [selectedTarget, selectedLayer, assignKeycode]);
+    }, [selectedTarget, selectedLayer, assignKeycode, getSetting]);
 
     const keyboardSize = useMemo(() => {
         let maxX = 0;
@@ -176,6 +204,39 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
         };
     }, [keyboardLayout, currentUnitSize, useFragmentLayout, fingerClusterSqueeze]);
 
+    const KC_TRNS = 1;
+
+    // Helper to find effective keycode for transparency
+    // Uses layerActiveState (UI/device) to decide which lower layers are "active".
+    // Fallback is always Layer 0.
+    const findEffectiveKey = (startLayer: number, pos: number) => {
+        for (let l = startLayer - 1; l >= 0; l--) {
+            const isActive = layerActiveState ? !!layerActiveState[l] : false;
+            if (!isActive) continue;
+            const keymap = keyboard.keymap?.[l];
+            if (!keymap) continue;
+            const code = keymap[pos];
+            if (code !== KC_TRNS) {
+                return {
+                    keycode: code,
+                    sourceLayer: l,
+                    sourceLayerColor: keyboard.cosmetic?.layer_colors?.[l] || "primary"
+                };
+            }
+        }
+
+        // Fallback to layer 0 key
+        const baseLayer = 0;
+        const keymap = keyboard.keymap?.[baseLayer];
+        if (!keymap) return null;
+        const code = keymap[pos];
+        return {
+            keycode: code,
+            sourceLayer: baseLayer,
+            sourceLayerColor: keyboard.cosmetic?.layer_colors?.[baseLayer] || "primary"
+        };
+    };
+
     return (
         <div className="p-4">
             <div
@@ -189,10 +250,27 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                     const row = typeof layout.row === 'number' ? layout.row : Math.floor(pos / matrixCols);
                     const col = typeof layout.col === 'number' ? layout.col : pos % matrixCols;
 
-                    const keycode = layerKeymap[pos] || 0;
+                    let keycode = layerKeymap[pos] || 0;
+
+                    // Transparency Logic
+                    let effectiveKeycode = 0;
+                    let effectiveLayerColor = "primary";
+                    let isGhostKey = false;
+                    let ghostSourceLayer = -1;
+
+                    if (showTransparency && keycode === KC_TRNS && selectedLayer > 0) {
+                        const effective = findEffectiveKey(selectedLayer, pos);
+                        if (effective) {
+                            effectiveKeycode = effective.keycode;
+                            effectiveLayerColor = effective.sourceLayerColor;
+                            isGhostKey = true;
+                            ghostSourceLayer = effective.sourceLayer;
+                        }
+                    }
+
+                    // Render Standard Key (or the underlying key if ghost is active)
                     const { label: defaultLabel, keyContents } = getKeyLabel(keyboard, keycode);
                     const keycodeName = getKeycodeName(keycode);
-
                     const label = getLabelForKeycode(keycodeName, internationalLayout) || defaultLabel;
 
                     // Styles for transmitting mode
@@ -228,7 +306,12 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                         xPos -= fingerClusterSqueeze;
                     }
 
-                    return (
+                    const isSelected = isKeySelected(row, col);
+                    const standardKeyClassName = isGhostKey
+                        ? cn("transition-opacity duration-200", isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100")
+                        : "";
+
+                    const standardKey = (
                         <Key
                             key={`${row}-${col}`}
                             x={xPos}
@@ -241,6 +324,13 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                             col={col}
                             selected={isKeySelected(row, col)}
                             onClick={handleKeyClick}
+                            onDoubleClick={isGhostKey ? () => {
+                                if (onGhostNavigate) {
+                                    onGhostNavigate(ghostSourceLayer);
+                                } else {
+                                    setSelectedLayer(ghostSourceLayer);
+                                }
+                            } : undefined}
                             keyContents={keyContents}
                             layerColor={activeLayerColor}
                             headerClassName={keyHeaderClassFull}
@@ -251,7 +341,146 @@ export const Keyboard: React.FC<KeyboardProps> = ({ keyboard, selectedLayer }) =
                             layerIndex={selectedLayer}
                             hasPendingChange={hasPendingChangeForKey(selectedLayer, row, col)}
                             disableTooltip={true}
+                            className={standardKeyClassName}
                         />
+                    );
+
+                    if (!isGhostKey) {
+                        return standardKey;
+                    }
+
+                    // Render Ghost Key Overlay
+                    const isTrnsOrNo = Number(effectiveKeycode) === 1 || Number(effectiveKeycode) === 0 || Number.isNaN(Number(effectiveKeycode));
+                    const { label: ghostDefaultLabel, keyContents: ghostKeyContents } = getKeyLabel(keyboard, effectiveKeycode);
+                    const ghostKeycodeName = getKeycodeName(effectiveKeycode);
+
+                    // Use empty label if TRNS/NO to avoid "0x0000" or "OXNAN"
+                    // Also check for "0xNaN" string which might come from invalid keycode formatting
+                    const isInvalidLabel =
+                        ghostKeycodeName.toLowerCase() === "0xnan" ||
+                        ghostDefaultLabel.toLowerCase() === "0xnan" ||
+                        ghostKeycodeName.toLowerCase() === "0x0000" ||
+                        ghostDefaultLabel.toLowerCase() === "0x0000";
+                    const ghostLabel = (isTrnsOrNo || isInvalidLabel) ? "" : (getLabelForKeycode(ghostKeycodeName, internationalLayout) || ghostDefaultLabel);
+
+                    // Styles for ghost key
+                    const ghostLayerColor = isTransmitting ? "sidebar" : effectiveLayerColor;
+                    const ghostHeaderClass = headerClasses[ghostLayerColor] || headerClasses["primary"];
+                    const ghostHoverHeaderClass = hoverHeaderClasses[ghostLayerColor] || hoverHeaderClasses["primary"];
+                    const ghostHeaderClassFull = `${ghostHeaderClass} ${ghostHoverHeaderClass}`;
+
+
+                    const sourceLayerName = svalService.getLayerName(keyboard, ghostSourceLayer);
+                    const tooltipText = sourceLayerName.startsWith("Layer") ? sourceLayerName : `Layer ${sourceLayerName}`;
+
+                    // Calculate darker border color
+                    const layerColorObj = layerColors.find(c => c.name === ghostLayerColor) || layerColors[0];
+                    const hex = layerColorObj.hex;
+                    const r = parseInt(hex.slice(1, 3), 16);
+                    const g = parseInt(hex.slice(3, 5), 16);
+                    const b = parseInt(hex.slice(5, 7), 16);
+                    const r2 = Math.round(r * 0.7).toString(16).padStart(2, '0');
+                    const g2 = Math.round(g * 0.7).toString(16).padStart(2, '0');
+                    const b2 = Math.round(b * 0.7).toString(16).padStart(2, '0');
+                    const darkBorderColor = `#${r2}${g2}${b2}`;
+
+                    const ghostOverlay = (
+                        <Key
+                            key={`${row}-${col}-ghost`}
+                            x={xPos}
+                            y={yPos}
+                            w={layout.w}
+                            h={layout.h}
+                            keycode={ghostKeycodeName}
+                            label={ghostLabel}
+                            row={row}
+                            col={col}
+                            onClick={handleKeyClick} // Clicking ghost selects the key slot on CURRENT layer
+                            onDoubleClick={() => {
+                                if (onGhostNavigate) {
+                                    onGhostNavigate(ghostSourceLayer);
+                                } else {
+                                    setSelectedLayer(ghostSourceLayer);
+                                }
+                            }}
+                            keyContents={ghostKeyContents}
+                            layerColor={ghostLayerColor}
+                            headerClassName={ghostHeaderClassFull}
+                            // Ghost styles
+                            className={cn("border-solid border-[3px] transition-opacity", isSelected ? "opacity-0" : "opacity-50 group-hover:opacity-0")}
+                            // Override border color via style to match the specific darkened color
+                            style={{ borderColor: darkBorderColor, pointerEvents: "none" }}
+                            // Dragging a ghost key should behave like dragging the real transparent key slot
+                            dragItemData={{
+                                keycode: keycodeName,
+                                label,
+                                row,
+                                col,
+                                layer: selectedLayer,
+                                extra: keyContents,
+                                props: {
+                                    x: 0,
+                                    y: 0,
+                                    w: layout.w,
+                                    h: layout.h,
+                                    row,
+                                    col,
+                                    keycode: keycodeName,
+                                    label,
+                                    keyContents,
+                                    layerColor: activeLayerColor,
+                                    headerClassName: keyHeaderClassFull,
+                                    hoverBorderColor: keyHoverBorder,
+                                    hoverBackgroundColor: keyHoverBg,
+                                    hoverLayerColor: keyHoverLayerColor,
+                                    isRelative: true,
+                                    variant: keyVariant,
+                                    className: "",
+                                    selected: false,
+                                    disableHover: true,
+                                },
+                            }}
+                            variant={keyVariant}
+                            layerIndex={selectedLayer} // Important: belongs to current layer logic
+                            hasPendingChange={hasPendingChangeForKey(selectedLayer, row, col)}
+                            disableTooltip={true} // Disable native tooltip, we use custom one
+                        />
+                    );
+
+                    const wrapperStyle: React.CSSProperties = {
+                        position: 'absolute',
+                        left: `${xPos * currentUnitSize}px`,
+                        top: `${yPos * currentUnitSize}px`,
+                        width: `${layout.w * currentUnitSize}px`,
+                        height: `${layout.h * currentUnitSize}px`,
+                    };
+
+                    return (
+                        <Tooltip delayDuration={0} key={`${row}-${col}-fragment`}>
+                            <TooltipTrigger asChild>
+                                <div
+                                    className="group"
+                                    style={wrapperStyle}
+                                    onDoubleClick={() => {
+                                        if (onGhostNavigate) {
+                                            onGhostNavigate(ghostSourceLayer);
+                                        } else {
+                                            setSelectedLayer(ghostSourceLayer);
+                                        }
+                                    }}
+                                >
+                                    {React.cloneElement(standardKey, { x: 0, y: 0 })}
+                                    {React.cloneElement(ghostOverlay, { x: 0, y: 0 })}
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent
+                                className={cn(`bg-kb-${ghostLayerColor} border-none`, colorClasses[ghostLayerColor] || "text-white")}
+                                arrowStyle={{ backgroundColor: hex, fill: 'transparent' }}
+                                side="top"
+                            >
+                                {tooltipText}
+                            </TooltipContent>
+                        </Tooltip>
                     );
                 })}
             </div>

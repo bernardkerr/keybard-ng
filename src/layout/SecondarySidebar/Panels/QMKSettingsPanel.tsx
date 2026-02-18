@@ -33,7 +33,7 @@ const QMKSettingsPanel: React.FC = () => {
     // Check if keyboard has QMK settings
     if (!keyboard.settings || Object.keys(keyboard.settings).length === 0) {
         return (
-            <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
+            <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
                 <div className="px-4 text-center text-muted-foreground">
                     <p className="font-medium">No QMK Settings Available</p>
                     <p className="text-sm mt-2">

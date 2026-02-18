@@ -16,7 +16,7 @@ import {
 import { DelayedTooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 
-import { LeaderOptions, AltRepeatKeyOptions } from "@/types/vial.types";
+import { LeaderOptions, AltRepeatKeyOptions, ComboOptions } from "@/types/vial.types";
 import { vialService } from "@/services/vial.service";
 import { Input } from "@/components/ui/input";
 import AltRepeatEditor from "./AltRepeatEditor";
@@ -117,26 +117,46 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
     const [editTitleValue, setEditTitleValue] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
 
+    const getEditableTitleDefaults = () => {
+        if (bindingTypeToEdit === "macros") {
+            return { cosmeticKey: "macros" as const, defaultLabel: `Macro Key ${itemToEdit}` };
+        }
+        if (bindingTypeToEdit === "tapdances") {
+            return { cosmeticKey: "tapdances" as const, defaultLabel: `Tap Dance Key ${itemToEdit}` };
+        }
+        return null;
+    };
+
     const handleStartEditingTitle = () => {
-        if (!keyboard || bindingTypeToEdit !== "macros" || itemToEdit === null) return;
-        const currentName = keyboard.cosmetic?.macros?.[itemToEdit.toString()] || `Macro Key ${itemToEdit}`;
+        if (!keyboard || itemToEdit === null) return;
+        const editConfig = getEditableTitleDefaults();
+        if (!editConfig) return;
+        const { cosmeticKey, defaultLabel } = editConfig;
+        const currentName = keyboard.cosmetic?.[cosmeticKey]?.[itemToEdit.toString()] || defaultLabel;
         setEditTitleValue(currentName);
         setIsEditingTitle(true);
     };
 
     const handleSaveTitle = () => {
-        if (!keyboard || bindingTypeToEdit !== "macros" || itemToEdit === null) {
+        if (!keyboard || itemToEdit === null) {
             setIsEditingTitle(false);
             return;
         }
 
-        const cosmetic = JSON.parse(JSON.stringify(keyboard.cosmetic || {}));
-        if (!cosmetic.macros) cosmetic.macros = {};
+        const editConfig = getEditableTitleDefaults();
+        if (!editConfig) {
+            setIsEditingTitle(false);
+            return;
+        }
+        const { cosmeticKey, defaultLabel } = editConfig;
 
-        if (editTitleValue.trim() === "" || editTitleValue.trim() === `Macro Key ${itemToEdit}`) {
-            delete cosmetic.macros[itemToEdit.toString()];
+        const cosmetic = JSON.parse(JSON.stringify(keyboard.cosmetic || {}));
+        if (!cosmetic[cosmeticKey]) cosmetic[cosmeticKey] = {};
+
+        if (editTitleValue.trim() === "" || editTitleValue.trim() === defaultLabel) {
+            delete cosmetic[cosmeticKey][itemToEdit.toString()];
         } else {
-            cosmetic.macros[itemToEdit.toString()] = editTitleValue;
+            cosmetic[cosmeticKey][itemToEdit.toString()] = editTitleValue;
         }
 
         setKeyboard({ ...keyboard, cosmetic });
@@ -240,10 +260,12 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
         if (bindingTypeToEdit === "macros") {
             return keyboard.cosmetic?.macros?.[itemToEdit.toString()] || `Macro Key ${itemToEdit}`;
         }
+        if (bindingTypeToEdit === "tapdances") {
+            return keyboard.cosmetic?.tapdances?.[itemToEdit.toString()] || `Tap Dance Key ${itemToEdit}`;
+        }
 
         switch (bindingTypeToEdit) {
             case "combos": return `Combo ${itemToEdit}`;
-            case "tapdances": return `Tap Dance Key ${itemToEdit}`;
             case "overrides": return `Override ${itemToEdit}`;
             case "altrepeat": return `Alt-Repeat Key ${itemToEdit}`;
             case "leaders": return `Leader Sequence ${itemToEdit}`;
@@ -409,6 +431,28 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                         />
                     </div>
                 )}
+
+                {bindingTypeToEdit === "combos" && keyboard?.combos && itemToEdit !== null && (
+                    <div className="mt-[20px]">
+                        <OnOffToggle
+                            value={(keyboard.combos[itemToEdit]?.options & ComboOptions.ENABLED) !== 0}
+                            onToggle={async (enabled) => {
+                                const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
+                                let options = updatedKeyboard.combos[itemToEdit].options;
+                                if (enabled) options |= ComboOptions.ENABLED;
+                                else options &= ~ComboOptions.ENABLED;
+                                updatedKeyboard.combos[itemToEdit].options = options;
+                                setKeyboard(updatedKeyboard);
+                                try {
+                                    await vialService.updateCombo(updatedKeyboard, itemToEdit);
+                                    await vialService.saveViable();
+                                } catch (err) {
+                                    console.error("Failed to update combo:", err);
+                                }
+                            }}
+                        />
+                    </div>
+                )}
             </div>
         );
     };
@@ -437,7 +481,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                             {renderHeaderIcon()}
                             <div className={cn("flex items-center", inline ? "h-10 pl-3" : "h-14 pl-[20px]")}>
                                 <div className={cn("font-normal", inline ? "text-lg" : "text-xl")}>
-                                    {bindingTypeToEdit === "macros" ? (
+                                    {bindingTypeToEdit === "macros" || bindingTypeToEdit === "tapdances" ? (
                                         isEditingTitle ? (
                                             <div className="flex items-center gap-2 bg-white rounded-md px-1 py-0.5 border border-black shadow-sm">
                                                 <Input
@@ -498,7 +542,7 @@ const BindingEditorContainer: FC<Props> = ({ shouldClose, inline = false }) => {
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>Clear all data</p>
+                                    <p>Clear {getEditorTitle()}</p>
                                 </TooltipContent>
                             </DelayedTooltip>
                         </div>

@@ -11431,6 +11431,7 @@ export const KEYALIASES: KeyAliases = {
   "KC_X": "KC_X",
   "KC_Y": "KC_Y",
   "KC_Z": "KC_Z",
+  "HYPR_T(kc)": "ALL_T(kc)",
   "KC_1": "KC_1",
   "KC_2": "KC_2",
   "KC_3": "KC_3",
@@ -14035,4 +14036,3 @@ export const KEYALIASES: KeyAliases = {
   "RSCAG(kc)": "RSCAG(kc)",
   "RSCAG_T(kc)": "RSCAG_T(kc)"
 };
-

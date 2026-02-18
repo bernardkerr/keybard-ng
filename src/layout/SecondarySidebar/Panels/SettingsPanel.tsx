@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import OnOffToggle from "@/components/ui/OnOffToggle";
 import { useChanges } from "@/contexts/ChangesContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { usePanels } from "@/contexts/PanelsContext";
@@ -293,6 +294,17 @@ const SettingsPanel = () => {
                     if (!setting) return null;
 
                     if (setting.type === "boolean") {
+                        if (setting.name === "typing-binds-key") {
+                            return (
+                                <div key={setting.name} className="flex flex-col gap-1 min-w-[120px]">
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase truncate">{setting.label}</span>
+                                    <OnOffToggle
+                                        value={getSetting(setting.name, setting.defaultValue) as boolean}
+                                        onToggle={(checked) => updateSetting(setting.name, checked)}
+                                    />
+                                </div>
+                            );
+                        }
                         return (
                             <div key={setting.name} className="flex flex-col gap-1 min-w-[80px]">
                                 <span className="text-[9px] font-bold text-slate-500 uppercase truncate">{setting.label}</span>
@@ -468,6 +480,22 @@ const SettingsPanel = () => {
                                 if (!setting) return null;
 
                                 if (setting.type === "boolean") {
+                                    if (setting.name === "typing-binds-key") {
+                                        return (
+                                            <div className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item" key={setting.name}>
+                                                <div className="flex flex-col items-start gap-3">
+                                                    <span className="text-md text-left">{setting.label}</span>
+                                                    <span className="text-xs text-muted-foreground">{setting.description}</span>
+                                                </div>
+                                                <OnOffToggle
+                                                    value={getSetting(setting.name, setting.defaultValue) as boolean}
+                                                    onToggle={(checked) => {
+                                                        updateSetting(setting.name, checked);
+                                                    }}
+                                                />
+                                            </div>
+                                        );
+                                    }
                                     return (
                                         <div className="flex flex-row items-center justify-between p-3 gap-3 panel-layer-item group/item" key={setting.name}>
                                             <div className="flex flex-col items-start gap-3">

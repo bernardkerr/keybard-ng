@@ -167,7 +167,7 @@ const CustomColorDialog = ({
             <DialogContent className="sm:max-w-[400px]">
                 <DialogHeader>
                     <DialogTitle>
-                        {layerName ? `Custom colors for ${layerName}` : "Custom colors"}
+                        {layerName ? `Colors for ${layerName}` : "Colors"}
                     </DialogTitle>
                 </DialogHeader>
 

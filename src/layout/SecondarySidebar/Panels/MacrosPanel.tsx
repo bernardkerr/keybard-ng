@@ -1,7 +1,6 @@
 import React from "react";
-import { ArrowRight, Plus, X } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import { Key } from "@/components/Key";
-import { vialService } from "@/services/vial.service";
 
 import SidebarItemRow from "@/layout/SecondarySidebar/components/SidebarItemRow";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
@@ -12,13 +11,14 @@ import { useVial } from "@/contexts/VialContext";
 import { hoverBackgroundClasses, hoverBorderClasses, hoverHeaderClasses } from "@/utils/colors";
 import { getKeyContents } from "@/utils/keys";
 import { KeyContent } from "@/types/vial.types";
+import DescriptionBlock from "@/layout/SecondarySidebar/components/DescriptionBlock";
 
 interface Props {
     isPicker?: boolean;
 }
 
 const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
-    const { keyboard, setKeyboard } = useVial();
+    const { keyboard } = useVial();
     const { assignKeycode } = useKeyBinding();
     const { selectedLayer } = useLayer();
     const { layoutMode } = useLayoutSettings();
@@ -33,21 +33,6 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
     const isHorizontal = layoutMode === "bottombar";
 
     if (!keyboard) return null;
-
-    const clearMacro = async (index: number) => {
-        if (!keyboard.macros) return;
-        const updatedMacros = [...keyboard.macros];
-        updatedMacros[index] = { mid: index, actions: [] };
-        const updatedKeyboard = { ...keyboard, macros: updatedMacros };
-        setKeyboard(updatedKeyboard);
-
-        try {
-            await vialService.updateMacros(updatedKeyboard);
-            await vialService.saveViable();
-        } catch (err) {
-            console.error("Failed to clear macro:", err);
-        }
-    };
 
     const findFirstEmptyMacro = (): number => {
         if (!keyboard.macros) return 0;
@@ -163,7 +148,7 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
 
                     if (!hasActions) return null;
 
-                    const macroKeycode = `M${i} `;
+                    const macroKeycode = `M${i}`;
                     const macroKeyContents = getKeyContents(keyboard, macroKeycode) as KeyContent;
 
                     return (
@@ -172,17 +157,6 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                             className="relative flex flex-col bg-gray-50 rounded-lg p-2 cursor-pointer hover:bg-gray-100 transition-colors min-w-[100px] max-w-[180px] group"
                             onClick={() => handleEdit(i)}
                         >
-                            {/* Delete button */}
-                            <button
-                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    clearMacro(i);
-                                }}
-                                title="Clear macro"
-                            >
-                                <X className="w-3 h-3 text-white" />
-                            </button>
                             {/* Header with draggable macro key and label */}
                             <div className="flex flex-row items-center gap-2 mb-2">
                                 <div className="w-[30px] h-[30px] relative" onClick={(e) => e.stopPropagation()}>
@@ -244,15 +218,18 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
 
     // Vertical list layout for sidebar (original)
     return (
-        <section className="space-y-3 h-full max-h-full flex flex-col pt-3">
+        <section className="space-y-3 h-full max-h-full flex flex-col pt-0">
             {isPicker && (
                 <div className="pb-2">
                     <span className="font-semibold text-xl text-black">Macros</span>
                 </div>
             )}
             <div className="flex flex-col overflow-auto flex-grow scrollbar-thin">
+                <DescriptionBlock>
+                    Send customizable sequences of keystrokes to trigger text strings, complex shortcuts, or automated actions with a single keypress.
+                </DescriptionBlock>
                 {macros.map((macroEntry, i) => {
-                    const keycode = `M${i} `;
+                    const keycode = `M${i}`;
                     const keyContents = getKeyContents(keyboard, keycode) as KeyContent;
 
                     const actions = macroEntry?.actions || [];
@@ -280,7 +257,6 @@ const MacrosPanel: React.FC<Props> = ({ isPicker }) => {
                             customName={keyboard.cosmetic?.macros?.[i.toString()]}
                             keyContents={keyContents}
                             onEdit={isPicker ? undefined : handleEdit}
-                            onDelete={isPicker ? undefined : (hasActions ? clearMacro : undefined)}
                             onAssignKeycode={assignKeycode}
                             hoverBorderColor={hoverBorderColor}
                             hoverBackgroundColor={hoverBackgroundColor}
