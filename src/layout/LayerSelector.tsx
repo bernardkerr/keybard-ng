@@ -1,6 +1,7 @@
 import { LayoutImport } from "@/components/icons/LayoutImport";
 import { LayoutExport } from "@/components/icons/LayoutExport";
 import MatrixTesterIcon from "@/components/icons/MatrixTesterSvg";
+import BoxIcon from "@/components/icons/BoxIcon";
 import LayoutMultiLayersIcon from "@/components/icons/LayoutMultiLayersIcon";
 import { ArrowLeft, ChevronDown, Unplug, Undo2, Zap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -25,6 +26,7 @@ import { Button } from "@/components/ui/button";
 
 import { FC, useState, useEffect, useRef } from "react";
 import { usePanels } from "@/contexts/PanelsContext";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 
 
 interface LayerSelectorProps {
@@ -42,6 +44,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer, 
     const { keyboard, setKeyboard, isConnected, connect, resetToOriginal, setIsImporting } = useVial();
     const { queue, commit, getPendingCount, clearAll } = useChanges();
     const { getSetting, updateSetting } = useSettings();
+    const { is3DMode, setIs3DMode } = useLayoutSettings();
 
     const liveUpdating = getSetting("live-updating") === true;
 
@@ -482,6 +485,33 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer, 
 
                             {/* Divider */}
                             <div className="h-4 w-[1px] bg-slate-400 ml-2 mr-0 flex-shrink-0" />
+
+                            {/* 3D View Toggle Button */}
+                            <Tooltip delayDuration={500}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIs3DMode(!is3DMode);
+                                        }}
+                                        className={cn(
+                                            "p-2 rounded-full transition-all cursor-pointer",
+                                            is3DMode
+                                                ? "bg-black hover:bg-gray-800"
+                                                : "hover:bg-gray-200"
+                                        )}
+                                        aria-label={is3DMode ? "Exit 3D View" : "3D View"}
+                                    >
+                                        <BoxIcon className={cn(
+                                            "h-5 w-5",
+                                            is3DMode ? "text-kb-gray" : "text-black"
+                                        )} />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    {is3DMode ? "Exit 3D View" : "3D View"}
+                                </TooltipContent>
+                            </Tooltip>
                         </div>
 
                     </div>

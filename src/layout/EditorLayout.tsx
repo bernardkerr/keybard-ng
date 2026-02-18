@@ -72,10 +72,9 @@ const EditorLayoutInner = () => {
     const { keyboard, setKeyboard, updateKey /*, resetToOriginal*/ } = useVial();
     const { selectedLayer, setSelectedLayer } = useLayer();
     const { clearSelection } = useKeyBinding();
-    const { keyVariant, layoutMode, setSecondarySidebarOpen, setPrimarySidebarExpanded, registerPrimarySidebarControl, setMeasuredDimensions } = useLayoutSettings();
+    const { keyVariant, layoutMode, setSecondarySidebarOpen, setPrimarySidebarExpanded, registerPrimarySidebarControl, setMeasuredDimensions, is3DMode, fingerClusterSqueeze } = useLayoutSettings();
     const { layerClipboard, copyLayer, openPasteDialog } = useLayoutLibrary();
     const { isDragging, draggedItem, markDropConsumed } = useDrag();
-    const KC_TRNS = 1;
 
     // Track if we're dragging a layer over the keyboard area
     const [isLayerDragOver, setIsLayerDragOver] = React.useState(false);
@@ -278,53 +277,24 @@ const EditorLayoutInner = () => {
         setSelectedLayer(sourceLayer);
     }, [setSelectedLayer]);
 
-    const primaryView = React.useMemo(
-        () => viewInstances.find(v => v.id === "primary") ?? { id: "primary", selectedLayer },
-        [viewInstances, selectedLayer]
-    );
 
-    const multiLayerIds = React.useMemo(() => {
-        if (!keyboard) return [] as number[];
-        const totalLayers = keyboard.layers || 16;
 
-        if (showAllLayers) {
-            return Array.from({ length: totalLayers }, (_, i) => i);
-        }
 
-        const keymap = keyboard.keymap || [];
-        return Array.from({ length: totalLayers }, (_, i) => i).filter((layerIndex) => {
-            const layerData = keymap[layerIndex];
-            const isTransparentLayer = layerData ? layerData.every((keycode) => keycode === KC_TRNS) : true;
-            return !isTransparentLayer || layerIndex === primaryView.selectedLayer;
-        });
-    }, [keyboard, showAllLayers, primaryView.selectedLayer]);
-
-    const renderedViews = React.useMemo(() => {
-        if (!isMultiLayersActive) {
-            return viewInstances;
-        }
-        const extraLayers = multiLayerIds.filter(layerIndex => layerIndex !== primaryView.selectedLayer);
-        const orderedExtras = isLayerOrderReversed ? [...extraLayers].reverse() : extraLayers;
-        return [
-            primaryView,
-            ...orderedExtras.map(layerIndex => ({
-                id: `multi-${layerIndex}`,
-                selectedLayer: layerIndex
-            }))
-        ];
-    }, [isMultiLayersActive, viewInstances, primaryView, multiLayerIds, isLayerOrderReversed]);
 
     // Ref for measuring container dimensions
     const contentContainerRef = React.useRef<HTMLDivElement>(null);
+
+    // Use dynamic keylayout if available, otherwise fallback to hardcoded layout
+    const keyboardLayout = React.useMemo(() => (
+        (keyboard?.keylayout && Object.keys(keyboard.keylayout).length > 0)
+            ? keyboard.keylayout as Record<number, { x: number; y: number; w: number; h: number }>
+            : SVALBOARD_LAYOUT
+    ), [keyboard]);
 
     // Calculate keyboard layout extents (independent of current keyVariant)
     const keyboardExtents = React.useMemo(() => {
         if (!keyboard) return { maxX: 20, maxY: 10 }; // default estimate
 
-        // Use dynamic keylayout if available, otherwise fallback to hardcoded layout
-        const keyboardLayout = (keyboard.keylayout && Object.keys(keyboard.keylayout).length > 0)
-            ? keyboard.keylayout as Record<number, { x: number; y: number; w: number; h: number }>
-            : SVALBOARD_LAYOUT;
         const useFragmentLayout = keyboard.keylayout && Object.keys(keyboard.keylayout).length > 0;
 
         // Find max X and Y extents
@@ -730,42 +700,80 @@ const EditorLayoutInner = () => {
                         <MatrixTester />
                     ) : (
                         <>
-                            {renderedViews.map((view) => (
-                                <div
-                                    key={view.id}
-                                    ref={(el) => {
-                                        if (el) {
-                                            const existing = layerViewRefs.current.get(view.selectedLayer);
-                                            if (view.id === "primary" || !existing) {
-                                                layerViewRefs.current.set(view.selectedLayer, el);
-                                            }
-                                        } else {
-                                            layerViewRefs.current.delete(view.selectedLayer);
-                                        }
-                                    }}
-                                    className="w-full"
-                                >
-                                    <KeyboardViewInstance
-                                        instanceId={view.id}
-                                        selectedLayer={view.selectedLayer}
-                                        setSelectedLayer={(layer) => handleSetViewLayer(view.id, layer)}
-                                        isPrimary={view.id === "primary"}
-                                        hideLayerTabs={isMultiLayersActive && view.id !== "primary"}
-                                        layerActiveState={layerActiveState}
-                                        onToggleLayerOn={handleToggleLayerOn}
-                                        transparencyByLayer={transparencyByLayer}
-                                        onToggleTransparency={handleToggleTransparency}
-                                        showAllLayers={showAllLayers}
-                                        onToggleShowLayers={handleToggleShowLayers}
-                                        isLayerOrderReversed={isLayerOrderReversed}
-                                        onToggleLayerOrder={() => setIsLayerOrderReversed(prev => !prev)}
-                                        onRemove={!isMultiLayersActive && view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
-                                        onGhostNavigate={isMultiLayersActive ? handleGhostNavigate : undefined}
-                                        isRevealing={view.id === revealingViewId}
-                                        isHiding={view.id === hidingViewId}
-                                    />
-                                </div>
-                            ))}
+                            <div className="relative w-full flex flex-col items-center">
+                                {/* Vertical 3D Guide Lines - now in 2D container to ensure verticality */}
+                                {(() => {
+                                    // Calculate precisely how far down the lines should go
+                                    // Distance between layers = (KeyboardHeight + 20 padding) - 310 overlap + translateZ(15) projection
+                                    const unitSize = keyVariant === 'small' ? 30 : keyVariant === 'medium' ? 45 : 60;
+                                    const useFragmentLayout = keyboardLayout !== SVALBOARD_LAYOUT;
+                                    let maxYUnits = 0;
+                                    Object.values(keyboardLayout).forEach((key: any) => {
+                                        const yPos = (!useFragmentLayout && key.y >= 6) ? key.y + 0.3 : key.y;
+                                        maxYUnits = Math.max(maxYUnits, yPos + key.h);
+                                    });
+                                    const stepYValue = (maxYUnits * unitSize + 20) - 310 + (15 * 0.8192);
+
+                                    const viewsToRender = isMultiLayersActive ? viewInstances : [viewInstances[0]];
+
+                                    return (
+                                        <>
+                                            {is3DMode && isMultiLayersActive && (
+                                                <GuideLines
+                                                    numLayers={viewsToRender.length}
+                                                    keyVariant={keyVariant}
+                                                    keyboardLayout={keyboardLayout}
+                                                    fingerClusterSqueeze={fingerClusterSqueeze}
+                                                    stepYValue={stepYValue}
+                                                />
+                                            )}
+                                            {viewsToRender.map((view, index) => (
+                                                <div key={view.id}
+                                                    ref={(el) => {
+                                                        if (el) {
+                                                            const existing = layerViewRefs.current.get(view.selectedLayer);
+                                                            if (view.id === "primary" || !existing) {
+                                                                layerViewRefs.current.set(view.selectedLayer, el);
+                                                            }
+                                                        } else {
+                                                            layerViewRefs.current.delete(view.selectedLayer);
+                                                        }
+                                                    }}
+                                                    className="w-full relative"
+                                                    style={{
+                                                        marginTop: (is3DMode && isMultiLayersActive && view.id !== "primary") ? -310 : undefined,
+                                                        transition: 'margin-top 500ms ease-in-out',
+                                                        zIndex: (viewsToRender.length - index) * 1000,
+                                                    }}
+                                                >
+                                                    <div className="flex justify-center h-full relative" style={{ perspective: is3DMode ? 'none' : '1000px' }}>
+                                                        <KeyboardViewInstance
+                                                            instanceId={view.id}
+                                                            selectedLayer={view.selectedLayer}
+                                                            setSelectedLayer={(layer) => handleSetViewLayer(view.id, layer)}
+                                                            isPrimary={view.id === "primary"}
+                                                            hideLayerTabs={isMultiLayersActive && view.id !== "primary"}
+                                                            layerActiveState={layerActiveState}
+                                                            onToggleLayerOn={handleToggleLayerOn}
+                                                            transparencyByLayer={transparencyByLayer}
+                                                            onToggleTransparency={handleToggleTransparency}
+                                                            showAllLayers={showAllLayers}
+                                                            onToggleShowLayers={handleToggleShowLayers}
+                                                            isLayerOrderReversed={isLayerOrderReversed}
+                                                            onToggleLayerOrder={() => setIsLayerOrderReversed(prev => !prev)}
+                                                            onRemove={!isMultiLayersActive && view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
+                                                            onGhostNavigate={isMultiLayersActive ? handleGhostNavigate : undefined}
+                                                            isRevealing={view.id === revealingViewId}
+                                                            isHiding={view.id === hidingViewId}
+                                                            stackIndex={viewsToRender.length - index}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </>
+                                    );
+                                })()}
+                            </div>
 
                             {/* Add View Button */}
                             {!isMultiLayersActive && (
@@ -875,31 +883,33 @@ const EditorLayoutInner = () => {
                 </div>
 
                 {/* Controls - bottom left in sidebar mode only */}
-                {!useBottomLayout && (
-                    <>
-                        {activePanel !== "matrixtester" && (
-                            <div className="absolute bottom-9 left-[37px] z-50">
-                                <InfoPanelWidget showInfoPanel={showInfoPanel} setShowInfoPanel={setShowInfoPanel} />
-                            </div>
-                        )}
-
-                        <div className="absolute bottom-9 right-[37px] flex flex-col items-end gap-1 pointer-events-none">
-                            <div className="pointer-events-auto">
-                                <EditorControls
-                                    showInfoPanel={showInfoPanel}
-                                    setShowInfoPanel={setShowInfoPanel}
-                                    showInfoToggle={false}
-                                />
-                            </div>
-                            {import.meta.env.DEV && (
-                                <div className="text-[10px] font-medium text-slate-400 select-none px-1 pointer-events-auto">
-                                    Branch: {__GIT_BRANCH__}
+                {
+                    !useBottomLayout && (
+                        <>
+                            {activePanel !== "matrixtester" && (
+                                <div className="absolute bottom-9 left-[37px] z-50">
+                                    <InfoPanelWidget showInfoPanel={showInfoPanel} setShowInfoPanel={setShowInfoPanel} />
                                 </div>
                             )}
-                        </div>
-                    </>
-                )}
-            </div>
+
+                            <div className="absolute bottom-9 right-[37px] flex flex-col items-end gap-1 pointer-events-none">
+                                <div className="pointer-events-auto">
+                                    <EditorControls
+                                        showInfoPanel={showInfoPanel}
+                                        setShowInfoPanel={setShowInfoPanel}
+                                        showInfoToggle={false}
+                                    />
+                                </div>
+                                {import.meta.env.DEV && (
+                                    <div className="text-[10px] font-medium text-slate-400 select-none px-1 pointer-events-auto">
+                                        Branch: {__GIT_BRANCH__}
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )
+                }
+            </div >
             {/* Render BottomPanel at root level so it spans full width */}
             {useBottomLayout && <BottomPanel leftOffset={primaryOffset} pickerMode={pickerMode} height={dynamicBottomPanelHeight} />}
 
@@ -957,6 +967,118 @@ const EditorLayoutInner = () => {
                 onConfirm={handlePasteConfirm}
             />
         </div >
+    );
+};
+
+
+/**
+ * Renders perfectly vertical dotted guide lines connecting key clusters across layers in 3D mode.
+ * Rendered in 2D space but aligned with the 3D-projected clusters.
+ */
+const GuideLines = ({
+    numLayers,
+    keyVariant,
+    keyboardLayout,
+    fingerClusterSqueeze,
+    stepYValue
+}: {
+    numLayers: number,
+    keyVariant: string,
+    keyboardLayout: any,
+    fingerClusterSqueeze: number,
+    stepYValue: number
+}) => {
+    const unitSize = keyVariant === 'small' ? 30 : keyVariant === 'medium' ? 45 : 60;
+    const cos55 = 0.5736;
+    const sin45 = 0.7071;
+    const useFragmentLayout = keyboardLayout !== SVALBOARD_LAYOUT;
+
+    // Calculate keyboard extents exactly like Keyboard.tsx
+    let maxX = 0;
+    let maxY = 0;
+    Object.values(keyboardLayout).forEach((key: any) => {
+        const yPos = (!useFragmentLayout && key.y >= 6) ? key.y + 0.3 : key.y;
+        maxX = Math.max(maxX, key.x + key.w);
+        maxY = Math.max(maxY, yPos + key.h);
+    });
+
+    const adjustedMaxX = maxX - (2 * fingerClusterSqueeze);
+    const width = adjustedMaxX * unitSize;
+    const height = maxY * unitSize + 20;
+
+    const divCenterX = width / 2;
+    const divCenterY = height / 2;
+    const layoutMidline = maxX / 2;
+
+    const basePoints = [
+        { x: 1, y: 1.5, w: 1, h: 1 },    // Left Pinky
+        { x: 3.5, y: 0, w: 1, h: 1 },    // Left Ring
+        { x: 7, y: 0, w: 1, h: 1 },      // Left Middle
+        { x: 9.5, y: 1.5, w: 1, h: 1 },  // Left Index
+        { x: 10.8, y: 5, w: 1, h: 1 },   // Left Thumb
+        { x: 15.1, y: 5, w: 1, h: 1 },   // Right Thumb
+        { x: 13.8, y: 1.5, w: 1, h: 1 }, // Right Index
+        { x: 16.3, y: 0, w: 1, h: 1 },   // Right Middle
+        { x: 19.8, y: 0, w: 1, h: 1 },   // Right Ring
+        { x: 22.3, y: 1.5, w: 1, h: 1 }  // Right Pinky
+    ];
+
+    // Spacing between layers in screen pixels
+    const stepY = stepYValue;
+
+    return (
+        <div className="absolute inset-0 pointer-events-none overflow-visible" style={{ zIndex: 0 }}>
+            <svg className="w-full h-full overflow-visible">
+                {basePoints.map((p, i) => {
+                    let curY = (!useFragmentLayout && p.y >= 6) ? p.y + 0.3 : p.y;
+                    let curX = p.x;
+                    const isThumbCluster = p.y >= 5;
+                    if (fingerClusterSqueeze > 0) {
+                        if (!isThumbCluster) {
+                            const kCenter = p.x + p.w / 2;
+                            if (kCenter < layoutMidline) {
+                                curX = p.x + fingerClusterSqueeze;
+                            } else {
+                                curX = p.x - fingerClusterSqueeze;
+                            }
+                        }
+                        curX -= fingerClusterSqueeze;
+                    }
+
+                    const trX = curX + p.w;
+                    const trY = curY;
+                    const pxX = trX * unitSize;
+                    const pxY = trY * unitSize;
+
+                    // Relativize to transform origin
+                    const relX = pxX - divCenterX;
+                    const relY = pxY - divCenterY;
+
+                    // Correct Projection math for rotateX(55deg) rotateZ(-45deg)
+                    // 1. Rotate Z by -45deg: x' = (x+y)*sin45, y' = (y-x)*sin45
+                    // 2. Rotate X by 55deg: x'' = x', y'' = y'*cos55
+                    const projX = (relX + relY) * sin45;
+                    const projY = (relY - relX) * sin45 * cos55;
+
+                    const screenX = projX;
+                    const startY = projY + divCenterY;
+
+                    return (
+                        <line
+                            key={i}
+                            x1={`calc(50% + ${screenX}px)`}
+                            y1={`${startY}px`}
+                            x2={`calc(50% + ${screenX}px)`}
+                            y2={`${startY + (numLayers - 1) * Math.max(stepY, 0) + 2000}px`}
+                            stroke="#94a3b8"
+                            strokeWidth="1.2"
+                            strokeDasharray="4 4"
+                            opacity="0.6"
+                        />
+                    );
+                })}
+            </svg>
+        </div>
     );
 };
 

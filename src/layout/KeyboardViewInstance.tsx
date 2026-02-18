@@ -12,6 +12,7 @@ import { useVial } from "@/contexts/VialContext";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useChanges } from "@/contexts/ChangesContext";
 import { cn } from "@/lib/utils";
+import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { svalService } from "@/services/sval.service";
 import { MATRIX_COLS } from "@/constants/svalboard-layout";
 import { usePanels } from "@/contexts/PanelsContext";
@@ -29,7 +30,7 @@ interface KeyboardViewInstanceProps {
     setSelectedLayer: (layer: number) => void;
     isPrimary: boolean;
     hideLayerTabs?: boolean;
-    layerActiveState: boolean[];
+    layerActiveState?: boolean[];
     onToggleLayerOn: (layer: number) => void;
     transparencyByLayer: Record<number, boolean>;
     onToggleTransparency: (layer: number, next: boolean) => void;
@@ -41,6 +42,7 @@ interface KeyboardViewInstanceProps {
     onGhostNavigate?: (sourceLayer: number) => void;
     isRevealing?: boolean;
     isHiding?: boolean;
+    stackIndex?: number;
 }
 
 /**
@@ -65,11 +67,13 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     onGhostNavigate,
     isRevealing = false,
     isHiding = false,
+    stackIndex = 0,
 }) => {
     const { keyboard, updateKey, setKeyboard } = useVial();
     const { clearSelection } = useKeyBinding();
     const { queue } = useChanges();
     const { activePanel } = usePanels();
+    const { is3DMode } = useLayoutSettings();
 
     const [isTransparencyActive, setIsTransparencyActive] = useState(false);
     const [isHudMode, setIsHudMode] = useState(false);
@@ -317,63 +321,80 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
             </div>
 
             {/* Layer Name Badge Row */}
-            <div className="pl-5 pt-[7px] pb-2 flex items-center gap-2">
-                <div style={{ marginLeft: -20 }}>
-                    <LayerNameBadge
-                        selectedLayer={selectedLayer}
-                        isActive={!!layerActiveState?.[selectedLayer]}
-                        onToggleLayerOn={onToggleLayerOn}
-                        // TODO: when firmware reports default layer, pass it here.
-                        defaultLayerIndex={0}
-                    />
-                </div>
+            {!hideLayerTabs && (
+                <div className="pl-5 pt-[7px] pb-2 flex items-center gap-2">
+                    <div style={{ marginLeft: -20 }}>
+                        <LayerNameBadge
+                            selectedLayer={selectedLayer}
+                            isActive={!!layerActiveState?.[selectedLayer]}
+                            onToggleLayerOn={onToggleLayerOn}
+                            // TODO: when firmware reports default layer, pass it here.
+                            defaultLayerIndex={0}
+                        />
+                    </div>
 
-                {/* Transparency Button (reserve space for layer 0 to avoid layout shift) */}
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <button
-                            onClick={() => {
-                                if (selectedLayer === 0) return;
-                                const next = !isTransparencyActive;
-                                setIsTransparencyActive(next);
-                                onToggleTransparency(selectedLayer, next);
-                            }}
-                            disabled={activePanel === "matrixtester" || selectedLayer === 0}
-                            className={cn(
-                                "p-1.5 rounded-full transition-all flex-shrink-0 ml-[-4px]",
-                                activePanel === "matrixtester"
-                                    ? "text-gray-400 cursor-not-allowed opacity-30"
-                                    : isTransparencyActive
-                                        ? "bg-black hover:bg-gray-800"
-                                        : "hover:bg-gray-200",
-                                selectedLayer === 0 && "opacity-0 pointer-events-none"
-                            )}
-                            aria-label={isTransparencyActive ? "Show Transparent Keys" : "Hide Transparent Keys"}
-                        >
-                            <Microscope className={cn(
-                                "h-4 w-4",
-                                isTransparencyActive ? "text-kb-gray" : "text-black"
-                            )} />
-                        </button>
-                    </TooltipTrigger>
-                    {selectedLayer !== 0 && (
-                        <TooltipContent side="top">
-                            {isTransparencyActive ? "Show Transparent Keys" : "Hide Transparent Keys"}
-                        </TooltipContent>
-                    )}
-                </Tooltip>
-            </div>
+                    {/* Transparency Button (reserve space for layer 0 to avoid layout shift) */}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                onClick={() => {
+                                    if (selectedLayer === 0) return;
+                                    const next = !isTransparencyActive;
+                                    setIsTransparencyActive(next);
+                                    onToggleTransparency(selectedLayer, next);
+                                }}
+                                disabled={activePanel === "matrixtester" || selectedLayer === 0}
+                                className={cn(
+                                    "p-1.5 rounded-full transition-all flex-shrink-0 ml-[-4px]",
+                                    activePanel === "matrixtester"
+                                        ? "text-gray-400 cursor-not-allowed opacity-30"
+                                        : isTransparencyActive
+                                            ? "bg-black hover:bg-gray-800"
+                                            : "hover:bg-gray-200",
+                                    selectedLayer === 0 && "opacity-0 pointer-events-none"
+                                )}
+                                aria-label={isTransparencyActive ? "Show Transparent Keys" : "Hide Transparent Keys"}
+                            >
+                                <Microscope className={cn(
+                                    "h-4 w-4",
+                                    isTransparencyActive ? "text-kb-gray" : "text-black"
+                                )} />
+                            </button>
+                        </TooltipTrigger>
+                        {selectedLayer !== 0 && (
+                            <TooltipContent side="top">
+                                {isTransparencyActive ? "Show Transparent Keys" : "Hide Transparent Keys"}
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                </div>
+            )}
 
             {/* Keyboard */}
-            <div className="flex items-start justify-center max-w-full">
-                <Keyboard
-                    keyboard={keyboard}
-                    selectedLayer={selectedLayer}
-                    setSelectedLayer={setSelectedLayer}
-                    showTransparency={isTransparencyActive}
-                    onGhostNavigate={onGhostNavigate}
-                    layerActiveState={layerActiveState}
-                />
+            <div className={cn(
+                "flex items-start justify-center max-w-full",
+                is3DMode && "keyboard-3d-wrapper"
+            )} style={is3DMode ? { transformStyle: 'preserve-3d' } : undefined}>
+                <div
+                    className={cn(
+                        "transition-transform duration-500 ease-in-out",
+                        is3DMode && "keyboard-3d-active"
+                    )}
+                    style={{
+                        transform: is3DMode
+                            ? `rotateX(55deg) rotateZ(-45deg) translateZ(${stackIndex * 15}px)`
+                            : undefined
+                    }}
+                >
+                    <Keyboard
+                        keyboard={keyboard}
+                        selectedLayer={selectedLayer}
+                        setSelectedLayer={setSelectedLayer}
+                        showTransparency={isTransparencyActive}
+                        onGhostNavigate={onGhostNavigate}
+                        layerActiveState={layerActiveState}
+                    />
+                </div>
             </div>
         </div>
     );
