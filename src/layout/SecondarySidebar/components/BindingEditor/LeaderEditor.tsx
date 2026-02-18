@@ -50,6 +50,7 @@ const LeaderEditor: FC = () => {
             setKeyboard(updatedKeyboard);
 
             vialService.updateLeader(updatedKeyboard, itemToEdit)
+                .then(() => vialService.saveViable())
                 .catch(err => console.error("Failed to auto-enable leader:", err));
         }
 
@@ -75,7 +76,7 @@ const LeaderEditor: FC = () => {
         );
     };
 
-    const handleDrop = (slot: "sequence" | "output", item: DragItem, seqIndex?: number) => {
+    const handleDrop = async (slot: "sequence" | "output", item: DragItem, seqIndex?: number) => {
         if (item.editorType === "leader" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
             const sourceSlot = item.editorSlot as string | number; // "output" or number (index)
             const targetSlot: string | number = slot === "output" ? "output" : seqIndex!;
@@ -103,14 +104,18 @@ const LeaderEditor: FC = () => {
             setValue(targetSlot, sourceVal);
 
             setKeyboard(updatedKeyboard);
-            vialService.updateLeader(updatedKeyboard, leaderIndex)
-                .catch(err => console.error("Failed to update leader:", err));
+            try {
+                await vialService.updateLeader(updatedKeyboard, leaderIndex);
+                await vialService.saveViable();
+            } catch (err) {
+                console.error("Failed to update leader:", err);
+            }
         } else {
             updateLeaderAssignment(slot, item.keycode, seqIndex);
         }
     };
 
-    const updateLeaderAssignment = (slot: "sequence" | "output", keycode: string, seqIndex?: number) => {
+    const updateLeaderAssignment = async (slot: "sequence" | "output", keycode: string, seqIndex?: number) => {
         if (!keyboard || !leaderEntry) return;
         const updatedKeyboard = JSON.parse(JSON.stringify(keyboard));
         const entry = updatedKeyboard.leaders[leaderIndex];
@@ -122,9 +127,12 @@ const LeaderEditor: FC = () => {
         }
 
         setKeyboard(updatedKeyboard);
-
-        vialService.updateLeader(updatedKeyboard, leaderIndex)
-            .catch(err => console.error("Failed to update leader:", err));
+        try {
+            await vialService.updateLeader(updatedKeyboard, leaderIndex);
+            await vialService.saveViable();
+        } catch (err) {
+            console.error("Failed to update leader:", err);
+        }
     };
 
     const clearKey = async (slot: "sequence" | "output", seqIndex?: number) => {

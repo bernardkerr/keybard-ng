@@ -6,10 +6,10 @@ import { usePanels } from "@/contexts/PanelsContext";
 import { useVial } from "@/contexts/VialContext";
 import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { DragItem } from "@/contexts/DragContext";
+import { vialService } from "@/services/vial.service";
 
 import EditorKey from "./EditorKey";
 import { ComboEntry, ComboOptions } from "@/types/vial.types";
-import { vialService } from "@/services/vial.service";
 
 const ComboEditor: FC = () => {
     const { keyboard, setKeyboard } = useVial();
@@ -67,7 +67,7 @@ const ComboEditor: FC = () => {
         })();
     }, [keyboard, itemToEdit, setKeyboard]);
 
-    const handleDrop = (slot: number, item: DragItem) => {
+    const handleDrop = async (slot: number, item: DragItem) => {
         if (!keyboard?.combos || itemToEdit === null) return;
 
         // Check if we should swap (dragging from same combo editor)
@@ -97,7 +97,14 @@ const ComboEditor: FC = () => {
                 combo.keys = newKeys;
                 combos[itemToEdit] = combo;
             }
-            setKeyboard({ ...keyboard, combos });
+            const updatedKeyboard = { ...keyboard, combos };
+            setKeyboard(updatedKeyboard);
+            try {
+                await vialService.updateCombo(updatedKeyboard, itemToEdit);
+                await vialService.saveViable();
+            } catch (err) {
+                console.error("Failed to update combo swap:", err);
+            }
         } else {
             // Standard assignment (replace)
             const combos = [...keyboard.combos];
@@ -112,11 +119,18 @@ const ComboEditor: FC = () => {
                 }
                 combos[itemToEdit] = combo;
             }
-            setKeyboard({ ...keyboard, combos });
+            const updatedKeyboard = { ...keyboard, combos };
+            setKeyboard(updatedKeyboard);
+            try {
+                await vialService.updateCombo(updatedKeyboard, itemToEdit);
+                await vialService.saveViable();
+            } catch (err) {
+                console.error("Failed to update combo assignment:", err);
+            }
         }
     };
 
-    const updateComboAssignment = (slot: number, keycode: string) => {
+    const updateComboAssignment = async (slot: number, keycode: string) => {
         if (!keyboard?.combos || itemToEdit === null) return;
         const combos = [...keyboard.combos];
         if (combos[itemToEdit]) {
@@ -130,7 +144,14 @@ const ComboEditor: FC = () => {
             }
             combos[itemToEdit] = combo;
         }
-        setKeyboard({ ...keyboard, combos });
+        const updatedKeyboard = { ...keyboard, combos };
+        setKeyboard(updatedKeyboard);
+        try {
+            await vialService.updateCombo(updatedKeyboard, itemToEdit);
+            await vialService.saveViable();
+        } catch (err) {
+            console.error("Failed to update combo key:", err);
+        }
     };
 
     const renderComboKey = (keycode: string, slot: number) => {

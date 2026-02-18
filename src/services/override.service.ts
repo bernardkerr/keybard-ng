@@ -19,17 +19,17 @@ export class OverrideService {
                 { uint8: true }
             ) as Uint8Array;
 
-            // Response: [cmd_echo][index][trigger:2][replacement:2][layers:2][trigger_mods][negative_mod_mask][suppressed_mods][options]
+            // Response: [cmd_echo][index][trigger:2][replacement:2][layers:4][trigger_mods][negative_mod_mask][suppressed_mods][options]
             const dv = new DataView(data.buffer);
             kbinfo.key_overrides.push({
                 koid: i,
                 trigger: keyService.stringify(dv.getUint16(2, true)),
                 replacement: keyService.stringify(dv.getUint16(4, true)),
-                layers: dv.getUint16(6, true),
-                trigger_mods: data[8],
-                negative_mod_mask: data[9],
-                suppressed_mods: data[10],
-                options: data[11],
+                layers: dv.getUint32(6, true),
+                trigger_mods: data[10],
+                negative_mod_mask: data[11],
+                suppressed_mods: data[12],
+                options: data[13],
             });
         }
     }
@@ -44,7 +44,7 @@ export class OverrideService {
             koid,
             ...this.LE16(keyService.parse(ko.trigger)),
             ...this.LE16(keyService.parse(ko.replacement)),
-            ...this.LE16(ko.layers),
+            ...this.LE32(ko.layers),
             ko.trigger_mods,
             ko.negative_mod_mask,
             ko.suppressed_mods,
@@ -54,5 +54,9 @@ export class OverrideService {
 
     private LE16(val: number): [number, number] {
         return [val & 0xFF, (val >> 8) & 0xFF];
+    }
+
+    private LE32(val: number): [number, number, number, number] {
+        return [val & 0xFF, (val >> 8) & 0xFF, (val >> 16) & 0xFF, (val >> 24) & 0xFF];
     }
 }

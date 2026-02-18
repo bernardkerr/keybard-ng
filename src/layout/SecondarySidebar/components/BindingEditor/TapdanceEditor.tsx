@@ -8,6 +8,7 @@ import { useLayoutSettings } from "@/contexts/LayoutSettingsContext";
 import { useDebounce } from "@uidotdev/usehooks";
 import { TapdanceEntry } from "@/types/vial.types";
 import { DragItem } from "@/contexts/DragContext";
+import { vialService } from "@/services/vial.service";
 
 import EditorKey from "./EditorKey";
 
@@ -59,7 +60,7 @@ const TapdanceEditor: FC = () => {
         }
     }, [itemToEdit, selectTapdanceKey, initialEditorSlot]);
 
-    const updateTapMs = (ms: number) => {
+    const updateTapMs = async (ms: number) => {
         if (keyboard?.tapdances && itemToEdit !== null) {
             const tapdances = [...keyboard.tapdances];
             if (tapdances[itemToEdit]) {
@@ -68,14 +69,21 @@ const TapdanceEditor: FC = () => {
                     tapping_term: ms,
                 };
             }
-            setKeyboard({ ...keyboard, tapdances });
+            const updatedKeyboard = { ...keyboard, tapdances };
+            setKeyboard(updatedKeyboard);
+            try {
+                await vialService.updateTapdance(updatedKeyboard, itemToEdit);
+                await vialService.saveViable();
+            } catch (err) {
+                console.error("Failed to update tapdance tapping term:", err);
+            }
         }
     };
     useEffect(() => {
         updateTapMs(debouncedTapMs);
     }, [debouncedTapMs]);
 
-    const updateKeyAssignment = (slot: string, keycode: string) => {
+    const updateKeyAssignment = async (slot: string, keycode: string) => {
         if (!keyboard?.tapdances || itemToEdit === null) return;
         const tapdances = [...keyboard.tapdances];
         if (tapdances[itemToEdit]) {
@@ -84,7 +92,14 @@ const TapdanceEditor: FC = () => {
                 [slot]: keycode
             };
         }
-        setKeyboard({ ...keyboard, tapdances });
+        const updatedKeyboard = { ...keyboard, tapdances };
+        setKeyboard(updatedKeyboard);
+        try {
+            await vialService.updateTapdance(updatedKeyboard, itemToEdit);
+            await vialService.saveViable();
+        } catch (err) {
+            console.error("Failed to update tapdance key:", err);
+        }
     };
 
     // Handle Delete/Backspace for selected key
@@ -101,7 +116,7 @@ const TapdanceEditor: FC = () => {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [selectedTarget, itemToEdit]);
 
-    const handleDrop = (slot: string, item: DragItem) => {
+    const handleDrop = async (slot: string, item: DragItem) => {
         if (item.editorType === "tapdance" && item.editorId === itemToEdit && item.editorSlot !== undefined) {
             const sourceSlot = item.editorSlot as keyof TapdanceEntry;
             const targetSlot = slot as keyof TapdanceEntry;
@@ -120,7 +135,14 @@ const TapdanceEditor: FC = () => {
 
                 tapdances[itemToEdit] = td;
             }
-            setKeyboard({ ...keyboard, tapdances });
+            const updatedKeyboard = { ...keyboard, tapdances };
+            setKeyboard(updatedKeyboard);
+            try {
+                await vialService.updateTapdance(updatedKeyboard, itemToEdit);
+                await vialService.saveViable();
+            } catch (err) {
+                console.error("Failed to update tapdance swap:", err);
+            }
         } else {
             updateKeyAssignment(slot, item.keycode);
         }
