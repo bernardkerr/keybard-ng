@@ -1,4 +1,4 @@
-import { FC, useEffect, useRef, useState } from "react";
+import { FC, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Keyboard } from "@/components/Keyboard";
 import { LayerNameBadge } from "@/components/LayerNameBadge";
@@ -7,7 +7,7 @@ import LayersDefaultIcon from "@/components/icons/LayersDefault";
 import LayersMinusIcon from "@/components/icons/LayersMinusIcon";
 import SquareArrowLeftIcon from "@/components/icons/SquareArrowLeft";
 import SquareArrowRightIcon from "@/components/icons/SquareArrowRight";
-import { Microscope } from "lucide-react";
+import MicroscopeIcon from "@/components/icons/MicroscopeIcon";
 import { useVial } from "@/contexts/VialContext";
 import { useKeyBinding } from "@/contexts/KeyBindingContext";
 import { useChanges } from "@/contexts/ChangesContext";
@@ -38,6 +38,12 @@ interface KeyboardViewInstanceProps {
     onToggleShowLayers: () => void;
     isLayerOrderReversed: boolean;
     onToggleLayerOrder: () => void;
+    isMultiLayersActive: boolean;
+    isAllTransparencyActive: boolean;
+    isTransparencyRestoring?: boolean;
+    multiLayerHeaderOffset?: number;
+    layerHeaderShiftY?: number;
+    sizeScale?: number;
     onRemove?: () => void;
     onGhostNavigate?: (sourceLayer: number) => void;
     isRevealing?: boolean;
@@ -63,6 +69,12 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     onToggleShowLayers,
     isLayerOrderReversed,
     onToggleLayerOrder,
+    isMultiLayersActive,
+    isAllTransparencyActive,
+    isTransparencyRestoring = false,
+    multiLayerHeaderOffset = 0,
+    layerHeaderShiftY = 0,
+    sizeScale = 1,
     onRemove,
     onGhostNavigate,
     isRevealing = false,
@@ -75,15 +87,24 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     const { activePanel } = usePanels();
     const { is3DMode } = useLayoutSettings();
 
-    const [isTransparencyActive, setIsTransparencyActive] = useState(false);
     const [isHudMode, setIsHudMode] = useState(false);
+    const [suppressTransparencyHover, setSuppressTransparencyHover] = useState(false);
     const layerOrderClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const KC_TRNS = 1;
+    const isTransparencyActive = !!transparencyByLayer[selectedLayer];
+    const tabRefs = useRef<Map<number, HTMLButtonElement | null>>(new Map());
+    const prevTabRectsRef = useRef<Map<number, DOMRect>>(new Map());
+    const prevIsLayerOrderReversed = useRef<boolean>(isLayerOrderReversed);
+    const TAB_FLIP_STAGGER_MS = 25;
+    const TAB_FLIP_DURATION_MS = 260;
 
-    // Track transparency per-layer when switching tabs
+    // Briefly suppress hover styles after restoring transparency to avoid a flash
     useEffect(() => {
-        setIsTransparencyActive(!!transparencyByLayer[selectedLayer]);
-    }, [selectedLayer, transparencyByLayer]);
+        if (isAllTransparencyActive || isTransparencyRestoring) return;
+        setSuppressTransparencyHover(true);
+        const t = setTimeout(() => setSuppressTransparencyHover(false), 120);
+        return () => clearTimeout(t);
+    }, [isAllTransparencyActive, isTransparencyRestoring]);
 
     // Ref for container
     const containerRef = useRef<HTMLDivElement>(null);
@@ -162,30 +183,43 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         }
     };
 
-    const renderLayerTab = (i: number) => {
+    const shouldRenderLayerTab = (i: number) => {
         const layerData = keyboard.keymap?.[i];
         const isTransparentLayer = layerData ? layerData.every((keycode) => keycode === KC_TRNS) : true;
         const isLayerActive = !!layerActiveState?.[i];
 
         const shouldHideTransparent = !showAllLayers;
         if (shouldHideTransparent && isTransparentLayer && i !== selectedLayer && !isLayerActive) {
-            return null;
+            return false;
         }
+        return true;
+    };
+
+    const renderLayerTab = (i: number) => {
+        if (!shouldRenderLayerTab(i)) return null;
 
         const layerShortName = svalService.getLayerNameNoLabel(keyboard, i);
         const isActive = selectedLayer === i;
+        const isLayerActive = !!layerActiveState?.[i];
 
         return (
             <ContextMenu key={`${instanceId}-layer-tab-${i}`}>
                 <ContextMenuTrigger asChild>
                     <button
+                        ref={(el) => {
+                            if (el) {
+                                tabRefs.current.set(i, el);
+                            } else {
+                                tabRefs.current.delete(i);
+                            }
+                        }}
                         onClick={handleSelectLayer(i)}
                         onDoubleClick={(e) => {
                             e.stopPropagation();
                             onToggleLayerOn(i);
                         }}
                         className={cn(
-                            "px-4 py-1 rounded-full transition-all text-sm font-medium cursor-pointer border-none outline-none whitespace-nowrap",
+                            "px-4 py-1 rounded-full transition-colors text-sm font-medium cursor-pointer border-none outline-none whitespace-nowrap",
                             isActive
                                 ? "bg-gray-800 text-white shadow-md scale-105"
                                 : "bg-transparent text-gray-600 hover:bg-gray-200",
@@ -213,6 +247,64 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         );
     };
 
+    const allLayerIds = Array.from({ length: keyboard.layers || 16 }, (_, i) => i);
+    const visibleLayerIds = useMemo(
+        () => allLayerIds.filter(shouldRenderLayerTab),
+        [keyboard.layers, keyboard.keymap, showAllLayers, selectedLayer, layerActiveState]
+    );
+    const displayOrder = useMemo(
+        () => (isLayerOrderReversed ? [...visibleLayerIds].reverse() : visibleLayerIds),
+        [isLayerOrderReversed, visibleLayerIds]
+    );
+
+    useLayoutEffect(() => {
+        const currentRects = new Map<number, DOMRect>();
+        visibleLayerIds.forEach((layerId) => {
+            const el = tabRefs.current.get(layerId);
+            if (!el) return;
+            currentRects.set(layerId, el.getBoundingClientRect());
+        });
+
+        const prevRects = prevTabRectsRef.current;
+        if (prevRects.size > 0) {
+            // Stagger based on the previous order so the "first tab" matches the view
+            const useReversedDelay = prevIsLayerOrderReversed.current;
+            const delayOrder = [...displayOrder].sort((a, b) =>
+                useReversedDelay ? b - a : a - b
+            );
+            const delayIndexByLayer = new Map<number, number>();
+            delayOrder.forEach((layerId, index) => {
+                delayIndexByLayer.set(layerId, index);
+            });
+
+            displayOrder.forEach((layerId) => {
+                const el = tabRefs.current.get(layerId);
+                const prev = prevRects.get(layerId);
+                const next = currentRects.get(layerId);
+                if (!el || !prev || !next) return;
+                const deltaX = prev.left - next.left;
+                if (Math.abs(deltaX) < 0.5) return;
+                const delayIndex = delayIndexByLayer.get(layerId) ?? 0;
+                const delayMs = delayIndex * TAB_FLIP_STAGGER_MS;
+                // FLIP: start at previous position, then transition to new position
+                el.style.transition = "none";
+                el.style.transform = `translateX(${deltaX}px)`;
+                // Force reflow so the transform applies before we animate
+                void el.offsetWidth;
+                requestAnimationFrame(() => {
+                    el.style.transition = `transform ${TAB_FLIP_DURATION_MS}ms ease-in-out ${delayMs}ms`;
+                    el.style.transform = "translateX(0px)";
+                });
+            });
+        }
+
+        prevTabRectsRef.current = currentRects;
+        prevIsLayerOrderReversed.current = isLayerOrderReversed;
+    }, [
+        displayOrder,
+        visibleLayerIds,
+    ]);
+
     return (
         <div
             ref={containerRef}
@@ -223,7 +315,10 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
             }}
         >
             {/* Layer Controls Row: Hide-blank-layers toggle + layer tabs + (optional) remove button */}
-            <div className="flex items-center gap-2 pl-5 pb-2 whitespace-nowrap">
+            <div
+                className="flex items-center gap-2 pl-5 pb-2 whitespace-nowrap"
+                style={isPrimary && multiLayerHeaderOffset > 0 ? { marginTop: -multiLayerHeaderOffset } : undefined}
+            >
                 {!hideLayerTabs && (
                     <>
                         <div className="flex items-center gap-1">
@@ -251,10 +346,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                         </div>
 
                         <div className={cn("flex items-center gap-1", activePanel === "matrixtester" && "opacity-30 pointer-events-none")}>
-                            {(isLayerOrderReversed
-                                ? Array.from({ length: keyboard.layers || 16 }, (_, i) => i).reverse()
-                                : Array.from({ length: keyboard.layers || 16 }, (_, i) => i)
-                            ).map((i) => renderLayerTab(i))}
+                            {displayOrder.map((i) => renderLayerTab(i))}
                         </div>
 
                         <Tooltip delayDuration={500}>
@@ -321,60 +413,70 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
             </div>
 
             {/* Layer Name Badge Row */}
-            {!hideLayerTabs && (
-                <div className="pl-5 pt-[7px] pb-2 flex items-center gap-2">
-                    <div style={{ marginLeft: -20 }}>
-                        <LayerNameBadge
-                            selectedLayer={selectedLayer}
-                            isActive={!!layerActiveState?.[selectedLayer]}
-                            onToggleLayerOn={onToggleLayerOn}
-                            // TODO: when firmware reports default layer, pass it here.
-                            defaultLayerIndex={0}
-                        />
-                    </div>
+            <div
+                className="pl-5 pt-[7px] pb-2 flex items-center gap-2"
+                style={is3DMode && !isPrimary && isMultiLayersActive
+                    ? { transform: `translateY(${layerHeaderShiftY + (400 * sizeScale)}px)` }
+                    : undefined}
+            >
+                <div style={{ marginLeft: -20 }}>
+                    <LayerNameBadge
+                        selectedLayer={selectedLayer}
+                        isActive={!!layerActiveState?.[selectedLayer]}
+                        onToggleLayerOn={onToggleLayerOn}
+                        // TODO: when firmware reports default layer, pass it here.
+                        defaultLayerIndex={0}
+                    />
+                </div>
 
-                    {/* Transparency Button (reserve space for layer 0 to avoid layout shift) */}
+                {selectedLayer !== 0 && (
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <button
                                 onClick={() => {
                                     if (selectedLayer === 0) return;
                                     const next = !isTransparencyActive;
-                                    setIsTransparencyActive(next);
                                     onToggleTransparency(selectedLayer, next);
                                 }}
-                                disabled={activePanel === "matrixtester" || selectedLayer === 0}
+                                disabled={activePanel === "matrixtester" || isAllTransparencyActive || isTransparencyRestoring}
                                 className={cn(
-                                    "p-1.5 rounded-full transition-all flex-shrink-0 ml-[-4px]",
+                                    "p-1.5 rounded-full transition-colors flex-shrink-0 ml-[-4px]",
                                     activePanel === "matrixtester"
                                         ? "text-gray-400 cursor-not-allowed opacity-30"
                                         : isTransparencyActive
                                             ? "bg-black hover:bg-gray-800"
-                                            : "hover:bg-gray-200",
-                                    selectedLayer === 0 && "opacity-0 pointer-events-none"
+                                            : (!suppressTransparencyHover ? "hover:bg-gray-200" : ""),
+                                    (isAllTransparencyActive || isTransparencyRestoring) && "invisible pointer-events-none"
                                 )}
                                 aria-label={isTransparencyActive ? "Show Transparent Keys" : "Hide Transparent Keys"}
                             >
-                                <Microscope className={cn(
+                                <MicroscopeIcon className={cn(
                                     "h-4 w-4",
                                     isTransparencyActive ? "text-kb-gray" : "text-black"
                                 )} />
                             </button>
                         </TooltipTrigger>
-                        {selectedLayer !== 0 && (
-                            <TooltipContent side="top">
-                                {isTransparencyActive ? "Show Transparent Keys" : "Hide Transparent Keys"}
-                            </TooltipContent>
-                        )}
+                        <TooltipContent side="top">
+                            {isTransparencyActive ? "Show Transparent Keys" : "Hide Transparent Keys"}
+                        </TooltipContent>
                     </Tooltip>
-                </div>
-            )}
+                )}
+            </div>
 
             {/* Keyboard */}
-            <div className={cn(
-                "flex items-start justify-center max-w-full",
-                is3DMode && "keyboard-3d-wrapper"
-            )} style={is3DMode ? { transformStyle: 'preserve-3d' } : undefined}>
+            <div
+                className={cn(
+                    "flex items-start justify-center max-w-full",
+                    is3DMode && "keyboard-3d-wrapper"
+                )}
+                style={is3DMode
+                    ? {
+                        transformStyle: 'preserve-3d',
+                        marginTop: isPrimary ? `${120 * sizeScale}px` : (isMultiLayersActive ? '0px' : `${120 * sizeScale}px`),
+                    }
+                    : undefined
+                }
+            >
                 <div
                     className={cn(
                         "transition-transform duration-500 ease-in-out",
@@ -382,7 +484,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     )}
                     style={{
                         transform: is3DMode
-                            ? `rotateX(55deg) rotateZ(-45deg) translateZ(${stackIndex * 15}px)`
+                            ? `rotateX(55deg) rotateZ(-45deg) translateZ(${stackIndex * 60}px)`
                             : undefined
                     }}
                 >
@@ -393,6 +495,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                         showTransparency={isTransparencyActive}
                         onGhostNavigate={onGhostNavigate}
                         layerActiveState={layerActiveState}
+                        instanceId={instanceId}
                     />
                 </div>
             </div>

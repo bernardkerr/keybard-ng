@@ -3,6 +3,9 @@ import { LayoutExport } from "@/components/icons/LayoutExport";
 import MatrixTesterIcon from "@/components/icons/MatrixTesterSvg";
 import BoxIcon from "@/components/icons/BoxIcon";
 import LayoutMultiLayersIcon from "@/components/icons/LayoutMultiLayersIcon";
+import MicroscopeIcon from "@/components/icons/MicroscopeIcon";
+import MoveDownRightIcon from "@/components/icons/MoveDownRightIcon";
+import MoveUpLeftIcon from "@/components/icons/MoveUpLeftIcon";
 import { ArrowLeft, ChevronDown, Unplug, Undo2, Zap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useVial } from "@/contexts/VialContext";
@@ -34,17 +37,25 @@ interface LayerSelectorProps {
     setSelectedLayer: (layer: number) => void;
     isMultiLayersActive: boolean;
     onToggleMultiLayers: () => void;
+    isAllTransparencyActive: boolean;
+    onToggleAllTransparency: () => void;
 }
 
 /**
  * Component for selecting and managing active layers in the keyboard editor.
  * Displays a horizontal bar of layer tabs with a filter toggle for hiding blank layers.
  */
-const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer, isMultiLayersActive, onToggleMultiLayers }) => {
+const LayerSelector: FC<LayerSelectorProps> = ({
+    selectedLayer: _selectedLayer,
+    isMultiLayersActive,
+    onToggleMultiLayers,
+    isAllTransparencyActive,
+    onToggleAllTransparency
+}) => {
     const { keyboard, setKeyboard, isConnected, connect, resetToOriginal, setIsImporting } = useVial();
     const { queue, commit, getPendingCount, clearAll } = useChanges();
     const { getSetting, updateSetting } = useSettings();
-    const { is3DMode, setIs3DMode } = useLayoutSettings();
+    const { is3DMode, setIs3DMode, isThumb3DOffsetActive, setIsThumb3DOffsetActive } = useLayoutSettings();
 
     const liveUpdating = getSetting("live-updating") === true;
 
@@ -384,36 +395,6 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer, 
                         <div className="h-4 w-[1px] bg-slate-400 mx-0 flex-shrink-0" />
 
                         <div className="flex items-center gap-1">
-                            {/* Multi Layers Button */}
-                            <Tooltip delayDuration={500}>
-                                <TooltipTrigger asChild>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (activePanel === "matrixtester") {
-                                                setActivePanel(null);
-                                            }
-                                            onToggleMultiLayers();
-                                        }}
-                                        className={cn(
-                                            "p-2 rounded-full transition-all cursor-pointer",
-                                            isMultiLayersActive
-                                                ? "bg-black hover:bg-gray-800"
-                                                : "hover:bg-gray-200"
-                                        )}
-                                        aria-label={isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
-                                    >
-                                        <LayoutMultiLayersIcon className={cn(
-                                            "h-5 w-5",
-                                            isMultiLayersActive ? "text-kb-gray" : "text-black"
-                                        )} />
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                    {isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
-                                </TooltipContent>
-                            </Tooltip>
-
                             {/* Import Button */}
                             <Tooltip delayDuration={500}>
                                 <TooltipTrigger asChild>
@@ -484,7 +465,37 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer, 
                             </Tooltip>
 
                             {/* Divider */}
-                            <div className="h-4 w-[1px] bg-slate-400 ml-2 mr-0 flex-shrink-0" />
+                            <div className="h-4 w-[1px] bg-slate-400 ml-2 mr-2 flex-shrink-0" />
+
+                            {/* Multi Layers Button */}
+                            <Tooltip delayDuration={500}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (activePanel === "matrixtester") {
+                                                setActivePanel(null);
+                                            }
+                                            onToggleMultiLayers();
+                                        }}
+                                        className={cn(
+                                            "p-2 rounded-full transition-all cursor-pointer",
+                                            isMultiLayersActive
+                                                ? "bg-black hover:bg-gray-800"
+                                                : "hover:bg-gray-200"
+                                        )}
+                                        aria-label={isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
+                                    >
+                                        <LayoutMultiLayersIcon className={cn(
+                                            "h-5 w-5",
+                                            isMultiLayersActive ? "text-kb-gray" : "text-black"
+                                        )} />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    {isMultiLayersActive ? "Show Single Layer" : "Show Multiple Layers"}
+                                </TooltipContent>
+                            </Tooltip>
 
                             {/* 3D View Toggle Button */}
                             <Tooltip delayDuration={500}>
@@ -504,12 +515,73 @@ const LayerSelector: FC<LayerSelectorProps> = ({ selectedLayer: _selectedLayer, 
                                     >
                                         <BoxIcon className={cn(
                                             "h-5 w-5",
-                                            is3DMode ? "text-kb-gray" : "text-black"
+                                            is3DMode ? "text-kb-gray" : "text-gray-700"
                                         )} />
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
                                     {is3DMode ? "Exit 3D View" : "3D View"}
+                                </TooltipContent>
+                            </Tooltip>
+
+                            {/* Thumb Offset Toggle (3D) */}
+                            <Tooltip delayDuration={500}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsThumb3DOffsetActive(!isThumb3DOffsetActive);
+                                        }}
+                                        className={cn(
+                                            "p-2 rounded-full transition-all cursor-pointer",
+                                            isThumb3DOffsetActive
+                                                ? "bg-black hover:bg-gray-800"
+                                                : "hover:bg-gray-200"
+                                        )}
+                                        aria-label={isThumb3DOffsetActive ? "Thumb Offset On" : "Thumb Offset Off"}
+                                    >
+                                        {isThumb3DOffsetActive ? (
+                                            <MoveUpLeftIcon className={cn(
+                                                "h-5 w-5",
+                                                isThumb3DOffsetActive ? "text-kb-gray" : "text-black"
+                                            )} />
+                                        ) : (
+                                            <MoveDownRightIcon className={cn(
+                                                "h-5 w-5",
+                                                isThumb3DOffsetActive ? "text-kb-gray" : "text-black"
+                                            )} />
+                                        )}
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    {isThumb3DOffsetActive ? "Thumb Offset On" : "Thumb Offset Off"}
+                                </TooltipContent>
+                            </Tooltip>
+
+                            {/* Show/Hide All Transparent Keys Button */}
+                            <Tooltip delayDuration={500}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onToggleAllTransparency();
+                                        }}
+                                        className={cn(
+                                            "p-2 rounded-full transition-all cursor-pointer w-9 h-9 flex items-center justify-center",
+                                            isAllTransparencyActive
+                                                ? "bg-black hover:bg-gray-800"
+                                                : "hover:bg-gray-200"
+                                        )}
+                                        aria-label={isAllTransparencyActive ? "Show Transparent Keys (All Layers)" : "Hide Transparent Keys (All Layers)"}
+                                    >
+                                        <MicroscopeIcon className={cn(
+                                            "h-4 w-4",
+                                            isAllTransparencyActive ? "text-kb-gray" : "text-black"
+                                        )} />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    {isAllTransparencyActive ? "Show Transparent Keys (All Layers)" : "Hide Transparent Keys (All Layers)"}
                                 </TooltipContent>
                             </Tooltip>
                         </div>

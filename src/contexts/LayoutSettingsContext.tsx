@@ -56,6 +56,8 @@ interface LayoutSettingsContextType {
     // 3D isometric view mode
     is3DMode: boolean;
     setIs3DMode: (mode: boolean) => void;
+    isThumb3DOffsetActive: boolean;
+    setIsThumb3DOffsetActive: (active: boolean) => void;
 }
 
 const LayoutSettingsContext = createContext<LayoutSettingsContextType | undefined>(undefined);
@@ -75,6 +77,7 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     const [userManuallyCollapsedSidebar, setUserManuallyCollapsedSidebar] = useState<boolean>(false);
     const [measuredDimensions, setMeasuredDimensionsState] = useState<MeasuredDimensions | null>(null);
     const [is3DMode, setIs3DMode] = useState<boolean>(false);
+    const [isThumb3DOffsetActive, setIsThumb3DOffsetActive] = useState<boolean>(false);
 
     // Use refs to track current values without triggering re-renders during calculation
     const secondarySidebarOpenRef = useRef(false);
@@ -406,6 +409,8 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
             fingerClusterSqueeze,
             is3DMode,
             setIs3DMode,
+            isThumb3DOffsetActive,
+            setIsThumb3DOffsetActive,
         }}>
             {children}
         </LayoutSettingsContext.Provider>

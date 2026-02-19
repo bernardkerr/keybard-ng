@@ -34,6 +34,7 @@ interface KeyboardProps {
     showTransparency?: boolean;
     onGhostNavigate?: (sourceLayer: number) => void;
     layerActiveState?: boolean[];
+    instanceId?: string;
 }
 
 /**
@@ -47,6 +48,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     showTransparency = false,
     onGhostNavigate,
     layerActiveState,
+    instanceId,
 }) => {
     const {
         selectKeyboardKey,
@@ -77,7 +79,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     // Use keyboard's cols if available, otherwise fallback to constant
     const matrixCols = keyboard.cols || MATRIX_COLS;
 
-    const { internationalLayout, keyVariant, fingerClusterSqueeze } = useLayoutSettings();
+    const { internationalLayout, keyVariant, fingerClusterSqueeze, is3DMode, isThumb3DOffsetActive } = useLayoutSettings();
     const { getSetting } = useSettings();
     const isTransmitting = useMemo(() =>
         itemToEdit !== null && ["tapdances", "combos", "macros", "overrides"].includes(activePanel || ""),
@@ -87,6 +89,10 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     const currentUnitSize = useMemo(() =>
         keyVariant === 'small' ? 30 : keyVariant === 'medium' ? 45 : UNIT_SIZE,
         [keyVariant]
+    );
+
+    const getYPos = (y: number) => (
+        (!useFragmentLayout && y >= 6) ? y + THUMB_OFFSET_U : y
     );
 
     // Calculate layout midline for squeeze positioning (center X of the keyboard)
@@ -181,8 +187,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
         let minY = Infinity; // Top edge of keyboard
 
         Object.values(keyboardLayout).forEach((key) => {
-            // Only apply THUMB_OFFSET_U for hardcoded layout, not fragment-composed layouts
-            const yPos = (!useFragmentLayout && key.y >= 6) ? key.y + THUMB_OFFSET_U : key.y;
+            const yPos = getYPos(key.y);
             maxX = Math.max(maxX, key.x + key.w);
             maxY = Math.max(maxY, yPos + key.h);
             minY = Math.min(minY, yPos);
@@ -238,7 +243,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     };
 
     return (
-        <div className="p-4">
+        <div className="p-4" data-keyboard-instance={instanceId}>
             <div
                 className="keyboard-layout relative"
                 style={{ width: `${keyboardSize.width}px`, height: `${keyboardSize.height}px` }}
@@ -283,8 +288,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                     const keyHoverBorder = isTransmitting ? hoverBorderClasses[layerColor] : undefined;
                     const keyHoverLayerColor = isTransmitting ? layerColor : undefined;
 
-                    // Only apply THUMB_OFFSET_U for hardcoded layout, not fragment-composed layouts
-                    const yPos = (!useFragmentLayout && layout.y >= 6) ? layout.y + THUMB_OFFSET_U : layout.y;
+                    const yPos = getYPos(layout.y);
 
                     // Apply finger cluster squeeze: shift keys toward center based on side
                     // Only squeeze finger cluster keys (y < 5), not thumb clusters (y >= 5)
@@ -311,6 +315,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                         ? cn("transition-opacity duration-200", isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100")
                         : "";
 
+                    const THUMB_3D_SHIFT_PX = (is3DMode && isThumb3DOffsetActive) ? 900 : 0;
                     const standardKey = (
                         <Key
                             key={`${row}-${col}`}
@@ -322,6 +327,12 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                             label={label}
                             row={row}
                             col={col}
+                            data-key-x={layout.x}
+                            data-key-y={layout.y}
+                            data-key-w={layout.w}
+                            data-key-h={layout.h}
+                            data-key-label={label}
+                            data-keycode={keycodeName}
                             selected={isKeySelected(row, col)}
                             onClick={handleKeyClick}
                             onDoubleClick={isGhostKey ? () => {
@@ -342,6 +353,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                             hasPendingChange={hasPendingChangeForKey(selectedLayer, row, col)}
                             disableTooltip={true}
                             className={standardKeyClassName}
+                            style={is3DMode && isThumbCluster ? { transform: `translateY(${THUMB_3D_SHIFT_PX}px)`, transition: 'transform 300ms ease-in-out' } : undefined}
                         />
                     );
 
@@ -453,6 +465,8 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                         top: `${yPos * currentUnitSize}px`,
                         width: `${layout.w * currentUnitSize}px`,
                         height: `${layout.h * currentUnitSize}px`,
+                        transition: 'top 300ms ease-in-out, left 300ms ease-in-out, transform 300ms ease-in-out',
+                        transform: (is3DMode && isThumbCluster) ? `translateY(${THUMB_3D_SHIFT_PX}px)` : undefined,
                     };
 
                     return (

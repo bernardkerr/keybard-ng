@@ -76,6 +76,7 @@ const EditorLayoutInner = () => {
     const { layerClipboard, copyLayer, openPasteDialog } = useLayoutLibrary();
     const { isDragging, draggedItem, markDropConsumed } = useDrag();
 
+    const KC_TRNS = 1;
     // Track if we're dragging a layer over the keyboard area
     const [isLayerDragOver, setIsLayerDragOver] = React.useState(false);
     const isDraggingLayer = isDragging && draggedItem?.type === "layer" && draggedItem?.component === "Layer";
@@ -94,6 +95,9 @@ const EditorLayoutInner = () => {
     // UI-only layer on/off state. TODO: replace with device-provided layer state when available.
     const [layerActiveState, setLayerActiveState] = React.useState<boolean[]>([]);
     const [transparencyByLayer, setTransparencyByLayer] = React.useState<Record<number, boolean>>({});
+    const [isAllTransparencyActive, setIsAllTransparencyActive] = React.useState(false);
+    const [isTransparencyRestoring, setIsTransparencyRestoring] = React.useState(false);
+    const transparencyBackupRef = React.useRef<Record<number, boolean> | null>(null);
     const viewsScrollRef = React.useRef<HTMLDivElement>(null);
     const layerViewRefs = React.useRef<Map<number, HTMLDivElement>>(new Map());
     let nextViewId = React.useRef(1);
@@ -267,6 +271,30 @@ const EditorLayoutInner = () => {
         setTransparencyByLayer(prev => ({ ...prev, [layerIndex]: next }));
     }, []);
 
+    const handleToggleAllTransparency = React.useCallback(() => {
+        const next = !isAllTransparencyActive;
+        const totalLayers = keyboard?.layers || 16;
+        if (next) {
+            transparencyBackupRef.current = { ...transparencyByLayer };
+            const allOn = Array.from({ length: totalLayers }, (_, i) => i)
+                .reduce<Record<number, boolean>>((acc, layerIndex) => {
+                    acc[layerIndex] = true;
+                    return acc;
+                }, {});
+            setTransparencyByLayer(allOn);
+        } else {
+            setIsTransparencyRestoring(true);
+            setTransparencyByLayer(transparencyBackupRef.current || {});
+            transparencyBackupRef.current = null;
+        }
+        setIsAllTransparencyActive(next);
+        if (!next) {
+            requestAnimationFrame(() => {
+                setIsTransparencyRestoring(false);
+            });
+        }
+    }, [isAllTransparencyActive, keyboard?.layers, transparencyByLayer]);
+
     const handleGhostNavigate = React.useCallback((sourceLayer: number) => {
         const targetEl = layerViewRefs.current.get(sourceLayer);
         const container = viewsScrollRef.current;
@@ -276,10 +304,41 @@ const EditorLayoutInner = () => {
         }
         setSelectedLayer(sourceLayer);
     }, [setSelectedLayer]);
+    const primaryView = React.useMemo(
+        () => viewInstances.find(v => v.id === "primary") ?? { id: "primary", selectedLayer },
+        [viewInstances, selectedLayer]
+    );
 
+    const multiLayerIds = React.useMemo(() => {
+        if (!keyboard) return [] as number[];
+        const totalLayers = keyboard.layers || 16;
 
+        if (showAllLayers) {
+            return Array.from({ length: totalLayers }, (_, i) => i);
+        }
 
+        const keymap = keyboard.keymap || [];
+        return Array.from({ length: totalLayers }, (_, i) => i).filter((layerIndex) => {
+            const layerData = keymap[layerIndex];
+            const isTransparentLayer = layerData ? layerData.every((keycode) => keycode === KC_TRNS) : true;
+            return !isTransparentLayer || layerIndex === primaryView.selectedLayer;
+        });
+    }, [keyboard, showAllLayers, primaryView.selectedLayer]);
 
+    const renderedViews = React.useMemo(() => {
+        if (!isMultiLayersActive) {
+            return viewInstances;
+        }
+        const extraLayers = multiLayerIds.filter(layerIndex => layerIndex !== primaryView.selectedLayer);
+        const orderedExtras = isLayerOrderReversed ? [...extraLayers].reverse() : extraLayers;
+        return [
+            primaryView,
+            ...orderedExtras.map(layerIndex => ({
+                id: `multi-${layerIndex}`,
+                selectedLayer: layerIndex
+            }))
+        ];
+    }, [isMultiLayersActive, viewInstances, primaryView, multiLayerIds, isLayerOrderReversed]);
 
     // Ref for measuring container dimensions
     const contentContainerRef = React.useRef<HTMLDivElement>(null);
@@ -508,10 +567,27 @@ const EditorLayoutInner = () => {
     }, [showEditorOverlay]);
 
     const [showInfoPanel, setShowInfoPanel] = React.useState(false);
+    const [gitBranchLabel, setGitBranchLabel] = React.useState<string>(__GIT_BRANCH__);
 
     React.useEffect(() => {
         if (itemToEdit === null) setIsClosingEditor(false);
     }, [itemToEdit]);
+
+    React.useEffect(() => {
+        if (!import.meta.env.DEV) return;
+        let isMounted = true;
+        fetch("/__git_branch")
+            .then(res => res.json())
+            .then(data => {
+                if (isMounted && data?.branch) {
+                    setGitBranchLabel(String(data.branch));
+                }
+            })
+            .catch(() => undefined);
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     // Layout mode determines whether we use sidebar or bottom panel
     const useSidebarLayout = layoutMode === "sidebar";
@@ -689,6 +765,8 @@ const EditorLayoutInner = () => {
                     setSelectedLayer={setSelectedLayer}
                     isMultiLayersActive={isMultiLayersActive}
                     onToggleMultiLayers={() => setIsMultiLayersActive(prev => !prev)}
+                    isAllTransparencyActive={isAllTransparencyActive}
+                    onToggleAllTransparency={handleToggleAllTransparency}
                 />
 
                 <div
@@ -700,130 +778,165 @@ const EditorLayoutInner = () => {
                         <MatrixTester />
                     ) : (
                         <>
-                            <div className="relative w-full flex flex-col items-center">
-                                {/* Vertical 3D Guide Lines - now in 2D container to ensure verticality */}
-                                {(() => {
-                                    // Calculate precisely how far down the lines should go
-                                    // Distance between layers = (KeyboardHeight + 20 padding) - 310 overlap + translateZ(15) projection
-                                    const unitSize = keyVariant === 'small' ? 30 : keyVariant === 'medium' ? 45 : 60;
-                                    const useFragmentLayout = keyboardLayout !== SVALBOARD_LAYOUT;
-                                    let maxYUnits = 0;
-                                    Object.values(keyboardLayout).forEach((key: any) => {
-                                        const yPos = (!useFragmentLayout && key.y >= 6) ? key.y + 0.3 : key.y;
-                                        maxYUnits = Math.max(maxYUnits, yPos + key.h);
-                                    });
-                                    const stepYValue = (maxYUnits * unitSize + 20) - 310 + (15 * 0.8192);
+                            {/* Vertical 3D Guide Lines - now in 2D container to ensure verticality */}
+                            {(() => {
+                                // Calculate precisely how far down the lines should go
+                                // Distance between layers = (KeyboardHeight + 20 padding) - 310 overlap + translateZ(15) projection
+                                const unitSize = keyVariant === 'small' ? 30 : keyVariant === 'medium' ? 45 : 60;
+                                const sizeScale = unitSize / 60;
+                                const useFragmentLayout = keyboardLayout !== SVALBOARD_LAYOUT;
+                                let maxYUnits = 0;
+                                Object.values(keyboardLayout).forEach((key: any) => {
+                                    const yPos = (!useFragmentLayout && key.y >= 6) ? key.y + 0.3 : key.y;
+                                    maxYUnits = Math.max(maxYUnits, yPos + key.h);
+                                });
+                                const keyboardHeight = maxYUnits * unitSize + 20;
+                                const Z_STEP = 60;
+                                const stepYValue = Z_STEP * 0.8192; // 0.8192 is sin(55deg)
 
-                                    const viewsToRender = isMultiLayersActive ? viewInstances : [viewInstances[0]];
+                                const viewsToDisplay = renderedViews;
 
-                                    return (
-                                        <>
+                                const totalViewShiftY = isMultiLayersActive ? (viewsToDisplay.length * stepYValue) : 0;
+                                const multiLayerHeaderOffset = 0;
+
+                                return (
+                                    <div
+                                        className="relative w-full flex flex-col items-center"
+                                        style={is3DMode ? {
+                                            perspective: '1200px',
+                                            transformStyle: 'preserve-3d',
+                                            paddingBottom: isMultiLayersActive ? `${totalViewShiftY + 50}px` : undefined,
+                                        } : undefined}
+                                    >
+                                        {/* Vertical 3D Guide Lines - now in 2D container to ensure verticality */}
                                             {is3DMode && isMultiLayersActive && (
                                                 <GuideLines
-                                                    numLayers={viewsToRender.length}
+                                                    numLayers={viewsToDisplay.length}
                                                     keyVariant={keyVariant}
                                                     keyboardLayout={keyboardLayout}
                                                     fingerClusterSqueeze={fingerClusterSqueeze}
                                                     stepYValue={stepYValue}
+                                                    primaryStackIndex={1}
                                                 />
                                             )}
-                                            {viewsToRender.map((view, index) => (
-                                                <div key={view.id}
-                                                    ref={(el) => {
-                                                        if (el) {
-                                                            const existing = layerViewRefs.current.get(view.selectedLayer);
-                                                            if (view.id === "primary" || !existing) {
-                                                                layerViewRefs.current.set(view.selectedLayer, el);
-                                                            }
-                                                        } else {
-                                                            layerViewRefs.current.delete(view.selectedLayer);
+                                        {viewsToDisplay.map((view, index) => (
+                                            (() => {
+                                                const stackIndex = isMultiLayersActive
+                                                    ? (view.id === "primary" ? 1 : (viewsToDisplay.length - index))
+                                                    : (viewsToDisplay.length - index);
+                                                const headerShiftY = is3DMode && isMultiLayersActive && view.id !== "primary"
+                                                    ? -((stackIndex - 1) * stepYValue)
+                                                    : 0;
+                                                const isPrimaryView = view.id === "primary";
+                                                const nonPrimaryLift = !isPrimaryView ? -740 * sizeScale : 0;
+                                                const layerOneExtra = view.selectedLayer === 1 ? 740 * sizeScale : 0;
+                                                return (
+                                            <div key={view.id}
+                                                ref={(el) => {
+                                                    if (el) {
+                                                        const existing = layerViewRefs.current.get(view.selectedLayer);
+                                                        if (view.id === "primary" || !existing) {
+                                                            layerViewRefs.current.set(view.selectedLayer, el);
                                                         }
-                                                    }}
-                                                    className="w-full relative"
-                                                    style={{
-                                                        marginTop: (is3DMode && isMultiLayersActive && view.id !== "primary") ? -310 : undefined,
-                                                        transition: 'margin-top 500ms ease-in-out',
-                                                        zIndex: (viewsToRender.length - index) * 1000,
-                                                    }}
-                                                >
-                                                    <div className="flex justify-center h-full relative" style={{ perspective: is3DMode ? 'none' : '1000px' }}>
-                                                        <KeyboardViewInstance
-                                                            instanceId={view.id}
-                                                            selectedLayer={view.selectedLayer}
-                                                            setSelectedLayer={(layer) => handleSetViewLayer(view.id, layer)}
-                                                            isPrimary={view.id === "primary"}
-                                                            hideLayerTabs={isMultiLayersActive && view.id !== "primary"}
-                                                            layerActiveState={layerActiveState}
-                                                            onToggleLayerOn={handleToggleLayerOn}
-                                                            transparencyByLayer={transparencyByLayer}
-                                                            onToggleTransparency={handleToggleTransparency}
-                                                            showAllLayers={showAllLayers}
-                                                            onToggleShowLayers={handleToggleShowLayers}
-                                                            isLayerOrderReversed={isLayerOrderReversed}
-                                                            onToggleLayerOrder={() => setIsLayerOrderReversed(prev => !prev)}
-                                                            onRemove={!isMultiLayersActive && view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
-                                                            onGhostNavigate={isMultiLayersActive ? handleGhostNavigate : undefined}
-                                                            isRevealing={view.id === revealingViewId}
-                                                            isHiding={view.id === hidingViewId}
-                                                            stackIndex={viewsToRender.length - index}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </>
-                                    );
-                                })()}
-                            </div>
-
-                            {/* Add View Button */}
-                            {!isMultiLayersActive && (
-                                <div
-                                    className="flex items-center pl-5 pb-2 w-full"
-                                    style={{
-                                        opacity: hideAddButton ? 0 : 1,
-                                        transition: hideAddButton ? 'none' : 'opacity 150ms ease-in-out',
-                                    }}
-                                >
-                                    <Tooltip delayDuration={500}>
-                                        <TooltipTrigger asChild>
-                                            <button
-                                                ref={addViewButtonRef}
-                                                onClick={handleAddView}
-                                                className="p-2 rounded-full transition-colors text-gray-500 hover:text-gray-800 hover:bg-gray-200"
-                                                aria-label="Add keyboard layer view"
+                                                    } else {
+                                                        layerViewRefs.current.delete(view.selectedLayer);
+                                                    }
+                                                }}
+                                                className="w-full relative"
+                                                style={{
+                                                    marginTop: (is3DMode && isMultiLayersActive && view.id !== "primary")
+                                                        ? (340 * sizeScale) + nonPrimaryLift + layerOneExtra
+                                                        : undefined,
+                                                    transition: 'margin-top 500ms ease-in-out',
+                                                    zIndex: (viewsToDisplay.length - index) * 1000,
+                                                    transformStyle: is3DMode ? 'preserve-3d' : 'flat',
+                                                }}
                                             >
-                                                <LayersPlusIcon className="h-5 w-5" />
-                                            </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="right">
-                                            Show another layer view
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </div>
-                            )}
-
-                            {/* Flying icon animation (add: plus→minus, remove: minus→plus) */}
-                            {flyingIcon && !isMultiLayersActive && (
-                                <div
-                                    className="fixed pointer-events-none"
-                                    style={{
-                                        left: flyingIcon.endX !== undefined ? flyingIcon.endX : flyingIcon.startX,
-                                        top: flyingIcon.endY !== undefined ? flyingIcon.endY : flyingIcon.startY,
-                                        transition: flyingIcon.endX !== undefined
-                                            ? 'left 400ms cubic-bezier(0.42, 0, 0.58, 1), top 400ms cubic-bezier(0.42, 0, 0.58, 1)'
-                                            : 'none',
-                                        zIndex: 40,
-                                    }}
-                                    onTransitionEnd={handleFlyingIconEnd}
-                                >
-                                    <div className="p-2">
-                                        {flyingIcon.iconType === 'plus'
-                                            ? <LayersPlusIcon className="h-5 w-5 text-gray-500" />
-                                            : <LayersMinusIcon className="h-5 w-5 text-gray-400" />}
+                                                <div className="flex justify-center h-full relative" style={{ transformStyle: is3DMode ? 'preserve-3d' : 'flat' }}>
+                                                    <KeyboardViewInstance
+                                                        instanceId={view.id}
+                                                        selectedLayer={view.selectedLayer}
+                                                        setSelectedLayer={(layer) => handleSetViewLayer(view.id, layer)}
+                                                        isPrimary={view.id === "primary"}
+                                                        hideLayerTabs={isMultiLayersActive && view.id !== "primary"}
+                                                        layerActiveState={layerActiveState}
+                                                        onToggleLayerOn={handleToggleLayerOn}
+                                                        transparencyByLayer={transparencyByLayer}
+                                                        onToggleTransparency={handleToggleTransparency}
+                                                        showAllLayers={showAllLayers}
+                                                        onToggleShowLayers={handleToggleShowLayers}
+                                                        isLayerOrderReversed={isLayerOrderReversed}
+                                                        onToggleLayerOrder={() => setIsLayerOrderReversed(prev => !prev)}
+                                                        isMultiLayersActive={isMultiLayersActive}
+                                                        isAllTransparencyActive={isAllTransparencyActive}
+                                                        isTransparencyRestoring={isTransparencyRestoring}
+                                                        multiLayerHeaderOffset={multiLayerHeaderOffset}
+                                                        layerHeaderShiftY={headerShiftY}
+                                                        sizeScale={sizeScale}
+                                                        onRemove={!isMultiLayersActive && view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
+                                                        onGhostNavigate={isMultiLayersActive ? handleGhostNavigate : undefined}
+                                                        isRevealing={view.id === revealingViewId}
+                                                        isHiding={view.id === hidingViewId}
+                                                        stackIndex={stackIndex}
+                                                    />
+                                                </div>
+                                            </div>
+                                                );
+                                            })()
+                                        ))}
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
                         </>
+                    )}
+
+                    {/* Add View Button */}
+                    {!isMultiLayersActive && (
+                        <div
+                            className="flex items-center pl-5 pb-2 w-full"
+                            style={{
+                                opacity: hideAddButton ? 0 : 1,
+                                transition: hideAddButton ? 'none' : 'opacity 150ms ease-in-out',
+                            }}
+                        >
+                            <Tooltip delayDuration={500}>
+                                <TooltipTrigger asChild>
+                                    <button
+                                        ref={addViewButtonRef}
+                                        onClick={handleAddView}
+                                        className="p-2 rounded-full transition-colors text-gray-500 hover:text-gray-800 hover:bg-gray-200"
+                                        aria-label="Add keyboard layer view"
+                                    >
+                                        <LayersPlusIcon className="h-5 w-5" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="right">
+                                    Show another layer view
+                                </TooltipContent>
+                            </Tooltip>
+                        </div>
+                    )}
+
+                    {/* Flying icon animation (add: plus→minus, remove: minus→plus) */}
+                    {flyingIcon && !isMultiLayersActive && (
+                        <div
+                            className="fixed pointer-events-none"
+                            style={{
+                                left: flyingIcon.endX !== undefined ? flyingIcon.endX : flyingIcon.startX,
+                                top: flyingIcon.endY !== undefined ? flyingIcon.endY : flyingIcon.startY,
+                                transition: flyingIcon.endX !== undefined
+                                    ? 'left 400ms cubic-bezier(0.42, 0, 0.58, 1), top 400ms cubic-bezier(0.42, 0, 0.58, 1)'
+                                    : 'none',
+                                zIndex: 40,
+                            }}
+                            onTransitionEnd={handleFlyingIconEnd}
+                        >
+                            <div className="p-2">
+                                {flyingIcon.iconType === 'plus'
+                                    ? <LayersPlusIcon className="h-5 w-5 text-gray-500" />
+                                    : <LayersMinusIcon className="h-5 w-5 text-gray-400" />}
+                            </div>
+                        </div>
                     )}
 
                     {/* Editor overlay for bottom bar mode - picker tabs + editor */}
@@ -902,7 +1015,7 @@ const EditorLayoutInner = () => {
                                 </div>
                                 {import.meta.env.DEV && (
                                     <div className="text-[10px] font-medium text-slate-400 select-none px-1 pointer-events-auto">
-                                        Branch: {__GIT_BRANCH__}
+                                        Branch: {gitBranchLabel}
                                     </div>
                                 )}
                             </div>
@@ -980,105 +1093,377 @@ const GuideLines = ({
     keyVariant,
     keyboardLayout,
     fingerClusterSqueeze,
-    stepYValue
+    stepYValue,
+    primaryStackIndex
 }: {
     numLayers: number,
     keyVariant: string,
     keyboardLayout: any,
     fingerClusterSqueeze: number,
-    stepYValue: number
+    stepYValue: number,
+    primaryStackIndex: number
 }) => {
     const unitSize = keyVariant === 'small' ? 30 : keyVariant === 'medium' ? 45 : 60;
-    const cos55 = 0.5736;
-    const sin45 = 0.7071;
+    const keyboardPadding = 16; // matches Keyboard.tsx p-4
     const useFragmentLayout = keyboardLayout !== SVALBOARD_LAYOUT;
+    const getYPos = (y: number) => (
+        (!useFragmentLayout && y >= 6) ? y + THUMB_OFFSET_U : y
+    );
 
-    // Calculate keyboard extents exactly like Keyboard.tsx
-    let maxX = 0;
-    let maxY = 0;
-    Object.values(keyboardLayout).forEach((key: any) => {
-        const yPos = (!useFragmentLayout && key.y >= 6) ? key.y + 0.3 : key.y;
-        maxX = Math.max(maxX, key.x + key.w);
-        maxY = Math.max(maxY, yPos + key.h);
+    let layoutMaxX = 0;
+    let layoutMaxY = 0;
+    Object.values(keyboardLayout).forEach((k: any) => {
+        layoutMaxX = Math.max(layoutMaxX, k.x + k.w);
+        layoutMaxY = Math.max(layoutMaxY, getYPos(k.y) + k.h);
     });
+    const layoutMidline = layoutMaxX / 2;
 
-    const adjustedMaxX = maxX - (2 * fingerClusterSqueeze);
-    const width = adjustedMaxX * unitSize;
-    const height = maxY * unitSize + 20;
+    const overlayRef = React.useRef<HTMLDivElement | null>(null);
+    const [guidePointsPx, setGuidePointsPx] = React.useState<Array<{ x: number; y: number; label: string }>>([]);
+    const [svgSize, setSvgSize] = React.useState({ width: 0, height: 0 });
 
-    const divCenterX = width / 2;
-    const divCenterY = height / 2;
-    const layoutMidline = maxX / 2;
+    const findKeyByXY = (x: number, y: number) => {
+        let best: { x: number; y: number; w: number; h: number } | null = null;
+        let bestDist = Infinity;
+        Object.values(keyboardLayout).forEach((k: any) => {
+            const dx = Math.abs(k.x - x);
+            const dy = Math.abs(k.y - y);
+            const dist = dx + dy;
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = { x: k.x, y: k.y, w: k.w, h: k.h };
+            }
+        });
+        return bestDist <= 0.75 ? best : null;
+    };
 
-    const basePoints = [
-        { x: 1, y: 1.5, w: 1, h: 1 },    // Left Pinky
-        { x: 3.5, y: 0, w: 1, h: 1 },    // Left Ring
-        { x: 7, y: 0, w: 1, h: 1 },      // Left Middle
-        { x: 9.5, y: 1.5, w: 1, h: 1 },  // Left Index
-        { x: 10.8, y: 5, w: 1, h: 1 },   // Left Thumb
-        { x: 15.1, y: 5, w: 1, h: 1 },   // Right Thumb
-        { x: 13.8, y: 1.5, w: 1, h: 1 }, // Right Index
-        { x: 16.3, y: 0, w: 1, h: 1 },   // Right Middle
-        { x: 19.8, y: 0, w: 1, h: 1 },   // Right Ring
-        { x: 22.3, y: 1.5, w: 1, h: 1 }  // Right Pinky
+    const clusterTopKeys = [
+        { x: 1, y: 1.5, label: "L1" },    // Q
+        { x: 3.5, y: 0, label: "L2" },    // W
+        { x: 7, y: 0, label: "L3" },      // E
+        { x: 9.5, y: 1.5, label: "L4" },  // R
+        { x: 13.8, y: 1.5, label: "R1" }, // U
+        { x: 16.3, y: 0, label: "R2" },   // I
+        { x: 19.8, y: 0, label: "R3" },   // O
+        { x: 22.3, y: 1.5, label: "R4" }, // P
     ];
+
+    React.useLayoutEffect(() => {
+        const overlayEl = overlayRef.current;
+        const keyboardEl = document.querySelector('[data-keyboard-instance="primary"]') as HTMLElement | null;
+        if (!overlayEl || !keyboardEl) return;
+
+        const transformEl = (keyboardEl.closest('.keyboard-3d-active') as HTMLElement | null) || keyboardEl;
+
+        const getLayoutOffset = (el: HTMLElement) => {
+            let x = 0;
+            let y = 0;
+            let current: HTMLElement | null = el;
+            while (current) {
+                x += current.offsetLeft;
+                y += current.offsetTop;
+                current = current.offsetParent as HTMLElement | null;
+            }
+            return { x: x - window.scrollX, y: y - window.scrollY };
+        };
+
+        const measure = () => {
+            const overlayRect = overlayEl.getBoundingClientRect();
+            setSvgSize({ width: overlayRect.width, height: overlayRect.height });
+
+            const layoutOffset = getLayoutOffset(transformEl);
+            const originStyle = getComputedStyle(transformEl).transformOrigin.split(' ');
+            const parseOrigin = (value: string, size: number) => {
+                if (value.endsWith('%')) return (parseFloat(value) / 100) * size;
+                return parseFloat(value);
+            };
+            const originX = parseOrigin(originStyle[0], transformEl.offsetWidth);
+            const originY = parseOrigin(originStyle[1] || '0px', transformEl.offsetHeight);
+
+            const adjustedMaxX = layoutMaxX - (2 * fingerClusterSqueeze);
+            const width = adjustedMaxX * unitSize + (keyboardPadding * 2);
+            const height = layoutMaxY * unitSize + 20 + (keyboardPadding * 2);
+
+            const degToRad = Math.PI / 180;
+            const sin45 = Math.sin(45 * degToRad);
+            const cos45 = Math.cos(45 * degToRad);
+            const sin55 = Math.sin(55 * degToRad);
+            const cos55 = Math.cos(55 * degToRad);
+            const zStep = stepYValue / sin55;
+            const zOffset = primaryStackIndex * zStep;
+
+            const projectPoint = (pxX: number, pxY: number) => {
+                const localX = pxX - originX;
+                const localY = pxY - originY;
+                const z = zOffset;
+
+                // translateZ then rotateZ(-45deg)
+                const x1 = (localX * cos45) + (localY * sin45);
+                const y1 = (-localX * sin45) + (localY * cos45);
+
+                // rotateX(55deg)
+                const y2 = (y1 * cos55) - (z * sin55);
+                const x2 = x1;
+
+                return {
+                    x: x2 + originX,
+                    y: y2 + originY,
+                };
+            };
+
+            const points: Array<{ x: number; y: number; label: string }> = [];
+            const pushProjectedPoint = (label: string, pxX: number, pxY: number) => {
+                const projected = projectPoint(pxX, pxY);
+                points.push({
+                    x: projected.x + layoutOffset.x - overlayRect.left,
+                    y: projected.y + layoutOffset.y - overlayRect.top,
+                    label,
+                });
+            };
+
+            const keyToPos = (key: { x: number; y: number; w: number; h: number }) => {
+                let xPos = key.x;
+                if (!useFragmentLayout && fingerClusterSqueeze > 0) {
+                    if (key.x + key.w / 2 < layoutMidline) {
+                        xPos = key.x + fingerClusterSqueeze;
+                    } else {
+                        xPos = key.x - fingerClusterSqueeze;
+                    }
+                    xPos -= fingerClusterSqueeze;
+                }
+                const yPos = getYPos(key.y);
+                return { x: xPos, y: yPos, w: key.w, h: key.h };
+            };
+
+            const addFromKey = (key: { x: number; y: number; w: number; h: number }, side: "top" | "right" | "bottom" | "left", label: string) => {
+                const k = keyToPos(key);
+                const leftX = keyboardPadding + (k.x * unitSize);
+                const rightX = keyboardPadding + ((k.x + k.w) * unitSize);
+                const topY = keyboardPadding + (k.y * unitSize);
+                const bottomY = keyboardPadding + ((k.y + k.h) * unitSize);
+
+                if (side === "top") {
+                    pushProjectedPoint(`${label}-top-1`, leftX, topY);
+                    pushProjectedPoint(`${label}-top-2`, rightX, topY);
+                } else if (side === "right") {
+                    pushProjectedPoint(`${label}-right-1`, rightX, topY);
+                    pushProjectedPoint(`${label}-right-2`, rightX, bottomY);
+                } else if (side === "bottom") {
+                    pushProjectedPoint(`${label}-bottom-1`, leftX, bottomY);
+                    pushProjectedPoint(`${label}-bottom-2`, rightX, bottomY);
+                } else {
+                    pushProjectedPoint(`${label}-left-1`, leftX, topY);
+                    pushProjectedPoint(`${label}-left-2`, leftX, bottomY);
+                }
+            };
+
+            clusterTopKeys.forEach(({ x, y, label }) => {
+                const top = findKeyByXY(x, y);
+                if (!top) return;
+                const right = findKeyByXY(x + 1, y + 1);
+                const bottom = findKeyByXY(x, y + 2);
+                const left = findKeyByXY(x - 1, y + 1);
+                if (top) addFromKey(top, "top", label);
+                if (right) addFromKey(right, "right", label);
+                if (bottom) addFromKey(bottom, "bottom", label);
+                if (left) addFromKey(left, "left", label);
+            });
+
+            const getKeyEl = (key: { x: number; y: number }) => {
+                const selector = `[data-key-x="${key.x}"][data-key-y="${key.y}"]`;
+                return keyboardEl.querySelector(selector) as HTMLElement | null;
+            };
+            const getQuad = (el: HTMLElement) => {
+                if (typeof el.getBoxQuads === "function") {
+                    const quads = el.getBoxQuads({ box: "border" });
+                    return quads && quads.length ? quads[0] : null;
+                }
+                return null;
+            };
+            const quadPoints = (quad: DOMQuad) => [quad.p1, quad.p2, quad.p3, quad.p4];
+            const quadEdges = (pts: DOMPoint[]) => ([
+                { a: pts[0], b: pts[1] },
+                { a: pts[1], b: pts[2] },
+                { a: pts[2], b: pts[3] },
+                { a: pts[3], b: pts[0] },
+            ]).map((e) => ({
+                ...e,
+                avgX: (e.a.x + e.b.x) / 2,
+                avgY: (e.a.y + e.b.y) / 2,
+            }));
+            const pickTopEdge = (edges: Array<{ a: DOMPoint; b: DOMPoint; avgX: number; avgY: number }>) =>
+                edges.reduce((min, e) => (e.avgY < min.avgY ? e : min), edges[0]);
+            const orderByX = (a: DOMPoint, b: DOMPoint) => (a.x <= b.x ? { left: a, right: b } : { left: b, right: a });
+
+            const getActualTopEdge = (keyX: number, keyY: number) => {
+                const key = findKeyByXY(keyX, keyY);
+                if (!key) return null;
+                const el = getKeyEl(key);
+                const quad = el ? getQuad(el) : null;
+                if (!quad) return null;
+                const pts = quadPoints(quad);
+                const edge = pickTopEdge(quadEdges(pts));
+                const { left, right } = orderByX(edge.a, edge.b);
+                return {
+                    left: { x: left.x - overlayRect.left, y: left.y - overlayRect.top },
+                    right: { x: right.x - overlayRect.left, y: right.y - overlayRect.top },
+                };
+            };
+
+            const l2Actual = getActualTopEdge(3.5, 0); // W
+            const r2Actual = getActualTopEdge(16.3, 0); // I
+            const calcLeft = points.find((p) => p.label === "L2-top-1");
+            const calcRight = points.find((p) => p.label === "R2-top-2");
+
+            if (l2Actual && r2Actual && calcLeft && calcRight) {
+                const scaleX = (r2Actual.right.x - l2Actual.left.x) / (calcRight.x - calcLeft.x);
+                const dy = l2Actual.left.y - calcLeft.y;
+                setGuidePointsPx(points.map((p) => ({
+                    ...p,
+                    x: l2Actual.left.x + (p.x - calcLeft.x) * scaleX,
+                    y: p.y + dy,
+                })));
+                return;
+            }
+
+            setGuidePointsPx(points);
+        };
+
+        const handleResize = () => requestAnimationFrame(measure);
+        const ro = new ResizeObserver(handleResize);
+        ro.observe(overlayEl);
+        ro.observe(keyboardEl);
+        window.addEventListener('resize', handleResize);
+        measure();
+
+        return () => {
+            ro.disconnect();
+            window.removeEventListener('resize', handleResize);
+        };
+    }, [keyboardLayout, keyVariant, numLayers, fingerClusterSqueeze, stepYValue, primaryStackIndex, useFragmentLayout, unitSize, layoutMidline, layoutMaxX, layoutMaxY]);
 
     // Spacing between layers in screen pixels
     const stepY = stepYValue;
+    const lineHeight = (numLayers - 1) * 200;
+    const svgWidth = svgSize.width || 1;
+    const svgHeight = (svgSize.height || 1) + lineHeight + 40;
 
     return (
-        <div className="absolute inset-0 pointer-events-none overflow-visible" style={{ zIndex: 0 }}>
-            <svg className="w-full h-full overflow-visible">
-                {basePoints.map((p, i) => {
-                    let curY = (!useFragmentLayout && p.y >= 6) ? p.y + 0.3 : p.y;
-                    let curX = p.x;
-                    const isThumbCluster = p.y >= 5;
-                    if (fingerClusterSqueeze > 0) {
-                        if (!isThumbCluster) {
-                            const kCenter = p.x + p.w / 2;
-                            if (kCenter < layoutMidline) {
-                                curX = p.x + fingerClusterSqueeze;
-                            } else {
-                                curX = p.x - fingerClusterSqueeze;
-                            }
-                        }
-                        curX -= fingerClusterSqueeze;
-                    }
+        <React.Fragment>
+            <div ref={overlayRef} className="absolute inset-0 pointer-events-none overflow-visible" style={{ zIndex: 0 }}>
+                <svg
+                    width={svgWidth}
+                    height={svgHeight}
+                    style={{ position: "absolute", left: 0, top: 0 }}
+                    className="overflow-visible"
+                >
+                    {(() => {
+                        const clusters = new Map<string, { top1?: { x: number; y: number }, top2?: { x: number; y: number } }>();
+                        guidePointsPx.forEach((p) => {
+                            const parts = p.label.split("-");
+                            const cluster = parts[0];
+                            const side = parts[1];
+                            const idx = parts[2];
+                            if (side !== "top") return;
+                            const entry = clusters.get(cluster) || {};
+                            if (idx === "1") entry.top1 = { x: p.x, y: p.y };
+                            if (idx === "2") entry.top2 = { x: p.x, y: p.y };
+                            clusters.set(cluster, entry);
+                        });
 
-                    const trX = curX + p.w;
-                    const trY = curY;
-                    const pxX = trX * unitSize;
-                    const pxY = trY * unitSize;
-
-                    // Relativize to transform origin
-                    const relX = pxX - divCenterX;
-                    const relY = pxY - divCenterY;
-
-                    // Correct Projection math for rotateX(55deg) rotateZ(-45deg)
-                    // 1. Rotate Z by -45deg: x' = (x+y)*sin45, y' = (y-x)*sin45
-                    // 2. Rotate X by 55deg: x'' = x', y'' = y'*cos55
-                    const projX = (relX + relY) * sin45;
-                    const projY = (relY - relX) * sin45 * cos55;
-
-                    const screenX = projX;
-                    const startY = projY + divCenterY;
-
-                    return (
-                        <line
-                            key={i}
-                            x1={`calc(50% + ${screenX}px)`}
-                            y1={`${startY}px`}
-                            x2={`calc(50% + ${screenX}px)`}
-                            y2={`${startY + (numLayers - 1) * Math.max(stepY, 0) + 2000}px`}
-                            stroke="#94a3b8"
-                            strokeWidth="1.2"
-                            strokeDasharray="4 4"
-                            opacity="0.6"
-                        />
-                    );
-                })}
-            </svg>
-        </div>
+                        return Array.from(clusters.entries()).map(([cluster, pts]) => {
+                            if (!pts.top1 || !pts.top2) return null;
+                            const bottom1 = { x: pts.top1.x, y: pts.top1.y + lineHeight };
+                            const bottom2 = { x: pts.top2.x, y: pts.top2.y + lineHeight };
+                            const d = `M ${pts.top1.x} ${pts.top1.y} L ${pts.top2.x} ${pts.top2.y} L ${bottom2.x} ${bottom2.y} L ${bottom1.x} ${bottom1.y} Z`;
+                            return (
+                                <path
+                                    key={`trap-${cluster}`}
+                                    d={d}
+                                    fill="rgba(148, 163, 184, 0.2)"
+                                />
+                            );
+                        });
+                    })()}
+                    {guidePointsPx.filter(p => !p.label.endsWith("bottom-1")).map((p, i) => {
+                        const isDebug = p.label === "L2-top-1" || p.label === "L2-top-2";
+                        const debugIdx = p.label.endsWith("-1") ? "1" : "2";
+                        return (
+                        <g key={`back-${i}`}>
+                            <line
+                                x1={p.x}
+                                y1={p.y}
+                                x2={p.x}
+                                y2={p.y + lineHeight}
+                                stroke="#94a3b8"
+                                strokeWidth="1.2"
+                                strokeDasharray="1 5"
+                                opacity="0.6"
+                            />
+                            <text
+                                x={p.x + 4}
+                                y={p.y}
+                                fill="#64748b"
+                                fontSize="10"
+                                fontFamily='ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+                                dominantBaseline="hanging"
+                            >
+                                {p.label}
+                            </text>
+                            {isDebug && (
+                                <>
+                                    <circle cx={p.x} cy={p.y} r={5} fill="#ff4fd8" />
+                                    <text
+                                        x={p.x + 8}
+                                        y={p.y - 12}
+                                        fill="#ff4fd8"
+                                        fontSize="12"
+                                        fontWeight={700}
+                                        fontFamily='ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+                                    >
+                                        {debugIdx}
+                                    </text>
+                                </>
+                            )}
+                        </g>
+                        );
+                    })}
+                </svg>
+            </div>
+            <div className="absolute inset-0 pointer-events-none overflow-visible" style={{ zIndex: 30 }}>
+                <svg
+                    width={svgWidth}
+                    height={svgHeight}
+                    style={{ position: "absolute", left: 0, top: 0 }}
+                    className="overflow-visible"
+                >
+                    {guidePointsPx.filter(p => p.label.endsWith("bottom-1")).map((p, i) => (
+                        <g key={`front-${i}`}>
+                            <line
+                                x1={p.x}
+                                y1={p.y}
+                                x2={p.x}
+                                y2={p.y + lineHeight}
+                                stroke="#94a3b8"
+                                strokeWidth="1.2"
+                                strokeDasharray="1 5"
+                                opacity="0.6"
+                            />
+                            <text
+                                x={p.x + 4}
+                                y={p.y}
+                                fill="#64748b"
+                                fontSize="10"
+                                fontFamily='ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+                                dominantBaseline="hanging"
+                            >
+                                {p.label}
+                            </text>
+                        </g>
+                    ))}
+                </svg>
+            </div>
+        </React.Fragment>
     );
 };
 
