@@ -1360,7 +1360,7 @@ const GuideLines = ({
 
     // Spacing between layers in screen pixels
     const stepY = stepYValue;
-    const lineHeight = (numLayers - 1) * 200;
+    const lineHeight = Math.max((numLayers - 1) * stepY, 1);
     const svgWidth = svgSize.width || 1;
     const svgHeight = (svgSize.height || 1) + lineHeight + 40;
 

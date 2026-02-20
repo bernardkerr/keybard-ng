@@ -87,7 +87,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     baseBadgeOffsetY = null,
     onBaseBadgeOffsetY,
 }) => {
-    const { keyboard, updateKey, setKeyboard } = useVial();
+    const { keyboard, updateKey, setKeyboard, activeLayerIndex } = useVial();
     const { clearSelection } = useKeyBinding();
     const { queue } = useChanges();
     const { activePanel } = usePanels();
@@ -522,7 +522,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                 <div style={{ marginLeft: -20 }}>
                     <LayerNameBadge
                         selectedLayer={selectedLayer}
-                        isActive={!!layerActiveState?.[selectedLayer]}
+                        isActive={activeLayerIndex === selectedLayer}
                         onToggleLayerOn={onToggleLayerOn}
                         // TODO: when firmware reports default layer, pass it here.
                         defaultLayerIndex={0}
@@ -596,6 +596,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                         layerActiveState={layerActiveState}
                         instanceId={instanceId}
                         show3DBackdrop={is3DMode}
+                        activeLayerIndex={activeLayerIndex}
                     />
                 </div>
             </div>

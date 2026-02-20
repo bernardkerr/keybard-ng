@@ -294,22 +294,22 @@ export const LayerNameBadge: React.FC<LayerNameBadgeProps> = ({
                         onToggleLayerOn?.(selectedLayer);
                     }}
                 >
-                    {isActive ? (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <span className="flex items-center">
-                                    {selectedLayer === defaultLayerIndex ? (
-                                        <MiniZapDefaultIcon className="w-6 h-6 text-gray-300" />
-                                    ) : (
-                                        <MiniZapIcon className="w-6 h-6 text-gray-300" />
-                                    )}
-                                </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                                {selectedLayer === defaultLayerIndex ? "Default Layer" : "Active Layer"}
-                            </TooltipContent>
-                        </Tooltip>
-                    ) : null}
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span className="flex items-center">
+                                {selectedLayer === defaultLayerIndex ? (
+                                    <MiniZapDefaultIcon className={cn("w-6 h-6", isActive ? "text-black" : "text-gray-300")} />
+                                ) : (
+                                    <MiniZapIcon className={cn("w-6 h-6", isActive ? "text-black" : "text-gray-300")} />
+                                )}
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                            {selectedLayer === defaultLayerIndex
+                                ? (isActive ? "Default Layer" : "Default Layer (inactive)")
+                                : (isActive ? "Active Layer" : "Inactive Layer")}
+                        </TooltipContent>
+                    </Tooltip>
                 </div>
 
                 {/* Display Color Dot with Picker */}

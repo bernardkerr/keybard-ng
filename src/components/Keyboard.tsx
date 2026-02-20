@@ -37,6 +37,7 @@ interface KeyboardProps {
     layerActiveState?: boolean[];
     instanceId?: string;
     show3DBackdrop?: boolean;
+    activeLayerIndex?: number | null;
 }
 
 /**
@@ -52,6 +53,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     layerActiveState,
     instanceId,
     show3DBackdrop = false,
+    activeLayerIndex,
 }) => {
     const {
         selectKeyboardKey,
@@ -288,6 +290,10 @@ export const Keyboard: React.FC<KeyboardProps> = ({
         return getColorByName(layerName)?.hex || "#099e7c";
     }, [keyboard.cosmetic, selectedLayer]);
 
+    const resolvedActiveLayerIndex = typeof activeLayerIndex === "number" ? activeLayerIndex : selectedLayer;
+    const activeLayerName = keyboard.cosmetic?.layer?.[resolvedActiveLayerIndex.toString()] ?? `Layer ${resolvedActiveLayerIndex}`;
+    const activeLayerDebugText = `${resolvedActiveLayerIndex} - ${activeLayerName}`;
+
     const KC_TRNS = 1;
 
     // Helper to find effective keycode for transparency
@@ -327,6 +333,9 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                 className="keyboard-layout relative"
                 style={{ width: `${keyboardSize.width}px`, height: `${keyboardSize.height}px` }}
             >
+                <div className="absolute right-2 top-2 z-20 pointer-events-none rounded-md bg-white/80 px-2 py-1 text-xs font-semibold text-gray-800 shadow-sm backdrop-blur">
+                    {activeLayerDebugText}
+                </div>
                 {is3DMode && show3DBackdrop && clusterBounds && (
                     <div
                         className="absolute pointer-events-none"
@@ -338,6 +347,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                             height: ((clusterBounds.maxY - clusterBounds.minY) * currentUnitSize) + (currentUnitSize * 1.5),
                             background: layerBackdropColor,
                             zIndex: 0,
+                            mixBlendMode: "multiply",
                         }}
                     >
                         <div
