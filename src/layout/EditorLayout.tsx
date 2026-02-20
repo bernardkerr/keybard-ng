@@ -803,7 +803,6 @@ const EditorLayoutInner = () => {
                                 // Calculate precisely how far down the lines should go
                                 // Distance between layers = (KeyboardHeight + 20 padding) - 310 overlap + translateZ(15) projection
                                 const unitSize = keyVariant === 'small' ? 30 : keyVariant === 'medium' ? 45 : 60;
-                                const sizeScale = unitSize / 60;
                                 const useFragmentLayout = keyboardLayout !== SVALBOARD_LAYOUT;
                                 let maxYUnits = 0;
                                 Object.values(keyboardLayout).forEach((key: any) => {
@@ -878,13 +877,11 @@ const EditorLayoutInner = () => {
                                                         isAllTransparencyActive={isAllTransparencyActive}
                                                         isTransparencyRestoring={isTransparencyRestoring}
                                                         multiLayerHeaderOffset={multiLayerHeaderOffset}
-                                                        sizeScale={sizeScale}
                                                         onRemove={!isMultiLayersActive && view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
                                                         onGhostNavigate={isMultiLayersActive ? handleGhostNavigate : undefined}
                                                         isRevealing={view.id === revealingViewId}
                                                         isHiding={view.id === hidingViewId}
                                                         stackIndex={stackIndex}
-                                                        badgeMeasureKey={layerSpacingAdjust}
                                                         layerSpacingPx={layerSpacingAdjust}
                                                         baseBadgeOffsetY={baseBadgeOffsetY}
                                                         onBaseBadgeOffsetY={view.id === "primary" ? setBaseBadgeOffsetY : undefined}
@@ -1281,8 +1278,11 @@ const GuideLines = ({
                 return keyboardEl.querySelector(selector) as HTMLElement | null;
             };
             const getQuad = (el: HTMLElement) => {
-                if (typeof el.getBoxQuads === "function") {
-                    const quads = el.getBoxQuads({ box: "border" });
+                const elWithQuads = el as HTMLElement & {
+                    getBoxQuads?: (options?: { box?: BoxQuadOptions["box"] }) => DOMQuad[];
+                };
+                if (typeof elWithQuads.getBoxQuads === "function") {
+                    const quads = elWithQuads.getBoxQuads({ box: "border" });
                     return quads && quads.length ? quads[0] : null;
                 }
                 return null;

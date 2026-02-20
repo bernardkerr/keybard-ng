@@ -100,6 +100,11 @@ export const Keyboard: React.FC<KeyboardProps> = ({
         (!useFragmentLayout && y >= 6) ? y + THUMB_OFFSET_U : y
     );
 
+    const layoutValues = useMemo(
+        () => Object.values(keyboardLayout) as Array<{ x: number; y: number; w: number; h: number; row?: number; col?: number }>,
+        [keyboardLayout]
+    );
+
     const clusterBounds = useMemo(() => {
         const clusterTopKeys = [
             { x: 1, y: 1.5 },   // Q
@@ -112,11 +117,10 @@ export const Keyboard: React.FC<KeyboardProps> = ({
             { x: 22.3, y: 1.5 }, // P
         ];
 
-        const keys = Object.values(keyboardLayout) as Array<{ x: number; y: number; w: number; h: number }>;
         const findKeyByXY = (x: number, y: number) => {
             let best: { x: number; y: number; w: number; h: number } | null = null;
             let bestDist = Infinity;
-            keys.forEach((k) => {
+            layoutValues.forEach((k) => {
                 const dx = Math.abs(k.x - x);
                 const dy = Math.abs(k.y - y);
                 const dist = dx + dy;
@@ -153,13 +157,12 @@ export const Keyboard: React.FC<KeyboardProps> = ({
         }
 
         return { minX, minY, maxX, maxY };
-    }, [keyboardLayout, getYPos, useFragmentLayout]);
+    }, [layoutValues, getYPos, useFragmentLayout]);
 
     const thumbClusterBounds = useMemo(() => {
         const hideThumbs2D = !is3DMode && isThumb3DOffsetActive;
         if (hideThumbs2D) return null;
-        const thumbKeys = (Object.values(keyboardLayout) as Array<{ x: number; y: number; w: number; h: number }>)
-            .filter((k) => k.y >= 5);
+        const thumbKeys = layoutValues.filter((k) => k.y >= 5);
 
         if (thumbKeys.length === 0) return null;
 
@@ -179,16 +182,16 @@ export const Keyboard: React.FC<KeyboardProps> = ({
         if (!Number.isFinite(minX)) return null;
 
         return { minX, minY, maxX, maxY };
-    }, [keyboardLayout, getYPos, is3DMode, isThumb3DOffsetActive]);
+    }, [layoutValues, getYPos, is3DMode, isThumb3DOffsetActive]);
 
     // Calculate layout midline for squeeze positioning (center X of the keyboard)
     const layoutMidline = useMemo(() => {
         let maxX = 0;
-        Object.values(keyboardLayout).forEach((key) => {
+        layoutValues.forEach((key) => {
             maxX = Math.max(maxX, key.x + key.w);
         });
         return maxX / 2;
-    }, [keyboardLayout]);
+    }, [layoutValues]);
 
     // Ref to store the selection before entering transmitting mode
     const savedSelection = useRef<{ layer: number; row: number; col: number } | null>(null);
@@ -273,7 +276,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
         let minY = Infinity; // Top edge of keyboard
         const hideThumbs2D = !is3DMode && isThumb3DOffsetActive;
 
-        Object.values(keyboardLayout).forEach((key) => {
+        layoutValues.forEach((key) => {
             const isThumbCluster = key.y >= 5;
             if (hideThumbs2D && isThumbCluster) {
                 // Keep width from full layout, but reduce height when thumbs are hidden in 2D
@@ -300,7 +303,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
             badgeCenterX,
             badgeCenterY,
         };
-    }, [keyboardLayout, currentUnitSize, useFragmentLayout, fingerClusterSqueeze, is3DMode, isThumb3DOffsetActive]);
+    }, [layoutValues, currentUnitSize, useFragmentLayout, fingerClusterSqueeze, is3DMode, isThumb3DOffsetActive]);
 
     const layerBackdropColor = useMemo(() => {
         const layerName = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "green";

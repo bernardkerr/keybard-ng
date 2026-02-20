@@ -42,13 +42,11 @@ interface KeyboardViewInstanceProps {
     isAllTransparencyActive: boolean;
     isTransparencyRestoring?: boolean;
     multiLayerHeaderOffset?: number;
-    sizeScale?: number;
     onRemove?: () => void;
     onGhostNavigate?: (sourceLayer: number) => void;
     isRevealing?: boolean;
     isHiding?: boolean;
     stackIndex?: number;
-    badgeMeasureKey?: number;
     layerSpacingPx?: number;
     baseBadgeOffsetY?: number | null;
     onBaseBadgeOffsetY?: (offset: number) => void;
@@ -76,13 +74,11 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     isAllTransparencyActive,
     isTransparencyRestoring = false,
     multiLayerHeaderOffset = 0,
-    sizeScale = 1,
     onRemove,
     onGhostNavigate,
     isRevealing = false,
     isHiding = false,
     stackIndex = 0,
-    badgeMeasureKey = 0,
     layerSpacingPx = 0,
     baseBadgeOffsetY = null,
     onBaseBadgeOffsetY,
