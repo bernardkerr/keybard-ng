@@ -802,7 +802,6 @@ const EditorLayoutInner = () => {
                             {(() => {
                                 // Calculate precisely how far down the lines should go
                                 // Distance between layers = (KeyboardHeight + 20 padding) - 310 overlap + translateZ(15) projection
-                                const unitSize = keyVariant === 'small' ? 30 : keyVariant === 'medium' ? 45 : 60;
                                 const useFragmentLayout = keyboardLayout !== SVALBOARD_LAYOUT;
                                 let maxYUnits = 0;
                                 Object.values(keyboardLayout).forEach((key: any) => {
@@ -1279,7 +1278,7 @@ const GuideLines = ({
             };
             const getQuad = (el: HTMLElement) => {
                 const elWithQuads = el as HTMLElement & {
-                    getBoxQuads?: (options?: { box?: BoxQuadOptions["box"] }) => DOMQuad[];
+                    getBoxQuads?: (options?: { box?: "margin" | "border" | "padding" | "content" }) => DOMQuad[];
                 };
                 if (typeof elWithQuads.getBoxQuads === "function") {
                     const quads = elWithQuads.getBoxQuads({ box: "border" });

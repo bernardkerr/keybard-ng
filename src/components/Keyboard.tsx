@@ -117,7 +117,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
             { x: 22.3, y: 1.5 }, // P
         ];
 
-        const findKeyByXY = (x: number, y: number) => {
+        const findKeyByXY = (x: number, y: number): { x: number; y: number; w: number; h: number } | null => {
             let best: { x: number; y: number; w: number; h: number } | null = null;
             let bestDist = Infinity;
             layoutValues.forEach((k) => {
@@ -142,7 +142,8 @@ export const Keyboard: React.FC<KeyboardProps> = ({
             const right = findKeyByXY(x + 1, y + 1);
             const bottom = findKeyByXY(x, y + 2);
             const left = findKeyByXY(x - 1, y + 1);
-            [top, right, bottom, left].forEach((k) => {
+            const candidates: Array<{ x: number; y: number; w: number; h: number } | null> = [top, right, bottom, left];
+            candidates.forEach((k) => {
                 if (!k) return;
                 const yPos = getYPos(k.y);
                 minX = Math.min(minX, k.x);
