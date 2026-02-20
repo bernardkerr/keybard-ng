@@ -339,11 +339,6 @@ const EditorLayoutInner = () => {
         });
     }, [keyboard, showAllLayers, primaryLayerIndex]);
 
-    const allLayerIds = React.useMemo(() => {
-        const totalLayers = keyboard?.layers || 16;
-        return Array.from({ length: totalLayers }, (_, i) => i);
-    }, [keyboard?.layers]);
-
     // In 3D multilayer mode, we keep ordering identical to 2D multilayer.
 
     const renderedViews = React.useMemo(() => {
@@ -815,7 +810,6 @@ const EditorLayoutInner = () => {
                                     const yPos = (!useFragmentLayout && key.y >= 6) ? key.y + 0.3 : key.y;
                                     maxYUnits = Math.max(maxYUnits, yPos + key.h);
                                 });
-                                const keyboardHeight = maxYUnits * unitSize + 20;
                                 const zStep = layerSpacingAdjust;
                                 const stepYValue = zStep * 0.8192; // 0.8192 is sin(55deg)
 
@@ -1196,9 +1190,6 @@ const GuideLines = ({
             const originX = parseOrigin(originStyle[0], transformEl.offsetWidth);
             const originY = parseOrigin(originStyle[1] || '0px', transformEl.offsetHeight);
 
-            const adjustedMaxX = layoutMaxX - (2 * fingerClusterSqueeze);
-            const width = adjustedMaxX * unitSize + (keyboardPadding * 2);
-            const height = layoutMaxY * unitSize + 20 + (keyboardPadding * 2);
 
             const degToRad = Math.PI / 180;
             const sin45 = Math.sin(45 * degToRad);

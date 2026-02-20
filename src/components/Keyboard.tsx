@@ -158,8 +158,8 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     const thumbClusterBounds = useMemo(() => {
         const hideThumbs2D = !is3DMode && isThumb3DOffsetActive;
         if (hideThumbs2D) return null;
-        const thumbKeys = Object.values(keyboardLayout)
-            .filter((k) => k.y >= 5) as Array<{ x: number; y: number; w: number; h: number }>;
+        const thumbKeys = (Object.values(keyboardLayout) as Array<{ x: number; y: number; w: number; h: number }>)
+            .filter((k) => k.y >= 5);
 
         if (thumbKeys.length === 0) return null;
 
@@ -312,11 +312,6 @@ export const Keyboard: React.FC<KeyboardProps> = ({
         const appliedOpacity = isActiveLayerBackdrop ? 0.65 : backdropOpacity;
         return `rgba(${r}, ${g}, ${b}, ${appliedOpacity})`;
     }, [keyboard.cosmetic, selectedLayer, backdropOpacity, activeLayerIndex]);
-
-    const layerLabelColor = useMemo(() => {
-        const layerName = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "green";
-        return getColorByName(layerName)?.hex || "#099e7c";
-    }, [keyboard.cosmetic, selectedLayer]);
 
     const layerDisplayName = useMemo(() => {
         return svalService.getLayerName(keyboard, selectedLayer);
