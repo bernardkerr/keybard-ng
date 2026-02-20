@@ -42,13 +42,16 @@ interface KeyboardViewInstanceProps {
     isAllTransparencyActive: boolean;
     isTransparencyRestoring?: boolean;
     multiLayerHeaderOffset?: number;
-    layerHeaderShiftY?: number;
     sizeScale?: number;
     onRemove?: () => void;
     onGhostNavigate?: (sourceLayer: number) => void;
     isRevealing?: boolean;
     isHiding?: boolean;
     stackIndex?: number;
+    badgeMeasureKey?: number;
+    layerSpacingPx?: number;
+    baseBadgeOffsetY?: number | null;
+    onBaseBadgeOffsetY?: (offset: number) => void;
 }
 
 /**
@@ -73,19 +76,63 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     isAllTransparencyActive,
     isTransparencyRestoring = false,
     multiLayerHeaderOffset = 0,
-    layerHeaderShiftY = 0,
     sizeScale = 1,
     onRemove,
     onGhostNavigate,
     isRevealing = false,
     isHiding = false,
     stackIndex = 0,
+    badgeMeasureKey = 0,
+    layerSpacingPx = 0,
+    baseBadgeOffsetY = null,
+    onBaseBadgeOffsetY,
 }) => {
     const { keyboard, updateKey, setKeyboard } = useVial();
     const { clearSelection } = useKeyBinding();
     const { queue } = useChanges();
     const { activePanel } = usePanels();
-    const { is3DMode } = useLayoutSettings();
+    const { is3DMode, keyVariant } = useLayoutSettings();
+    const badgeRowRef = useRef<HTMLDivElement | null>(null);
+    const [badgeOffsetY, setBadgeOffsetY] = useState(0);
+
+    useLayoutEffect(() => {
+        if (!is3DMode) {
+            setBadgeOffsetY(0);
+            return;
+        }
+        if (stackIndex !== 0) return;
+        const container = containerRef.current;
+        const badgeEl = badgeRowRef.current;
+        if (!container || !badgeEl) return;
+
+        const measureBase = () => {
+            const labelEl = container.querySelector('[data-layer-label="true"]') as HTMLElement | null;
+            if (!labelEl) return;
+            const badgeRect = badgeEl.getBoundingClientRect();
+            const labelRect = labelEl.getBoundingClientRect();
+            const badgeCenter = badgeRect.top + (badgeRect.height / 2);
+            const labelCenter = labelRect.top + (labelRect.height / 2);
+            const baseOffset = labelCenter - badgeCenter;
+            onBaseBadgeOffsetY?.(baseOffset);
+            setBadgeOffsetY(baseOffset);
+        };
+
+        const rafId = requestAnimationFrame(measureBase);
+        const settleTimer = window.setTimeout(measureBase, 600);
+        window.addEventListener('resize', measureBase);
+        return () => {
+            cancelAnimationFrame(rafId);
+            window.clearTimeout(settleTimer);
+            window.removeEventListener('resize', measureBase);
+        };
+    }, [is3DMode, stackIndex, keyVariant, onBaseBadgeOffsetY]);
+
+    useLayoutEffect(() => {
+        if (!is3DMode || stackIndex === 0 || baseBadgeOffsetY === null) return;
+        const stepYValue = layerSpacingPx * 0.8192;
+        const projectedShift = isMultiLayersActive ? (-stackIndex * stepYValue) : 0;
+        setBadgeOffsetY(baseBadgeOffsetY + projectedShift);
+    }, [is3DMode, isMultiLayersActive, stackIndex, baseBadgeOffsetY, layerSpacingPx]);
 
     const [isHudMode, setIsHudMode] = useState(false);
     const [suppressTransparencyHover, setSuppressTransparencyHover] = useState(false);
@@ -94,9 +141,12 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     const isTransparencyActive = !!transparencyByLayer[selectedLayer];
     const tabRefs = useRef<Map<number, HTMLButtonElement | null>>(new Map());
     const prevTabRectsRef = useRef<Map<number, DOMRect>>(new Map());
+    const prevVisibleIdsRef = useRef<Set<number>>(new Set());
+    const prevShowAllLayersRef = useRef<boolean>(showAllLayers);
     const prevIsLayerOrderReversed = useRef<boolean>(isLayerOrderReversed);
     const TAB_FLIP_STAGGER_MS = 25;
     const TAB_FLIP_DURATION_MS = 260;
+    const TAB_REVEAL_DURATION_MS = 260;
 
     // Briefly suppress hover styles after restoring transparency to avoid a flash
     useEffect(() => {
@@ -267,16 +317,29 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
 
         const prevRects = prevTabRectsRef.current;
         if (prevRects.size > 0) {
-            // Stagger based on the previous order so the "first tab" matches the view
-            const useReversedDelay = prevIsLayerOrderReversed.current;
-            const delayOrder = [...displayOrder].sort((a, b) =>
-                useReversedDelay ? b - a : a - b
-            );
+            // Stagger from the leftmost visible tab, regardless of order
+            const delayOrder = [...displayOrder];
             const delayIndexByLayer = new Map<number, number>();
             delayOrder.forEach((layerId, index) => {
                 delayIndexByLayer.set(layerId, index);
             });
 
+            // First frame: pin tabs to their previous positions
+            displayOrder.forEach((layerId) => {
+                const el = tabRefs.current.get(layerId);
+                const prev = prevRects.get(layerId);
+                const next = currentRects.get(layerId);
+                if (!el || !prev || !next) return;
+                const deltaX = prev.left - next.left;
+                if (Math.abs(deltaX) < 0.5) return;
+                el.style.transition = "none";
+                el.style.transform = `translateX(${deltaX}px)`;
+            });
+
+            // Force reflow once after all transforms are set
+            void document.body.offsetHeight;
+
+            // Second frame: animate to the new positions with stagger
             displayOrder.forEach((layerId) => {
                 const el = tabRefs.current.get(layerId);
                 const prev = prevRects.get(layerId);
@@ -286,11 +349,6 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                 if (Math.abs(deltaX) < 0.5) return;
                 const delayIndex = delayIndexByLayer.get(layerId) ?? 0;
                 const delayMs = delayIndex * TAB_FLIP_STAGGER_MS;
-                // FLIP: start at previous position, then transition to new position
-                el.style.transition = "none";
-                el.style.transform = `translateX(${deltaX}px)`;
-                // Force reflow so the transform applies before we animate
-                void el.offsetWidth;
                 requestAnimationFrame(() => {
                     el.style.transition = `transform ${TAB_FLIP_DURATION_MS}ms ease-in-out ${delayMs}ms`;
                     el.style.transform = "translateX(0px)";
@@ -304,6 +362,47 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         displayOrder,
         visibleLayerIds,
     ]);
+
+    useLayoutEffect(() => {
+        const prevVisible = prevVisibleIdsRef.current;
+        const currentVisible = new Set(visibleLayerIds);
+        const showAllToggledOn = !prevShowAllLayersRef.current && showAllLayers;
+        const leftmostId = displayOrder[0];
+        const leftmostRect = leftmostId !== undefined
+            ? (tabRefs.current.get(leftmostId)?.getBoundingClientRect() ?? null)
+            : null;
+
+        if (showAllToggledOn && leftmostRect) {
+            // Stagger from the leftmost visible tab, regardless of order
+            const delayOrder = [...displayOrder];
+            const delayIndexByLayer = new Map<number, number>();
+            delayOrder.forEach((layerId, index) => {
+                delayIndexByLayer.set(layerId, index);
+            });
+
+            visibleLayerIds.forEach((layerId) => {
+                if (prevVisible.has(layerId)) return;
+                const el = tabRefs.current.get(layerId);
+                if (!el) return;
+                const nextRect = el.getBoundingClientRect();
+                const deltaX = leftmostRect.left - nextRect.left;
+                const delayIndex = delayIndexByLayer.get(layerId) ?? 0;
+                const delayMs = delayIndex * TAB_FLIP_STAGGER_MS;
+                el.style.transition = "none";
+                el.style.transform = `translateX(${deltaX}px)`;
+                el.style.opacity = "0";
+                void el.offsetWidth;
+                requestAnimationFrame(() => {
+                    el.style.transition = `transform ${TAB_REVEAL_DURATION_MS}ms ease-in-out ${delayMs}ms, opacity ${TAB_REVEAL_DURATION_MS}ms ease-in-out ${delayMs}ms`;
+                    el.style.transform = "translateX(0px)";
+                    el.style.opacity = "1";
+                });
+            });
+        }
+
+        prevVisibleIdsRef.current = currentVisible;
+        prevShowAllLayersRef.current = showAllLayers;
+    }, [visibleLayerIds, showAllLayers]);
 
     return (
         <div
@@ -414,9 +513,10 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
 
             {/* Layer Name Badge Row */}
             <div
+                ref={badgeRowRef}
                 className="pl-5 pt-[7px] pb-2 flex items-center gap-2"
-                style={is3DMode && !isPrimary && isMultiLayersActive
-                    ? { transform: `translateY(${layerHeaderShiftY + (400 * sizeScale)}px)` }
+                style={is3DMode
+                    ? { transform: `translateY(${badgeOffsetY}px)`, transition: 'transform 500ms ease-in-out' }
                     : undefined}
             >
                 <div style={{ marginLeft: -20 }}>
@@ -472,7 +572,6 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                 style={is3DMode
                     ? {
                         transformStyle: 'preserve-3d',
-                        marginTop: isPrimary ? `${120 * sizeScale}px` : (isMultiLayersActive ? '0px' : `${120 * sizeScale}px`),
                     }
                     : undefined
                 }
@@ -484,7 +583,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                     )}
                     style={{
                         transform: is3DMode
-                            ? `rotateX(55deg) rotateZ(-45deg) translateZ(${stackIndex * 60}px)`
+                            ? `rotateX(55deg) rotateZ(-45deg) translateZ(${isMultiLayersActive ? (stackIndex * layerSpacingPx) : 0}px)`
                             : undefined
                     }}
                 >
@@ -496,6 +595,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                         onGhostNavigate={onGhostNavigate}
                         layerActiveState={layerActiveState}
                         instanceId={instanceId}
+                        show3DBackdrop={is3DMode}
                     />
                 </div>
             </div>

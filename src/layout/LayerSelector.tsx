@@ -4,8 +4,7 @@ import MatrixTesterIcon from "@/components/icons/MatrixTesterSvg";
 import BoxIcon from "@/components/icons/BoxIcon";
 import LayoutMultiLayersIcon from "@/components/icons/LayoutMultiLayersIcon";
 import MicroscopeIcon from "@/components/icons/MicroscopeIcon";
-import MoveDownRightIcon from "@/components/icons/MoveDownRightIcon";
-import MoveUpLeftIcon from "@/components/icons/MoveUpLeftIcon";
+import LayoutThumbsIcon from "@/components/icons/LayoutThumbsIcon";
 import { ArrowLeft, ChevronDown, Unplug, Undo2, Zap } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useVial } from "@/contexts/VialContext";
@@ -39,6 +38,8 @@ interface LayerSelectorProps {
     onToggleMultiLayers: () => void;
     isAllTransparencyActive: boolean;
     onToggleAllTransparency: () => void;
+    layerSpacingAdjust: number;
+    onLayerSpacingChange: (next: number) => void;
 }
 
 /**
@@ -50,7 +51,9 @@ const LayerSelector: FC<LayerSelectorProps> = ({
     isMultiLayersActive,
     onToggleMultiLayers,
     isAllTransparencyActive,
-    onToggleAllTransparency
+    onToggleAllTransparency,
+    layerSpacingAdjust,
+    onLayerSpacingChange
 }) => {
     const { keyboard, setKeyboard, isConnected, connect, resetToOriginal, setIsImporting } = useVial();
     const { queue, commit, getPendingCount, clearAll } = useChanges();
@@ -538,23 +541,16 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                                 ? "bg-black hover:bg-gray-800"
                                                 : "hover:bg-gray-200"
                                         )}
-                                        aria-label={isThumb3DOffsetActive ? "Thumb Offset On" : "Thumb Offset Off"}
+                                        aria-label="Hide Thumbs"
                                     >
-                                        {isThumb3DOffsetActive ? (
-                                            <MoveUpLeftIcon className={cn(
-                                                "h-5 w-5",
-                                                isThumb3DOffsetActive ? "text-kb-gray" : "text-black"
-                                            )} />
-                                        ) : (
-                                            <MoveDownRightIcon className={cn(
-                                                "h-5 w-5",
-                                                isThumb3DOffsetActive ? "text-kb-gray" : "text-black"
-                                            )} />
-                                        )}
+                                        <LayoutThumbsIcon className={cn(
+                                            "h-5 w-5",
+                                            isThumb3DOffsetActive ? "text-white" : "text-black"
+                                        )} />
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent side="top">
-                                    {isThumb3DOffsetActive ? "Thumb Offset On" : "Thumb Offset Off"}
+                                    Hide Thumbs
                                 </TooltipContent>
                             </Tooltip>
 
@@ -584,6 +580,21 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                     {isAllTransparencyActive ? "Show Transparent Keys (All Layers)" : "Hide Transparent Keys (All Layers)"}
                                 </TooltipContent>
                             </Tooltip>
+                            {is3DMode && isMultiLayersActive && (
+                                <div className="flex items-center gap-2 ml-1 text-xs text-gray-600">
+                                    <span className="whitespace-nowrap">Layer Spacing</span>
+                                    <input
+                                        type="range"
+                                        min={0}
+                                        max={1000}
+                                        step={10}
+                                        value={layerSpacingAdjust}
+                                        onChange={(e) => onLayerSpacingChange(Number(e.target.value))}
+                                        className="w-40"
+                                    />
+                                    <span className="tabular-nums w-12 text-right">{layerSpacingAdjust}px</span>
+                                </div>
+                            )}
                         </div>
 
                     </div>

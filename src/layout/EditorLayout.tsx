@@ -92,6 +92,8 @@ const EditorLayoutInner = () => {
     const [showAllLayers, setShowAllLayers] = React.useState(true);
     const [isMultiLayersActive, setIsMultiLayersActive] = React.useState(false);
     const [isLayerOrderReversed, setIsLayerOrderReversed] = React.useState(false);
+    const [layerSpacingAdjust, setLayerSpacingAdjust] = React.useState(0);
+    const [baseBadgeOffsetY, setBaseBadgeOffsetY] = React.useState<number | null>(null);
     // UI-only layer on/off state. TODO: replace with device-provided layer state when available.
     const [layerActiveState, setLayerActiveState] = React.useState<boolean[]>([]);
     const [transparencyByLayer, setTransparencyByLayer] = React.useState<Record<number, boolean>>({});
@@ -249,6 +251,14 @@ const EditorLayoutInner = () => {
         setSelectedLayer(layer);
     }, [setSelectedLayer]);
 
+    React.useEffect(() => {
+        setViewInstances(prev => prev.map(v =>
+            v.id === "primary" && v.selectedLayer !== selectedLayer
+                ? { ...v, selectedLayer }
+                : v
+        ));
+    }, [selectedLayer]);
+
     // UI toggle for layer on/off. TODO: when hardware supports this, send the command
     // and update state from the device response instead of flipping locally.
     const handleToggleLayerOn = React.useCallback((layerIndex: number) => {
@@ -304,9 +314,13 @@ const EditorLayoutInner = () => {
         }
         setSelectedLayer(sourceLayer);
     }, [setSelectedLayer]);
+    const primaryLayerIndex = isMultiLayersActive
+        ? selectedLayer
+        : (viewInstances.find(v => v.id === "primary")?.selectedLayer ?? selectedLayer);
+
     const primaryView = React.useMemo(
-        () => viewInstances.find(v => v.id === "primary") ?? { id: "primary", selectedLayer },
-        [viewInstances, selectedLayer]
+        () => ({ id: "primary", selectedLayer: primaryLayerIndex }),
+        [primaryLayerIndex]
     );
 
     const multiLayerIds = React.useMemo(() => {
@@ -321,15 +335,22 @@ const EditorLayoutInner = () => {
         return Array.from({ length: totalLayers }, (_, i) => i).filter((layerIndex) => {
             const layerData = keymap[layerIndex];
             const isTransparentLayer = layerData ? layerData.every((keycode) => keycode === KC_TRNS) : true;
-            return !isTransparentLayer || layerIndex === primaryView.selectedLayer;
+            return !isTransparentLayer || layerIndex === primaryLayerIndex;
         });
-    }, [keyboard, showAllLayers, primaryView.selectedLayer]);
+    }, [keyboard, showAllLayers, primaryLayerIndex]);
+
+    const allLayerIds = React.useMemo(() => {
+        const totalLayers = keyboard?.layers || 16;
+        return Array.from({ length: totalLayers }, (_, i) => i);
+    }, [keyboard?.layers]);
+
+    // In 3D multilayer mode, we keep ordering identical to 2D multilayer.
 
     const renderedViews = React.useMemo(() => {
         if (!isMultiLayersActive) {
             return viewInstances;
         }
-        const extraLayers = multiLayerIds.filter(layerIndex => layerIndex !== primaryView.selectedLayer);
+        const extraLayers = multiLayerIds.filter(layerIndex => layerIndex !== primaryLayerIndex);
         const orderedExtras = isLayerOrderReversed ? [...extraLayers].reverse() : extraLayers;
         return [
             primaryView,
@@ -338,7 +359,9 @@ const EditorLayoutInner = () => {
                 selectedLayer: layerIndex
             }))
         ];
-    }, [isMultiLayersActive, viewInstances, primaryView, multiLayerIds, isLayerOrderReversed]);
+    }, [isMultiLayersActive, primaryView, multiLayerIds, isLayerOrderReversed, primaryLayerIndex]);
+
+    // Badge positioning handled per-layer in KeyboardViewInstance to keep layout/badge relationship consistent.
 
     // Ref for measuring container dimensions
     const contentContainerRef = React.useRef<HTMLDivElement>(null);
@@ -767,6 +790,8 @@ const EditorLayoutInner = () => {
                     onToggleMultiLayers={() => setIsMultiLayersActive(prev => !prev)}
                     isAllTransparencyActive={isAllTransparencyActive}
                     onToggleAllTransparency={handleToggleAllTransparency}
+                    layerSpacingAdjust={layerSpacingAdjust}
+                    onLayerSpacingChange={setLayerSpacingAdjust}
                 />
 
                 <div
@@ -791,8 +816,8 @@ const EditorLayoutInner = () => {
                                     maxYUnits = Math.max(maxYUnits, yPos + key.h);
                                 });
                                 const keyboardHeight = maxYUnits * unitSize + 20;
-                                const Z_STEP = 60;
-                                const stepYValue = Z_STEP * 0.8192; // 0.8192 is sin(55deg)
+                                const zStep = layerSpacingAdjust;
+                                const stepYValue = zStep * 0.8192; // 0.8192 is sin(55deg)
 
                                 const viewsToDisplay = renderedViews;
 
@@ -816,20 +841,12 @@ const EditorLayoutInner = () => {
                                                     keyboardLayout={keyboardLayout}
                                                     fingerClusterSqueeze={fingerClusterSqueeze}
                                                     stepYValue={stepYValue}
-                                                    primaryStackIndex={1}
+                                                    primaryStackIndex={0}
                                                 />
                                             )}
                                         {viewsToDisplay.map((view, index) => (
                                             (() => {
-                                                const stackIndex = isMultiLayersActive
-                                                    ? (view.id === "primary" ? 1 : (viewsToDisplay.length - index))
-                                                    : (viewsToDisplay.length - index);
-                                                const headerShiftY = is3DMode && isMultiLayersActive && view.id !== "primary"
-                                                    ? -((stackIndex - 1) * stepYValue)
-                                                    : 0;
-                                                const isPrimaryView = view.id === "primary";
-                                                const nonPrimaryLift = !isPrimaryView ? -740 * sizeScale : 0;
-                                                const layerOneExtra = view.selectedLayer === 1 ? 740 * sizeScale : 0;
+                                                const stackIndex = isMultiLayersActive ? index : 0;
                                                 return (
                                             <div key={view.id}
                                                 ref={(el) => {
@@ -844,10 +861,6 @@ const EditorLayoutInner = () => {
                                                 }}
                                                 className="w-full relative"
                                                 style={{
-                                                    marginTop: (is3DMode && isMultiLayersActive && view.id !== "primary")
-                                                        ? (340 * sizeScale) + nonPrimaryLift + layerOneExtra
-                                                        : undefined,
-                                                    transition: 'margin-top 500ms ease-in-out',
                                                     zIndex: (viewsToDisplay.length - index) * 1000,
                                                     transformStyle: is3DMode ? 'preserve-3d' : 'flat',
                                                 }}
@@ -871,13 +884,16 @@ const EditorLayoutInner = () => {
                                                         isAllTransparencyActive={isAllTransparencyActive}
                                                         isTransparencyRestoring={isTransparencyRestoring}
                                                         multiLayerHeaderOffset={multiLayerHeaderOffset}
-                                                        layerHeaderShiftY={headerShiftY}
                                                         sizeScale={sizeScale}
                                                         onRemove={!isMultiLayersActive && view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
                                                         onGhostNavigate={isMultiLayersActive ? handleGhostNavigate : undefined}
                                                         isRevealing={view.id === revealingViewId}
                                                         isHiding={view.id === hidingViewId}
                                                         stackIndex={stackIndex}
+                                                        badgeMeasureKey={layerSpacingAdjust}
+                                                        layerSpacingPx={layerSpacingAdjust}
+                                                        baseBadgeOffsetY={baseBadgeOffsetY}
+                                                        onBaseBadgeOffsetY={view.id === "primary" ? setBaseBadgeOffsetY : undefined}
                                                     />
                                                 </div>
                                             </div>
@@ -1385,7 +1401,7 @@ const GuideLines = ({
                             );
                         });
                     })()}
-                    {guidePointsPx.filter(p => !p.label.endsWith("bottom-1")).map((p, i) => {
+                    {false && guidePointsPx.filter(p => !p.label.endsWith("bottom-1")).map((p, i) => {
                         const isDebug = p.label === "L2-top-1" || p.label === "L2-top-2";
                         const debugIdx = p.label.endsWith("-1") ? "1" : "2";
                         return (
@@ -1400,16 +1416,6 @@ const GuideLines = ({
                                 strokeDasharray="1 5"
                                 opacity="0.6"
                             />
-                            <text
-                                x={p.x + 4}
-                                y={p.y}
-                                fill="#64748b"
-                                fontSize="10"
-                                fontFamily='ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-                                dominantBaseline="hanging"
-                            >
-                                {p.label}
-                            </text>
                             {isDebug && (
                                 <>
                                     <circle cx={p.x} cy={p.y} r={5} fill="#ff4fd8" />
@@ -1437,7 +1443,7 @@ const GuideLines = ({
                     style={{ position: "absolute", left: 0, top: 0 }}
                     className="overflow-visible"
                 >
-                    {guidePointsPx.filter(p => p.label.endsWith("bottom-1")).map((p, i) => (
+                    {false && guidePointsPx.filter(p => p.label.endsWith("bottom-1")).map((p, i) => (
                         <g key={`front-${i}`}>
                             <line
                                 x1={p.x}
@@ -1449,16 +1455,6 @@ const GuideLines = ({
                                 strokeDasharray="1 5"
                                 opacity="0.6"
                             />
-                            <text
-                                x={p.x + 4}
-                                y={p.y}
-                                fill="#64748b"
-                                fontSize="10"
-                                fontFamily='ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-                                dominantBaseline="hanging"
-                            >
-                                {p.label}
-                            </text>
                         </g>
                     ))}
                 </svg>

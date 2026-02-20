@@ -18,7 +18,8 @@ import {
     hoverBackgroundClasses,
     hoverBorderClasses,
     colorClasses,
-    layerColors
+    layerColors,
+    getColorByName
 } from "@/utils/colors";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { svalService } from "@/services/sval.service";
@@ -35,6 +36,7 @@ interface KeyboardProps {
     onGhostNavigate?: (sourceLayer: number) => void;
     layerActiveState?: boolean[];
     instanceId?: string;
+    show3DBackdrop?: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     onGhostNavigate,
     layerActiveState,
     instanceId,
+    show3DBackdrop = false,
 }) => {
     const {
         selectKeyboardKey,
@@ -94,6 +97,61 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     const getYPos = (y: number) => (
         (!useFragmentLayout && y >= 6) ? y + THUMB_OFFSET_U : y
     );
+
+    const clusterBounds = useMemo(() => {
+        const clusterTopKeys = [
+            { x: 1, y: 1.5 },   // Q
+            { x: 3.5, y: 0 },   // W
+            { x: 7, y: 0 },     // E
+            { x: 9.5, y: 1.5 }, // R
+            { x: 13.8, y: 1.5 }, // U
+            { x: 16.3, y: 0 },  // I
+            { x: 19.8, y: 0 },  // O
+            { x: 22.3, y: 1.5 }, // P
+        ];
+
+        const keys = Object.values(keyboardLayout) as Array<{ x: number; y: number; w: number; h: number }>;
+        const findKeyByXY = (x: number, y: number) => {
+            let best: { x: number; y: number; w: number; h: number } | null = null;
+            let bestDist = Infinity;
+            keys.forEach((k) => {
+                const dx = Math.abs(k.x - x);
+                const dy = Math.abs(k.y - y);
+                const dist = dx + dy;
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    best = k;
+                }
+            });
+            return bestDist <= 0.75 ? best : null;
+        };
+
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+
+        clusterTopKeys.forEach(({ x, y }) => {
+            const top = findKeyByXY(x, y);
+            const right = findKeyByXY(x + 1, y + 1);
+            const bottom = findKeyByXY(x, y + 2);
+            const left = findKeyByXY(x - 1, y + 1);
+            [top, right, bottom, left].forEach((k) => {
+                if (!k) return;
+                const yPos = getYPos(k.y);
+                minX = Math.min(minX, k.x);
+                minY = Math.min(minY, yPos);
+                maxX = Math.max(maxX, k.x + k.w);
+                maxY = Math.max(maxY, yPos + k.h);
+            });
+        });
+
+        if (!Number.isFinite(minX)) {
+            return null;
+        }
+
+        return { minX, minY, maxX, maxY };
+    }, [keyboardLayout, getYPos, useFragmentLayout]);
 
     // Calculate layout midline for squeeze positioning (center X of the keyboard)
     const layoutMidline = useMemo(() => {
@@ -185,8 +243,15 @@ export const Keyboard: React.FC<KeyboardProps> = ({
         let maxX = 0;
         let maxY = 0;
         let minY = Infinity; // Top edge of keyboard
+        const hideThumbs2D = !is3DMode && isThumb3DOffsetActive;
 
         Object.values(keyboardLayout).forEach((key) => {
+            const isThumbCluster = key.y >= 5;
+            if (hideThumbs2D && isThumbCluster) {
+                // Keep width from full layout, but reduce height when thumbs are hidden in 2D
+                maxX = Math.max(maxX, key.x + key.w);
+                return;
+            }
             const yPos = getYPos(key.y);
             maxX = Math.max(maxX, key.x + key.w);
             maxY = Math.max(maxY, yPos + key.h);
@@ -207,7 +272,21 @@ export const Keyboard: React.FC<KeyboardProps> = ({
             badgeCenterX,
             badgeCenterY,
         };
-    }, [keyboardLayout, currentUnitSize, useFragmentLayout, fingerClusterSqueeze]);
+    }, [keyboardLayout, currentUnitSize, useFragmentLayout, fingerClusterSqueeze, is3DMode, isThumb3DOffsetActive]);
+
+    const layerBackdropColor = useMemo(() => {
+        const layerName = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "green";
+        const color = getColorByName(layerName)?.hex || "#099e7c";
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, 0.3)`;
+    }, [keyboard.cosmetic, selectedLayer]);
+
+    const layerLabelColor = useMemo(() => {
+        const layerName = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "green";
+        return getColorByName(layerName)?.hex || "#099e7c";
+    }, [keyboard.cosmetic, selectedLayer]);
 
     const KC_TRNS = 1;
 
@@ -248,6 +327,28 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                 className="keyboard-layout relative"
                 style={{ width: `${keyboardSize.width}px`, height: `${keyboardSize.height}px` }}
             >
+                {is3DMode && show3DBackdrop && clusterBounds && (
+                    <div
+                        className="absolute pointer-events-none"
+                        data-layer-backdrop="true"
+                        style={{
+                            left: (clusterBounds.minX * currentUnitSize) - currentUnitSize,
+                            top: (clusterBounds.minY * currentUnitSize) - currentUnitSize,
+                            width: ((clusterBounds.maxX - clusterBounds.minX) * currentUnitSize) + (currentUnitSize * 3),
+                            height: ((clusterBounds.maxY - clusterBounds.minY) * currentUnitSize) + (currentUnitSize * 1.5),
+                            background: layerBackdropColor,
+                            zIndex: 0,
+                        }}
+                    >
+                        <div
+                            className="absolute left-2 top-2 text-lg font-bold"
+                            data-layer-label="true"
+                            style={{ color: layerLabelColor, transform: "translateX(16px)" }}
+                        >
+                            L{selectedLayer}
+                        </div>
+                    </div>
+                )}
                 {/* Keys */}
                 {Object.entries(keyboardLayout).map(([matrixPos, layout]) => {
                     const pos = Number(matrixPos);
@@ -294,6 +395,9 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                     // Only squeeze finger cluster keys (y < 5), not thumb clusters (y >= 5)
                     let xPos = layout.x;
                     const isThumbCluster = layout.y >= 5;
+                    if (!is3DMode && isThumb3DOffsetActive && isThumbCluster) {
+                        return null;
+                    }
                     if (fingerClusterSqueeze > 0) {
                         if (!isThumbCluster) {
                             const keyCenterX = layout.x + layout.w / 2;
