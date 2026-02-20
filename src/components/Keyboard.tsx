@@ -84,7 +84,7 @@ export const Keyboard: React.FC<KeyboardProps> = ({
     // Use keyboard's cols if available, otherwise fallback to constant
     const matrixCols = keyboard.cols || MATRIX_COLS;
 
-    const { internationalLayout, keyVariant, fingerClusterSqueeze, is3DMode, isThumb3DOffsetActive } = useLayoutSettings();
+    const { internationalLayout, keyVariant, fingerClusterSqueeze, is3DMode, isThumb3DOffsetActive, backdropOpacity } = useLayoutSettings();
     const { getSetting } = useSettings();
     const isTransmitting = useMemo(() =>
         itemToEdit !== null && ["tapdances", "combos", "macros", "overrides"].includes(activePanel || ""),
@@ -154,6 +154,32 @@ export const Keyboard: React.FC<KeyboardProps> = ({
 
         return { minX, minY, maxX, maxY };
     }, [keyboardLayout, getYPos, useFragmentLayout]);
+
+    const thumbClusterBounds = useMemo(() => {
+        const hideThumbs2D = !is3DMode && isThumb3DOffsetActive;
+        if (hideThumbs2D) return null;
+        const thumbKeys = Object.values(keyboardLayout)
+            .filter((k) => k.y >= 5) as Array<{ x: number; y: number; w: number; h: number }>;
+
+        if (thumbKeys.length === 0) return null;
+
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+
+        thumbKeys.forEach((k) => {
+            const yPos = getYPos(k.y);
+            minX = Math.min(minX, k.x);
+            minY = Math.min(minY, yPos);
+            maxX = Math.max(maxX, k.x + k.w);
+            maxY = Math.max(maxY, yPos + k.h);
+        });
+
+        if (!Number.isFinite(minX)) return null;
+
+        return { minX, minY, maxX, maxY };
+    }, [keyboardLayout, getYPos, is3DMode, isThumb3DOffsetActive]);
 
     // Calculate layout midline for squeeze positioning (center X of the keyboard)
     const layoutMidline = useMemo(() => {
@@ -282,17 +308,25 @@ export const Keyboard: React.FC<KeyboardProps> = ({
         const r = parseInt(color.slice(1, 3), 16);
         const g = parseInt(color.slice(3, 5), 16);
         const b = parseInt(color.slice(5, 7), 16);
-        return `rgba(${r}, ${g}, ${b}, 0.3)`;
-    }, [keyboard.cosmetic, selectedLayer]);
+        const isActiveLayerBackdrop = typeof activeLayerIndex === "number" && activeLayerIndex === selectedLayer;
+        const appliedOpacity = isActiveLayerBackdrop ? 0.65 : backdropOpacity;
+        return `rgba(${r}, ${g}, ${b}, ${appliedOpacity})`;
+    }, [keyboard.cosmetic, selectedLayer, backdropOpacity, activeLayerIndex]);
 
     const layerLabelColor = useMemo(() => {
         const layerName = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "green";
         return getColorByName(layerName)?.hex || "#099e7c";
     }, [keyboard.cosmetic, selectedLayer]);
 
-    const resolvedActiveLayerIndex = typeof activeLayerIndex === "number" ? activeLayerIndex : selectedLayer;
-    const activeLayerName = keyboard.cosmetic?.layer?.[resolvedActiveLayerIndex.toString()] ?? `Layer ${resolvedActiveLayerIndex}`;
-    const activeLayerDebugText = `${resolvedActiveLayerIndex} - ${activeLayerName}`;
+    const layerDisplayName = useMemo(() => {
+        return svalService.getLayerName(keyboard, selectedLayer);
+    }, [keyboard, selectedLayer]);
+
+    const layerHeaderTextColor = useMemo(() => {
+        const layerName = keyboard.cosmetic?.layer_colors?.[selectedLayer] || "green";
+        return getColorByName(layerName)?.hex || "#099e7c";
+    }, [keyboard.cosmetic, selectedLayer]);
+
 
     const KC_TRNS = 1;
 
@@ -333,9 +367,6 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                 className="keyboard-layout relative"
                 style={{ width: `${keyboardSize.width}px`, height: `${keyboardSize.height}px` }}
             >
-                <div className="absolute right-2 top-2 z-20 pointer-events-none rounded-md bg-white/80 px-2 py-1 text-xs font-semibold text-gray-800 shadow-sm backdrop-blur">
-                    {activeLayerDebugText}
-                </div>
                 {is3DMode && show3DBackdrop && clusterBounds && (
                     <div
                         className="absolute pointer-events-none"
@@ -351,13 +382,32 @@ export const Keyboard: React.FC<KeyboardProps> = ({
                         }}
                     >
                         <div
-                            className="absolute left-2 top-2 text-lg font-bold"
+                            className="absolute left-2 top-2 text-lg font-normal select-none"
                             data-layer-label="true"
-                            style={{ color: layerLabelColor, transform: "translateX(16px)" }}
+                            style={{ color: layerHeaderTextColor, transform: "translateX(16px)" }}
                         >
-                            L{selectedLayer}
+                            {layerDisplayName}
                         </div>
                     </div>
+                )}
+                {is3DMode && show3DBackdrop && clusterBounds && thumbClusterBounds && (
+                    <div
+                        className="absolute pointer-events-none"
+                        data-layer-backdrop="true"
+                        style={{
+                            left: (thumbClusterBounds.minX * currentUnitSize) - currentUnitSize,
+                            top:
+                                ((clusterBounds.minY * currentUnitSize) - currentUnitSize) +
+                                (((clusterBounds.maxY - clusterBounds.minY) * currentUnitSize) + (currentUnitSize * 1.5)),
+                            width: ((thumbClusterBounds.maxX - thumbClusterBounds.minX) * currentUnitSize) + (currentUnitSize * 2),
+                            height: ((thumbClusterBounds.maxY - thumbClusterBounds.minY) * currentUnitSize) + (currentUnitSize * 1.5),
+                            background: layerBackdropColor,
+                            zIndex: 0,
+                            mixBlendMode: "multiply",
+                            transform: (is3DMode && isThumb3DOffsetActive) ? "translateY(900px)" : undefined,
+                            transition: "transform 300ms ease-in-out",
+                        }}
+                    />
                 )}
                 {/* Keys */}
                 {Object.entries(keyboardLayout).map(([matrixPos, layout]) => {

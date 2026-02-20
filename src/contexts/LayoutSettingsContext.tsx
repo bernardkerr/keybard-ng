@@ -58,6 +58,8 @@ interface LayoutSettingsContextType {
     setIs3DMode: (mode: boolean) => void;
     isThumb3DOffsetActive: boolean;
     setIsThumb3DOffsetActive: (active: boolean) => void;
+    backdropOpacity: number;
+    setBackdropOpacity: (opacity: number) => void;
 }
 
 const LayoutSettingsContext = createContext<LayoutSettingsContextType | undefined>(undefined);
@@ -78,6 +80,7 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     const [measuredDimensions, setMeasuredDimensionsState] = useState<MeasuredDimensions | null>(null);
     const [is3DMode, setIs3DMode] = useState<boolean>(false);
     const [isThumb3DOffsetActive, setIsThumb3DOffsetActive] = useState<boolean>(false);
+    const [backdropOpacity, setBackdropOpacity] = useState<number>(0.25);
 
     // Use refs to track current values without triggering re-renders during calculation
     const secondarySidebarOpenRef = useRef(false);
@@ -411,6 +414,8 @@ export const LayoutSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
             setIs3DMode,
             isThumb3DOffsetActive,
             setIsThumb3DOffsetActive,
+            backdropOpacity,
+            setBackdropOpacity,
         }}>
             {children}
         </LayoutSettingsContext.Provider>

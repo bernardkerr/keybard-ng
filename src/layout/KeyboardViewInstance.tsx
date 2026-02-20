@@ -161,6 +161,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
 
     if (!keyboard) return null;
 
+
     const handleSelectLayer = (layer: number) => () => {
         setSelectedLayer(layer);
         clearSelection();
@@ -236,7 +237,9 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     const shouldRenderLayerTab = (i: number) => {
         const layerData = keyboard.keymap?.[i];
         const isTransparentLayer = layerData ? layerData.every((keycode) => keycode === KC_TRNS) : true;
-        const isLayerActive = !!layerActiveState?.[i];
+        const isLayerActive = typeof activeLayerIndex === "number"
+            ? activeLayerIndex === i
+            : !!layerActiveState?.[i];
 
         const shouldHideTransparent = !showAllLayers;
         if (shouldHideTransparent && isTransparentLayer && i !== selectedLayer && !isLayerActive) {
@@ -250,7 +253,9 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
 
         const layerShortName = svalService.getLayerNameNoLabel(keyboard, i);
         const isActive = selectedLayer === i;
-        const isLayerActive = !!layerActiveState?.[i];
+        const isLayerActive = typeof activeLayerIndex === "number"
+            ? activeLayerIndex === i
+            : !!layerActiveState?.[i];
 
         return (
             <ContextMenu key={`${instanceId}-layer-tab-${i}`}>
@@ -300,7 +305,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     const allLayerIds = Array.from({ length: keyboard.layers || 16 }, (_, i) => i);
     const visibleLayerIds = useMemo(
         () => allLayerIds.filter(shouldRenderLayerTab),
-        [keyboard.layers, keyboard.keymap, showAllLayers, selectedLayer, layerActiveState]
+        [keyboard.layers, keyboard.keymap, showAllLayers, selectedLayer, layerActiveState, activeLayerIndex]
     );
     const displayOrder = useMemo(
         () => (isLayerOrderReversed ? [...visibleLayerIds].reverse() : visibleLayerIds),
@@ -546,7 +551,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
                                         : isTransparencyActive
                                             ? "bg-black hover:bg-gray-800"
                                             : (!suppressTransparencyHover ? "hover:bg-gray-200" : ""),
-                                    (isAllTransparencyActive || isTransparencyRestoring) && "invisible pointer-events-none"
+                                    isTransparencyRestoring && "invisible pointer-events-none"
                                 )}
                                 aria-label={isTransparencyActive ? "Show Transparent Keys" : "Hide Transparent Keys"}
                             >

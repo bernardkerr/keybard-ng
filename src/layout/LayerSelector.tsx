@@ -58,7 +58,7 @@ const LayerSelector: FC<LayerSelectorProps> = ({
     const { keyboard, setKeyboard, isConnected, connect, resetToOriginal, setIsImporting } = useVial();
     const { queue, commit, getPendingCount, clearAll } = useChanges();
     const { getSetting, updateSetting } = useSettings();
-    const { is3DMode, setIs3DMode, isThumb3DOffsetActive, setIsThumb3DOffsetActive } = useLayoutSettings();
+    const { is3DMode, setIs3DMode, isThumb3DOffsetActive, setIsThumb3DOffsetActive, backdropOpacity, setBackdropOpacity } = useLayoutSettings();
 
     const liveUpdating = getSetting("live-updating") === true;
 
@@ -593,6 +593,21 @@ const LayerSelector: FC<LayerSelectorProps> = ({
                                         className="w-40"
                                     />
                                     <span className="tabular-nums w-12 text-right">{layerSpacingAdjust}px</span>
+                                </div>
+                            )}
+                            {is3DMode && (
+                                <div className="flex items-center gap-2 ml-1 text-xs text-gray-600">
+                                    <span className="whitespace-nowrap">Backdrop Opacity</span>
+                                    <input
+                                        type="range"
+                                        min={0}
+                                        max={1}
+                                        step={0.05}
+                                        value={backdropOpacity}
+                                        onChange={(e) => setBackdropOpacity(Number(e.target.value))}
+                                        className="w-32"
+                                    />
+                                    <span className="tabular-nums w-10 text-right">{Math.round(backdropOpacity * 100)}%</span>
                                 </div>
                             )}
                         </div>

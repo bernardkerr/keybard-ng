@@ -92,7 +92,7 @@ const EditorLayoutInner = () => {
     const [showAllLayers, setShowAllLayers] = React.useState(true);
     const [isMultiLayersActive, setIsMultiLayersActive] = React.useState(false);
     const [isLayerOrderReversed, setIsLayerOrderReversed] = React.useState(false);
-    const [layerSpacingAdjust, setLayerSpacingAdjust] = React.useState(0);
+    const [layerSpacingAdjust, setLayerSpacingAdjust] = React.useState(410);
     const [baseBadgeOffsetY, setBaseBadgeOffsetY] = React.useState<number | null>(null);
     // UI-only layer on/off state. TODO: replace with device-provided layer state when available.
     const [layerActiveState, setLayerActiveState] = React.useState<boolean[]>([]);

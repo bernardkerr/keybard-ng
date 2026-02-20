@@ -10,6 +10,7 @@ const ConnectKeyboard = () => {
     const [isDisconnecting, setIsDisconnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const connectButtonRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
         if (!isConnected) {
@@ -26,6 +27,12 @@ const ConnectKeyboard = () => {
             }
         };
     }, [isConnected]);
+
+    useEffect(() => {
+        if (!isConnected && !loading && connectButtonRef.current) {
+            connectButtonRef.current.focus();
+        }
+    }, [isConnected, loading]);
 
     const handleConnect = async () => {
         setLoading(true);
@@ -148,6 +155,7 @@ const ConnectKeyboard = () => {
                         <div className="flex flex-col gap-2 w-50 mx-auto">
                             {!isConnected || (loading && !isDisconnecting) ? (
                                 <button
+                                    ref={connectButtonRef}
                                     onClick={handleConnect}
                                     disabled={loading}
                                     className="flex items-center justify-center gap-2 text-sm font-medium cursor-pointer transition-all bg-kb-primary text-white hover:bg-kb-primary/90 px-5 py-1.5 rounded-full w-full"
