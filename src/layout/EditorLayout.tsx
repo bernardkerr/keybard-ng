@@ -247,8 +247,10 @@ const EditorLayoutInner = () => {
         setViewInstances(prev => prev.map(v =>
             v.id === id ? { ...v, selectedLayer: layer } : v
         ));
-        // Always sync LayerContext so sidebar panels reflect the last-interacted view
-        setSelectedLayer(layer);
+        // Keep global layer selection tied to the primary view only.
+        if (id === "primary") {
+            setSelectedLayer(layer);
+        }
     }, [setSelectedLayer]);
 
     React.useEffect(() => {
@@ -354,7 +356,7 @@ const EditorLayoutInner = () => {
                 selectedLayer: layerIndex
             }))
         ];
-    }, [isMultiLayersActive, primaryView, multiLayerIds, isLayerOrderReversed, primaryLayerIndex]);
+    }, [isMultiLayersActive, viewInstances, primaryView, multiLayerIds, isLayerOrderReversed, primaryLayerIndex]);
 
     // Badge positioning handled per-layer in KeyboardViewInstance to keep layout/badge relationship consistent.
 
@@ -826,67 +828,68 @@ const EditorLayoutInner = () => {
                                         } : undefined}
                                     >
                                         {/* Vertical 3D Guide Lines - now in 2D container to ensure verticality */}
-                                            {is3DMode && isMultiLayersActive && (
-                                                <GuideLines
-                                                    numLayers={viewsToDisplay.length}
-                                                    keyVariant={keyVariant}
-                                                    keyboardLayout={keyboardLayout}
-                                                    fingerClusterSqueeze={fingerClusterSqueeze}
-                                                    stepYValue={stepYValue}
-                                                    primaryStackIndex={0}
-                                                />
-                                            )}
+                                        {is3DMode && isMultiLayersActive && (
+                                            <GuideLines
+                                                numLayers={viewsToDisplay.length}
+                                                lastViewId={viewsToDisplay[viewsToDisplay.length - 1]?.id}
+                                                keyVariant={keyVariant}
+                                                keyboardLayout={keyboardLayout}
+                                                fingerClusterSqueeze={fingerClusterSqueeze}
+                                                stepYValue={stepYValue}
+                                                primaryStackIndex={0}
+                                            />
+                                        )}
                                         {viewsToDisplay.map((view, index) => (
                                             (() => {
                                                 const stackIndex = isMultiLayersActive ? index : 0;
                                                 return (
-                                            <div key={view.id}
-                                                ref={(el) => {
-                                                    if (el) {
-                                                        const existing = layerViewRefs.current.get(view.selectedLayer);
-                                                        if (view.id === "primary" || !existing) {
-                                                            layerViewRefs.current.set(view.selectedLayer, el);
-                                                        }
-                                                    } else {
-                                                        layerViewRefs.current.delete(view.selectedLayer);
-                                                    }
-                                                }}
-                                                className="w-full relative"
-                                                style={{
-                                                    zIndex: (viewsToDisplay.length - index) * 1000,
-                                                    transformStyle: is3DMode ? 'preserve-3d' : 'flat',
-                                                }}
-                                            >
-                                                <div className="flex justify-center h-full relative" style={{ transformStyle: is3DMode ? 'preserve-3d' : 'flat' }}>
-                                                    <KeyboardViewInstance
-                                                        instanceId={view.id}
-                                                        selectedLayer={view.selectedLayer}
-                                                        setSelectedLayer={(layer) => handleSetViewLayer(view.id, layer)}
-                                                        isPrimary={view.id === "primary"}
-                                                        hideLayerTabs={isMultiLayersActive && view.id !== "primary"}
-                                                        layerActiveState={layerActiveState}
-                                                        onToggleLayerOn={handleToggleLayerOn}
-                                                        transparencyByLayer={transparencyByLayer}
-                                                        onToggleTransparency={handleToggleTransparency}
-                                                        showAllLayers={showAllLayers}
-                                                        onToggleShowLayers={handleToggleShowLayers}
-                                                        isLayerOrderReversed={isLayerOrderReversed}
-                                                        onToggleLayerOrder={() => setIsLayerOrderReversed(prev => !prev)}
-                                                        isMultiLayersActive={isMultiLayersActive}
-                                                        isAllTransparencyActive={isAllTransparencyActive}
-                                                        isTransparencyRestoring={isTransparencyRestoring}
-                                                        multiLayerHeaderOffset={multiLayerHeaderOffset}
-                                                        onRemove={!isMultiLayersActive && view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
-                                                        onGhostNavigate={isMultiLayersActive ? handleGhostNavigate : undefined}
-                                                        isRevealing={view.id === revealingViewId}
-                                                        isHiding={view.id === hidingViewId}
-                                                        stackIndex={stackIndex}
-                                                        layerSpacingPx={layerSpacingAdjust}
-                                                        baseBadgeOffsetY={baseBadgeOffsetY}
-                                                        onBaseBadgeOffsetY={view.id === "primary" ? setBaseBadgeOffsetY : undefined}
-                                                    />
-                                                </div>
-                                            </div>
+                                                    <div key={view.id}
+                                                        ref={(el) => {
+                                                            if (el) {
+                                                                const existing = layerViewRefs.current.get(view.selectedLayer);
+                                                                if (view.id === "primary" || !existing) {
+                                                                    layerViewRefs.current.set(view.selectedLayer, el);
+                                                                }
+                                                            } else {
+                                                                layerViewRefs.current.delete(view.selectedLayer);
+                                                            }
+                                                        }}
+                                                        className="w-full relative pointer-events-none"
+                                                        style={{
+                                                            zIndex: (viewsToDisplay.length - index) * 1000,
+                                                            transformStyle: is3DMode ? 'preserve-3d' : 'flat',
+                                                        }}
+                                                    >
+                                                        <div className="flex justify-center h-full relative pointer-events-none" style={{ transformStyle: is3DMode ? 'preserve-3d' : 'flat' }}>
+                                                            <KeyboardViewInstance
+                                                                instanceId={view.id}
+                                                                selectedLayer={view.selectedLayer}
+                                                                setSelectedLayer={(layer) => handleSetViewLayer(view.id, layer)}
+                                                                isPrimary={view.id === "primary"}
+                                                                hideLayerTabs={isMultiLayersActive && view.id !== "primary"}
+                                                                layerActiveState={layerActiveState}
+                                                                onToggleLayerOn={handleToggleLayerOn}
+                                                                transparencyByLayer={transparencyByLayer}
+                                                                onToggleTransparency={handleToggleTransparency}
+                                                                showAllLayers={showAllLayers}
+                                                                onToggleShowLayers={handleToggleShowLayers}
+                                                                isLayerOrderReversed={isLayerOrderReversed}
+                                                                onToggleLayerOrder={() => setIsLayerOrderReversed(prev => !prev)}
+                                                                isMultiLayersActive={isMultiLayersActive}
+                                                                isAllTransparencyActive={isAllTransparencyActive}
+                                                                isTransparencyRestoring={isTransparencyRestoring}
+                                                                multiLayerHeaderOffset={multiLayerHeaderOffset}
+                                                                onRemove={!isMultiLayersActive && view.id !== "primary" ? () => handleRemoveView(view.id) : undefined}
+                                                                onGhostNavigate={isMultiLayersActive ? handleGhostNavigate : undefined}
+                                                                isRevealing={view.id === revealingViewId}
+                                                                isHiding={view.id === hidingViewId}
+                                                                stackIndex={stackIndex}
+                                                                layerSpacingPx={layerSpacingAdjust}
+                                                                baseBadgeOffsetY={baseBadgeOffsetY}
+                                                                onBaseBadgeOffsetY={view.id === "primary" ? setBaseBadgeOffsetY : undefined}
+                                                            />
+                                                        </div>
+                                                    </div>
                                                 );
                                             })()
                                         ))}
@@ -1096,6 +1099,7 @@ const EditorLayoutInner = () => {
  */
 const GuideLines = ({
     numLayers,
+    lastViewId,
     keyVariant,
     keyboardLayout,
     fingerClusterSqueeze,
@@ -1103,6 +1107,7 @@ const GuideLines = ({
     primaryStackIndex
 }: {
     numLayers: number,
+    lastViewId: string,
     keyVariant: string,
     keyboardLayout: any,
     fingerClusterSqueeze: number,
@@ -1125,7 +1130,7 @@ const GuideLines = ({
     const layoutMidline = layoutMaxX / 2;
 
     const overlayRef = React.useRef<HTMLDivElement | null>(null);
-    const [guidePointsPx, setGuidePointsPx] = React.useState<Array<{ x: number; y: number; label: string }>>([]);
+    const [guidePointsPx, setGuidePointsPx] = React.useState<Array<{ x: number; y: number; label: string; isBottom: boolean }>>([]);
     const [svgSize, setSvgSize] = React.useState({ width: 0, height: 0 });
 
     const findKeyByXY = (x: number, y: number) => {
@@ -1193,35 +1198,36 @@ const GuideLines = ({
             const sin55 = Math.sin(55 * degToRad);
             const cos55 = Math.cos(55 * degToRad);
             const zStep = stepYValue / sin55;
-            const zOffset = primaryStackIndex * zStep;
 
-            const projectPoint = (pxX: number, pxY: number) => {
+            const points: Array<{ x: number; y: number; label: string; isBottom: boolean }> = [];
+            const pushProjectedPoint = (label: string, pxX: number, pxY: number, z: number, isBottom: boolean) => {
+                const projected = projectPoint(pxX, pxY, z);
+                points.push({
+                    x: projected.x + layoutOffset.x - overlayRect.left,
+                    y: projected.y + layoutOffset.y - overlayRect.top,
+                    label,
+                    isBottom,
+                });
+            };
+
+            const zBottom = (numLayers - 1) * zStep;
+
+            const projectPoint = (pxX: number, pxY: number, z: number) => {
                 const localX = pxX - originX;
                 const localY = pxY - originY;
-                const z = zOffset;
 
                 // translateZ then rotateZ(-45deg)
                 const x1 = (localX * cos45) + (localY * sin45);
                 const y1 = (-localX * sin45) + (localY * cos45);
 
                 // rotateX(55deg)
-                const y2 = (y1 * cos55) - (z * sin55);
+                const y2 = (y1 * cos55) + (z * sin55);
                 const x2 = x1;
 
                 return {
                     x: x2 + originX,
                     y: y2 + originY,
                 };
-            };
-
-            const points: Array<{ x: number; y: number; label: string }> = [];
-            const pushProjectedPoint = (label: string, pxX: number, pxY: number) => {
-                const projected = projectPoint(pxX, pxY);
-                points.push({
-                    x: projected.x + layoutOffset.x - overlayRect.left,
-                    y: projected.y + layoutOffset.y - overlayRect.top,
-                    label,
-                });
             };
 
             const keyToPos = (key: { x: number; y: number; w: number; h: number }) => {
@@ -1245,18 +1251,29 @@ const GuideLines = ({
                 const topY = keyboardPadding + (k.y * unitSize);
                 const bottomY = keyboardPadding + ((k.y + k.h) * unitSize);
 
+                const zTop = primaryStackIndex * zStep;
+                const zEnd = zTop + zBottom;
+
                 if (side === "top") {
-                    pushProjectedPoint(`${label}-top-1`, leftX, topY);
-                    pushProjectedPoint(`${label}-top-2`, rightX, topY);
+                    pushProjectedPoint(`${label}-top-1`, leftX, topY, zTop, false);
+                    pushProjectedPoint(`${label}-top-2`, rightX, topY, zTop, false);
+                    pushProjectedPoint(`${label}-top-1`, leftX, topY, zEnd, true);
+                    pushProjectedPoint(`${label}-top-2`, rightX, topY, zEnd, true);
                 } else if (side === "right") {
-                    pushProjectedPoint(`${label}-right-1`, rightX, topY);
-                    pushProjectedPoint(`${label}-right-2`, rightX, bottomY);
+                    pushProjectedPoint(`${label}-right-1`, rightX, topY, zTop, false);
+                    pushProjectedPoint(`${label}-right-2`, rightX, bottomY, zTop, false);
+                    pushProjectedPoint(`${label}-right-1`, rightX, topY, zEnd, true);
+                    pushProjectedPoint(`${label}-right-2`, rightX, bottomY, zEnd, true);
                 } else if (side === "bottom") {
-                    pushProjectedPoint(`${label}-bottom-1`, leftX, bottomY);
-                    pushProjectedPoint(`${label}-bottom-2`, rightX, bottomY);
+                    pushProjectedPoint(`${label}-bottom-1`, leftX, bottomY, zTop, false);
+                    pushProjectedPoint(`${label}-bottom-2`, rightX, bottomY, zTop, false);
+                    pushProjectedPoint(`${label}-bottom-1`, leftX, bottomY, zEnd, true);
+                    pushProjectedPoint(`${label}-bottom-2`, rightX, bottomY, zEnd, true);
                 } else {
-                    pushProjectedPoint(`${label}-left-1`, leftX, topY);
-                    pushProjectedPoint(`${label}-left-2`, leftX, bottomY);
+                    pushProjectedPoint(`${label}-left-1`, leftX, topY, zTop, false);
+                    pushProjectedPoint(`${label}-left-2`, leftX, bottomY, zTop, false);
+                    pushProjectedPoint(`${label}-left-1`, leftX, topY, zEnd, true);
+                    pushProjectedPoint(`${label}-left-2`, leftX, bottomY, zEnd, true);
                 }
             };
 
@@ -1272,9 +1289,9 @@ const GuideLines = ({
                 if (left) addFromKey(left, "left", label);
             });
 
-            const getKeyEl = (key: { x: number; y: number }) => {
+            const getKeyEl = (kbEl: HTMLElement, key: { x: number; y: number }) => {
                 const selector = `[data-key-x="${key.x}"][data-key-y="${key.y}"]`;
-                return keyboardEl.querySelector(selector) as HTMLElement | null;
+                return kbEl.querySelector(selector) as HTMLElement | null;
             };
             const getQuad = (el: HTMLElement) => {
                 const elWithQuads = el as HTMLElement & {
@@ -1301,10 +1318,10 @@ const GuideLines = ({
                 edges.reduce((min, e) => (e.avgY < min.avgY ? e : min), edges[0]);
             const orderByX = (a: DOMPoint, b: DOMPoint) => (a.x <= b.x ? { left: a, right: b } : { left: b, right: a });
 
-            const getActualTopEdge = (keyX: number, keyY: number) => {
+            const getActualTopEdge = (kbEl: HTMLElement, keyX: number, keyY: number) => {
                 const key = findKeyByXY(keyX, keyY);
                 if (!key) return null;
-                const el = getKeyEl(key);
+                const el = getKeyEl(kbEl, key);
                 const quad = el ? getQuad(el) : null;
                 if (!quad) return null;
                 const pts = quadPoints(quad);
@@ -1316,10 +1333,10 @@ const GuideLines = ({
                 };
             };
 
-            const l2Actual = getActualTopEdge(3.5, 0); // W
-            const r2Actual = getActualTopEdge(16.3, 0); // I
-            const calcLeft = points.find((p) => p.label === "L2-top-1");
-            const calcRight = points.find((p) => p.label === "R2-top-2");
+            const l2Actual = getActualTopEdge(keyboardEl, 3.5, 0); // W
+            const r2Actual = getActualTopEdge(keyboardEl, 16.3, 0); // I
+            const calcLeft = points.find((p) => p.label === "L2-top-1" && !p.isBottom);
+            const calcRight = points.find((p) => p.label === "R2-top-2" && !p.isBottom);
 
             if (l2Actual && r2Actual && calcLeft && calcRight) {
                 const scaleX = (r2Actual.right.x - l2Actual.left.x) / (calcRight.x - calcLeft.x);
@@ -1346,13 +1363,11 @@ const GuideLines = ({
             ro.disconnect();
             window.removeEventListener('resize', handleResize);
         };
-    }, [keyboardLayout, keyVariant, numLayers, fingerClusterSqueeze, stepYValue, primaryStackIndex, useFragmentLayout, unitSize, layoutMidline, layoutMaxX, layoutMaxY]);
+    }, [keyboardLayout, keyVariant, numLayers, lastViewId, fingerClusterSqueeze, stepYValue, primaryStackIndex, useFragmentLayout, unitSize, layoutMidline, layoutMaxX, layoutMaxY]);
 
     // Spacing between layers in screen pixels
-    const stepY = stepYValue;
-    const lineHeight = Math.max((numLayers - 1) * stepY, 1);
     const svgWidth = svgSize.width || 1;
-    const svgHeight = (svgSize.height || 1) + lineHeight + 40;
+    const svgHeight = (svgSize.height || 1) + (numLayers * 100); // extra padding for overlap
 
     return (
         <React.Fragment>
@@ -1360,11 +1375,11 @@ const GuideLines = ({
                 <svg
                     width={svgWidth}
                     height={svgHeight}
-                    style={{ position: "absolute", left: 0, top: 0 }}
+                    style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}
                     className="overflow-visible"
                 >
                     {(() => {
-                        const clusters = new Map<string, { top1?: { x: number; y: number }, top2?: { x: number; y: number } }>();
+                        const clusters = new Map<string, { top1?: { x: number; y: number }, top2?: { x: number; y: number }, bottom1?: { x: number; y: number }, bottom2?: { x: number; y: number } }>();
                         guidePointsPx.forEach((p) => {
                             const parts = p.label.split("-");
                             const cluster = parts[0];
@@ -1372,16 +1387,19 @@ const GuideLines = ({
                             const idx = parts[2];
                             if (side !== "top") return;
                             const entry = clusters.get(cluster) || {};
-                            if (idx === "1") entry.top1 = { x: p.x, y: p.y };
-                            if (idx === "2") entry.top2 = { x: p.x, y: p.y };
+                            if (!p.isBottom) {
+                                if (idx === "1") entry.top1 = { x: p.x, y: p.y };
+                                if (idx === "2") entry.top2 = { x: p.x, y: p.y };
+                            } else {
+                                if (idx === "1") entry.bottom1 = { x: p.x, y: p.y };
+                                if (idx === "2") entry.bottom2 = { x: p.x, y: p.y };
+                            }
                             clusters.set(cluster, entry);
                         });
 
                         return Array.from(clusters.entries()).map(([cluster, pts]) => {
-                            if (!pts.top1 || !pts.top2) return null;
-                            const bottom1 = { x: pts.top1.x, y: pts.top1.y + lineHeight };
-                            const bottom2 = { x: pts.top2.x, y: pts.top2.y + lineHeight };
-                            const d = `M ${pts.top1.x} ${pts.top1.y} L ${pts.top2.x} ${pts.top2.y} L ${bottom2.x} ${bottom2.y} L ${bottom1.x} ${bottom1.y} Z`;
+                            if (!pts.top1 || !pts.top2 || !pts.bottom1 || !pts.bottom2) return null;
+                            const d = `M ${pts.top1.x} ${pts.top1.y} L ${pts.top2.x} ${pts.top2.y} L ${pts.bottom2.x} ${pts.bottom2.y} L ${pts.bottom1.x} ${pts.bottom1.y} Z`;
                             return (
                                 <path
                                     key={`trap-${cluster}`}
@@ -1395,33 +1413,41 @@ const GuideLines = ({
                         const isDebug = p.label === "L2-top-1" || p.label === "L2-top-2";
                         const debugIdx = p.label.endsWith("-1") ? "1" : "2";
                         return (
-                        <g key={`back-${i}`}>
-                            <line
-                                x1={p.x}
-                                y1={p.y}
-                                x2={p.x}
-                                y2={p.y + lineHeight}
-                                stroke="#94a3b8"
-                                strokeWidth="1.2"
-                                strokeDasharray="1 5"
-                                opacity="0.6"
-                            />
-                            {isDebug && (
-                                <>
-                                    <circle cx={p.x} cy={p.y} r={5} fill="#ff4fd8" />
-                                    <text
-                                        x={p.x + 8}
-                                        y={p.y - 12}
-                                        fill="#ff4fd8"
-                                        fontSize="12"
-                                        fontWeight={700}
-                                        fontFamily='ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-                                    >
-                                        {debugIdx}
-                                    </text>
-                                </>
-                            )}
-                        </g>
+                            <g key={`back-${i}`}>
+                                <line
+                                    x1={p.x}
+                                    y1={p.y}
+                                    x2={p.x}
+                                    y2={(() => {
+                                        const parts = p.label.split("-");
+                                        const cluster = parts[0];
+                                        const side = parts[1];
+                                        const idx = parts[2];
+                                        const tag = `${cluster}-${side}-${idx}`;
+                                        const bottom = guidePointsPx.find(bp => bp.label === tag && bp.isBottom);
+                                        return bottom ? bottom.y : p.y;
+                                    })()}
+                                    stroke="#94a3b8"
+                                    strokeWidth="1.2"
+                                    strokeDasharray="1 5"
+                                    opacity="0.6"
+                                />
+                                {isDebug && (
+                                    <>
+                                        <circle cx={p.x} cy={p.y} r={5} fill="#ff4fd8" />
+                                        <text
+                                            x={p.x + 8}
+                                            y={p.y - 12}
+                                            fill="#ff4fd8"
+                                            fontSize="12"
+                                            fontWeight={700}
+                                            fontFamily='ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+                                        >
+                                            {debugIdx}
+                                        </text>
+                                    </>
+                                )}
+                            </g>
                         );
                     })}
                 </svg>
@@ -1439,7 +1465,15 @@ const GuideLines = ({
                                 x1={p.x}
                                 y1={p.y}
                                 x2={p.x}
-                                y2={p.y + lineHeight}
+                                y2={(() => {
+                                    const parts = p.label.split("-");
+                                    const cluster = parts[0];
+                                    const side = parts[1];
+                                    const idx = parts[2];
+                                    const tag = `${cluster}-${side}-${idx}`;
+                                    const bottom = guidePointsPx.find(bp => bp.label === tag && bp.isBottom);
+                                    return bottom ? bottom.y : p.y;
+                                })()}
                                 stroke="#94a3b8"
                                 strokeWidth="1.2"
                                 strokeDasharray="1 5"

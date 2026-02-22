@@ -49,7 +49,7 @@ interface KeyboardViewInstanceProps {
     stackIndex?: number;
     layerSpacingPx?: number;
     baseBadgeOffsetY?: number | null;
-    onBaseBadgeOffsetY?: (offset: number | null) => void;
+    onBaseBadgeOffsetY?: (offset: number) => void;
 }
 
 /**
@@ -94,16 +94,8 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     useLayoutEffect(() => {
         if (!is3DMode) {
             setBadgeOffsetY(0);
-            if (stackIndex === 0) onBaseBadgeOffsetY?.(null);
             return;
         }
-
-        if (stackIndex === 0) {
-            // Immediately set a guestimate so the animation starts at the same time as the keys.
-            // Standard offset for the tilted keyboard is around 450-480px.
-            if (badgeOffsetY === 0) setBadgeOffsetY(450);
-        }
-
         if (stackIndex !== 0) return;
         const container = containerRef.current;
         const badgeEl = badgeRowRef.current;
@@ -117,7 +109,6 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
             const badgeCenter = badgeRect.top + (badgeRect.height / 2);
             const labelCenter = labelRect.top + (labelRect.height / 2);
             const baseOffset = labelCenter - badgeCenter;
-
             onBaseBadgeOffsetY?.(baseOffset);
             setBadgeOffsetY(baseOffset);
         };
@@ -133,14 +124,10 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     }, [is3DMode, stackIndex, keyVariant, onBaseBadgeOffsetY]);
 
     useLayoutEffect(() => {
-        if (!is3DMode || stackIndex === 0) return;
-
+        if (!is3DMode || stackIndex === 0 || baseBadgeOffsetY === null) return;
         const stepYValue = layerSpacingPx * 0.8192;
         const projectedShift = isMultiLayersActive ? (-stackIndex * stepYValue) : 0;
-
-        // Use guestimate if parent hasn't shared real value yet, prevents badges flying to 0
-        const effectiveBase = baseBadgeOffsetY ?? 450;
-        setBadgeOffsetY(effectiveBase + projectedShift);
+        setBadgeOffsetY(baseBadgeOffsetY + projectedShift);
     }, [is3DMode, isMultiLayersActive, stackIndex, baseBadgeOffsetY, layerSpacingPx]);
 
     const [isHudMode, setIsHudMode] = useState(false);
@@ -169,12 +156,6 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
 
     if (!keyboard) return null;
-
-
-
-
-
-
 
 
     const handleSelectLayer = (layer: number) => () => {
@@ -427,7 +408,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
     return (
         <div
             ref={containerRef}
-            className="w-full flex-shrink-0 pointer-events-none"
+            className="w-full flex-shrink-0"
             style={{
                 opacity: (isRevealing || isHiding) ? 0 : 1,
                 transition: 'opacity 200ms ease-in-out',
@@ -435,7 +416,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
         >
             {/* Layer Controls Row: Hide-blank-layers toggle + layer tabs + (optional) remove button */}
             <div
-                className="flex items-center gap-2 pl-5 pb-2 whitespace-nowrap pointer-events-auto"
+                className="flex items-center gap-2 pl-5 pb-2 whitespace-nowrap"
                 style={isPrimary && multiLayerHeaderOffset > 0 ? { marginTop: -multiLayerHeaderOffset } : undefined}
             >
                 {!hideLayerTabs && (
@@ -534,8 +515,10 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
             {/* Layer Name Badge Row */}
             <div
                 ref={badgeRowRef}
-                className="pl-5 pt-[7px] pb-2 flex items-center gap-2 pointer-events-auto transition-transform duration-500 ease-in-out"
-                style={{ transform: is3DMode ? `translateY(${badgeOffsetY}px)` : 'translateY(0px)' }}
+                className="pl-5 pt-[7px] pb-2 flex items-center gap-2"
+                style={is3DMode
+                    ? { transform: `translateY(${badgeOffsetY}px)`, transition: 'transform 500ms ease-in-out' }
+                    : undefined}
             >
                 <div style={{ marginLeft: -20 }}>
                     <LayerNameBadge
@@ -584,7 +567,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
             {/* Keyboard */}
             <div
                 className={cn(
-                    "flex items-start justify-center max-w-full pointer-events-none",
+                    "flex items-start justify-center max-w-full",
                     is3DMode && "keyboard-3d-wrapper"
                 )}
                 style={is3DMode
@@ -596,7 +579,7 @@ const KeyboardViewInstance: FC<KeyboardViewInstanceProps> = ({
             >
                 <div
                     className={cn(
-                        "transition-transform duration-500 ease-in-out pointer-events-none",
+                        "transition-transform duration-500 ease-in-out",
                         is3DMode && "keyboard-3d-active"
                     )}
                     style={{
